@@ -12,6 +12,12 @@
 # user-local portable ZIP from Kitware. Pass -NoAutoInstall to disable that
 # and fail with an error instead.
 #
+# The JDK is autodetected the same way: -JavaHome, COLD_JAVA_HOME /
+# JAVA_HOME / JDK_HOME, previous portable installs, java/javac on PATH,
+# then Adoptium / Oracle / Microsoft / Zulu / Corretto / BellSoft homes
+# and ~/.jdks. When nothing is found a portable Temurin JDK ($JdkVersion)
+# is downloaded automatically unless -NoAutoInstall is given.
+#
 # Steps:
 #   1. node tools/genmappings.mjs
 #   2. node tools/packassets.mjs
@@ -23,6 +29,7 @@ param(
     [string]$BuildDir = "build/native",
     [string]$JavaHome = "",
     [string]$CmakeVersion = "3.30.5",
+    [string]$JdkVersion = "21",
     [switch]$SkipGenerators,
     [switch]$NoAutoInstall
 )
@@ -65,10 +72,11 @@ function Find-CMake {
             if ($hits) { $portable += $hits.FullName }
         }
     }
-    return (Find-CommandPath "cmake" @(
+    $fallbacks = @(
         "C:\Program Files\CMake\bin\cmake.exe",
         "C:\Program Files (x86)\CMake\bin\cmake.exe"
-    ) + $portable)
+    ) + $portable
+    return (Find-CommandPath "cmake" $fallbacks)
 }
 
 function Invoke-Native {
@@ -174,6 +182,162 @@ function Invoke-Step {
     }
 }
 
+function Test-JdkHome {
+    param([string]$Candidate)
+    if (-not $Candidate) { return $false }
+    return (Test-Path -LiteralPath (Join-Path $Candidate "include\jni.h"))
+}
+
+function Find-JdkFromCommand {
+    param([string]$Command)
+    $cmd = Get-Command $Command -ErrorAction SilentlyContinue
+    if (-not $cmd -or -not $cmd.Source) { return $null }
+    $jdkHome = Split-Path -Parent (Split-Path -Parent $cmd.Source)
+    if (Test-JdkHome $jdkHome) { return $jdkHome }
+    return $null
+}
+
+function Get-JdkMajor {
+    param([string]$Path)
+    $leaf = Split-Path -Leaf $Path
+    $m = [regex]::Match($leaf, '(?i)jdk[-_ ]?(\d+)')
+    if (-not $m.Success) { $m = [regex]::Match($leaf, '(\d+)') }
+    if ($m.Success) { return [int]$m.Groups[1].Value }
+    return 0
+}
+
+function Select-BestJdk {
+    param([string[]]$Candidates)
+    $seen = @()
+    $unique = @()
+    foreach ($c in $Candidates) {
+        if ($c -and ($seen -notcontains $c)) { $seen += $c; $unique += $c }
+    }
+    if ($unique.Count -eq 0) { return $null }
+    $best = $unique[0]
+    $bestVer = Get-JdkMajor $best
+    foreach ($c in $unique) {
+        $v = Get-JdkMajor $c
+        if ($v -gt $bestVer) { $best = $c; $bestVer = $v }
+    }
+    return $best
+}
+function Find-Jdk {
+    $candidates = @()
+    $roots = @((Join-Path $RepoRoot "build\tools"))
+    if ($env:LOCALAPPDATA) { $roots += (Join-Path $env:LOCALAPPDATA "CobbleBuild") }
+    foreach ($root in $roots) {
+        if (Test-Path -LiteralPath $root) {
+            $hit = Get-ChildItem -Path $root -Filter "jni.h" -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -like "*\include\jni.h" } |
+                Select-Object -First 1
+            if ($hit) {
+                $jdkHome = Split-Path -Parent (Split-Path -Parent $hit.FullName)
+                if (Test-JdkHome $jdkHome) { $candidates += $jdkHome }
+            }
+        }
+    }
+    foreach ($c in @((Find-JdkFromCommand "javac"), (Find-JdkFromCommand "java"))) {
+        if ($c) { $candidates += $c }
+    }
+    $patterns = @(
+        "C:\Program Files\Eclipse Adoptium\*\include\jni.h",
+        "C:\Program Files\Java\*\include\jni.h",
+        "C:\Program Files\Microsoft\*\include\jni.h",
+        "C:\Program Files\Zulu\*\include\jni.h",
+        "C:\Program Files\Amazon Corretto\*\include\jni.h",
+        "C:\Program Files\BellSoft\*\include\jni.h",
+        "C:\jdk*\include\jni.h"
+    )
+    if ($env:USERPROFILE) { $patterns += (Join-Path $env:USERPROFILE ".jdks\*\include\jni.h") }
+    if ($env:LOCALAPPDATA) {
+        $patterns += (Join-Path $env:LOCALAPPDATA "Programs\Eclipse Adoptium\*\include\jni.h")
+    }
+    $found = @()
+    foreach ($p in $patterns) {
+        $hits = Get-Item -Path $p -ErrorAction SilentlyContinue
+        foreach ($h in $hits) { $found += $h.FullName }
+    }
+    foreach ($f in $found) {
+        $candidates += (Split-Path -Parent (Split-Path -Parent $f))
+    }
+    return (Select-BestJdk $candidates)
+}
+
+function Install-JdkPortable {
+    param([string]$Version)
+    $destRoot = Join-Path $RepoRoot "build\tools\jdk-$Version"
+    $zipPath = Join-Path $env:TEMP "temurin-$Version-jdk-windows-x64.zip"
+    $url = "https://api.adoptium.net/v3/binary/latest/$Version/ga/windows/x64/jdk/hotspot/normal/eclipse"
+    Write-Host "Downloading Temurin JDK $Version (portable, user-local) ..." -ForegroundColor Cyan
+    Write-Host "    $url"
+    try {
+        if (Test-Path -LiteralPath $destRoot) {
+            Remove-Item -LiteralPath $destRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        New-Item -ItemType Directory -Force -Path $destRoot | Out-Null
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+        Expand-Archive -LiteralPath $zipPath -DestinationPath $destRoot -Force
+        $hit = Get-ChildItem -Path $destRoot -Filter "jni.h" -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -like "*\include\jni.h" } |
+            Select-Object -First 1
+        if (-not $hit) {
+            Write-Host "JDK download did not contain include/jni.h." -ForegroundColor Yellow
+            return $null
+        }
+        $jdkHome = Split-Path -Parent (Split-Path -Parent $hit.FullName)
+        Write-Host "Portable JDK ready: $jdkHome" -ForegroundColor Green
+        return $jdkHome
+    } catch {
+        Write-Host ("Portable JDK install failed: " + $_.Exception.Message) -ForegroundColor Yellow
+        return $null
+    } finally {
+        if (Test-Path -LiteralPath $zipPath) {
+            Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Ensure-Jdk {
+    param([string]$Explicit, [string]$Version, [switch]$NoInstall)
+    if ($Explicit) {
+        if (Test-JdkHome $Explicit) { return $Explicit }
+        Write-Error "-JavaHome does not contain include/jni.h: $Explicit"
+        exit 1
+    }
+    foreach ($e in @($env:COLD_JAVA_HOME, $env:JAVA_HOME, $env:JDK_HOME)) {
+        if ($e -and (Test-JdkHome $e)) { return $e }
+    }
+    $jdkHome = Find-Jdk
+    if ($jdkHome) { return $jdkHome }
+    if ($NoInstall) {
+        Write-Error "No JDK found. Install Temurin 21+ from https://adoptium.net, or pass -JavaHome <path> / set JAVA_HOME. Rerun without -NoAutoInstall to download one automatically."
+        exit 1
+    }
+    Write-Host "No JDK found. Installing Temurin JDK $Version automatically ..." -ForegroundColor Yellow
+    $winget = Get-Command "winget" -ErrorAction SilentlyContinue
+    if ($winget) {
+        Write-Host "Trying winget (Temurin $Version JDK) ..." -ForegroundColor Cyan
+        $code = Invoke-Native "winget" @("install", "-e", "--id", "EclipseAdoptium.Temurin.$Version.JDK",
+            "--silent", "--accept-package-agreements", "--accept-source-agreements")
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $jdkHome = Find-Jdk
+        if ($code -eq 0 -and $jdkHome) {
+            Write-Host "JDK installed via winget: $jdkHome" -ForegroundColor Green
+            return $jdkHome
+        }
+        Write-Host "winget install did not yield a JDK, falling back to portable ZIP." -ForegroundColor Yellow
+    } else {
+        Write-Host "winget not available, falling back to portable ZIP." -ForegroundColor DarkYellow
+    }
+    $jdkHome = Install-JdkPortable -Version $Version
+    if ($jdkHome) { return $jdkHome }
+    Write-Error "Automatic JDK install failed. Install Temurin $Version+ from https://adoptium.net and rerun, or pass -JavaHome <path>."
+    exit 1
+}
+
 # ------------------------------------------------------------ prerequisites ---
 $NodeExe = Find-CommandPath "node"
 if (-not $NodeExe) {
@@ -184,23 +348,11 @@ if (-not $NodeExe) {
 $CmakeExe = Ensure-CMake -Version $CmakeVersion -NoInstall:$NoAutoInstall
 
 # ------------------------------------------------------------- JDK location ---
-if (-not $JavaHome) { $JavaHome = $env:COLD_JAVA_HOME }
-if (-not $JavaHome) { $JavaHome = $env:JAVA_HOME }
-if (-not $JavaHome) {
-    $probe = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot"
-    if (Test-Path -LiteralPath (Join-Path $probe "include\jni.h")) {
-        $JavaHome = $probe
-    }
-}
-if (-not $JavaHome) {
-    Write-Error "No JDK found. Pass -JavaHome <path> or set JAVA_HOME to a JDK with include/jni.h."
-    exit 1
-}
-$JniHeader = Join-Path $JavaHome "include\jni.h"
-if (-not (Test-Path -LiteralPath $JniHeader)) {
-    Write-Error "COLD_JAVA_HOME does not contain include/jni.h: $JavaHome"
-    exit 1
-}
+# Autodetected: -JavaHome, COLD_JAVA_HOME / JAVA_HOME / JDK_HOME, previous
+# portable installs, java/javac on PATH, then the usual install locations.
+# When nothing is found a portable Temurin JDK is downloaded automatically
+# (use -NoAutoInstall to disable).
+$JavaHome = Ensure-Jdk -Explicit $JavaHome -Version $JdkVersion -NoInstall:$NoAutoInstall
 
 Write-Host "Repo:      $RepoRoot"
 Write-Host "Config:    $Config"
