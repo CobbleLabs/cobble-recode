@@ -4,6 +4,13 @@
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Config Release
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -JavaHome "C:\Path\To\JDK"
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -SkipGenerators
+#   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -NoAutoInstall
+#
+# CMake is autodetected (PATH plus the usual install locations plus any
+# previous portable install under build/tools). When nothing is found the
+# script installs it automatically: winget first, then Chocolatey, then a
+# user-local portable ZIP from Kitware. Pass -NoAutoInstall to disable that
+# and fail with an error instead.
 #
 # Steps:
 #   1. node tools/genmappings.mjs
@@ -15,7 +22,9 @@ param(
     [string]$Config = "Release",
     [string]$BuildDir = "build/native",
     [string]$JavaHome = "",
-    [switch]$SkipGenerators
+    [string]$CmakeVersion = "3.30.5",
+    [switch]$SkipGenerators,
+    [switch]$NoAutoInstall
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,6 +55,113 @@ function Find-CommandPath {
     return $null
 }
 
+function Find-CMake {
+    $portable = @()
+    foreach ($root in @((Join-Path $RepoRoot "build\tools"), (Join-Path $env:LOCALAPPDATA "CobbleBuild"))) {
+        if (Test-Path -LiteralPath $root) {
+            $hits = Get-ChildItem -Path $root -Filter "cmake.exe" -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -like "*\bin\cmake.exe" } |
+                Select-Object -First 1
+            if ($hits) { $portable += $hits.FullName }
+        }
+    }
+    return (Find-CommandPath "cmake" @(
+        "C:\Program Files\CMake\bin\cmake.exe",
+        "C:\Program Files (x86)\CMake\bin\cmake.exe"
+    ) + $portable)
+}
+
+function Invoke-Native {
+    param([string]$Exe, [string[]]$StepArgs = @())
+    & $Exe @StepArgs
+    return $LASTEXITCODE
+}
+
+function Install-CMakePortable {
+    param([string]$Version)
+    $zipName = "cmake-$Version-windows-x86_64.zip"
+    $url = "https://github.com/Kitware/CMake/releases/download/v$Version/$zipName"
+    $destRoot = Join-Path $RepoRoot "build\tools\cmake-$Version"
+    $zipPath = Join-Path $env:TEMP $zipName
+    Write-Host "Downloading portable CMake $Version ..." -ForegroundColor Cyan
+    Write-Host "    $url"
+    try {
+        if (Test-Path -LiteralPath $destRoot) {
+            Remove-Item -LiteralPath $destRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        New-Item -ItemType Directory -Force -Path $destRoot | Out-Null
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing
+        Expand-Archive -LiteralPath $zipPath -DestinationPath $destRoot -Force
+        $exe = Get-ChildItem -Path $destRoot -Filter "cmake.exe" -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -like "*\bin\cmake.exe" } |
+            Select-Object -First 1
+        if (-not $exe) {
+            Write-Host "Portable CMake download did not contain bin/cmake.exe." -ForegroundColor Yellow
+            return $null
+        }
+        Write-Host "Portable CMake ready: $($exe.FullName)" -ForegroundColor Green
+        return $exe.FullName
+    } catch {
+        Write-Host ("Portable CMake install failed: " + $_.Exception.Message) -ForegroundColor Yellow
+        return $null
+    } finally {
+        if (Test-Path -LiteralPath $zipPath) {
+            Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Ensure-CMake {
+    param([string]$Version, [switch]$NoInstall)
+    $exe = Find-CMake
+    if ($exe) { return $exe }
+    if ($NoInstall) {
+        Write-Error "cmake was not found. Install CMake 3.21+ (with PATH entry) or rerun without -NoAutoInstall."
+        exit 1
+    }
+    Write-Host "cmake was not found. Installing automatically ..." -ForegroundColor Yellow
+
+    $winget = Get-Command "winget" -ErrorAction SilentlyContinue
+    if ($winget) {
+        Write-Host "Trying winget (Kitware.CMake) ..." -ForegroundColor Cyan
+        $code = Invoke-Native "winget" @("install", "-e", "--id", "Kitware.CMake", "--silent",
+            "--accept-package-agreements", "--accept-source-agreements")
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $exe = Find-CMake
+        if ($code -eq 0 -and $exe) {
+            Write-Host "CMake installed via winget: $exe" -ForegroundColor Green
+            return $exe
+        }
+        Write-Host "winget install did not yield cmake, trying next method." -ForegroundColor Yellow
+    } else {
+        Write-Host "winget not available, trying next method." -ForegroundColor DarkYellow
+    }
+
+    $choco = Get-Command "choco" -ErrorAction SilentlyContinue
+    if ($choco) {
+        Write-Host "Trying Chocolatey (cmake) ..." -ForegroundColor Cyan
+        $code = Invoke-Native "choco" @("install", "cmake", "-y", "--no-progress")
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $exe = Find-CMake
+        if ($code -eq 0 -and $exe) {
+            Write-Host "CMake installed via Chocolatey: $exe" -ForegroundColor Green
+            return $exe
+        }
+        Write-Host "Chocolatey install did not yield cmake, trying portable ZIP." -ForegroundColor Yellow
+    } else {
+        Write-Host "Chocolatey not available, falling back to portable ZIP." -ForegroundColor DarkYellow
+    }
+
+    $exe = Install-CMakePortable -Version $Version
+    if ($exe) { return $exe }
+    Write-Error ("Automatic CMake install failed. Install CMake $Version+ manually " +
+        "from https://cmake.org/download/ and rerun.")
+    exit 1
+}
+
 function Invoke-Step {
     param([string]$Label, [string]$Exe, [string[]]$StepArgs = @())
     Write-Host ""
@@ -65,14 +181,7 @@ if (-not $NodeExe) {
     exit 1
 }
 
-$CmakeExe = Find-CommandPath "cmake" @(
-    "C:\Program Files\CMake\bin\cmake.exe",
-    "C:\Program Files (x86)\CMake\bin\cmake.exe"
-)
-if (-not $CmakeExe) {
-    Write-Error "cmake was not found. Install CMake 3.21+ (with PATH entry) and retry."
-    exit 1
-}
+$CmakeExe = Ensure-CMake -Version $CmakeVersion -NoInstall:$NoAutoInstall
 
 # ------------------------------------------------------------- JDK location ---
 if (-not $JavaHome) { $JavaHome = $env:COLD_JAVA_HOME }
@@ -99,6 +208,7 @@ Write-Host "BuildDir:  $BuildDir"
 Write-Host "JDK:       $JavaHome"
 Write-Host "Node:      $NodeExe"
 Write-Host "CMake:     $CmakeExe"
+& $CmakeExe --version | Select-Object -First 1
 
 # ---------------------------------------------------------------- generators --
 if (-not $SkipGenerators) {
