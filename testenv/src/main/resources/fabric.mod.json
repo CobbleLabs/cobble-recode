@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "cobble_testenv",
+  "version": "1.0.0",
+  "name": "Cobble Recode test environment",
+  "description": "Host mod used to bring up a Fabric 1.21.11 client for Cobble Recode native payload injection tests.",
+  "authors": ["Cobble Recode"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["wtf.cold.testenv.TestEnvClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}

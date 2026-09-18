@@ -1,0 +1,26 @@
+# Personal / local-only (never push)
+.freebuff/
+usefulinfo/
+
+# Build output
+build/
+testenv/build/
+testenv/.gradle/
+testenv/run/
+testenv/run-server/
+
+# Runtime artefacts next to the payload
+dist/*.log
+dist/*.cfg
+dist/*.bmp
+dist/*.png
+dist/coldwtf.control
+dist/coldwtf.control.out
+dist/coldwtf.control.tmp
+dist/*.dll
+dist/*.exe
+dist/*.pdb
+dist/*.lib
+dist/*.exp
+# The build copies scripts/ next to the payload; the folder itself is the source.
+dist/scripts/

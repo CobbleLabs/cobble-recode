@@ -1,0 +1,73 @@
+plugins {
+    id 'fabric-loom' version '1.17.20'
+    id 'java'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+}
+
+loom {
+    runs {
+        client {
+            programArgs '--username', 'cobble_dev'
+            programArgs '--width', '1280', '--height', '720'
+            vmArgs '-Dcobble.dev=true'
+            vmArgs "-Dcobble.pidfile=${rootProject.file('../build/mc.pid')}"
+            // -Ppayload=<path to cobble.dll> loads the native client in-process,
+            // which skips the injector for a scripted end-to-end run.
+            if (project.hasProperty('payload')) {
+                vmArgs "-Dcobble.autoload=${project.property('payload')}"
+            }
+            if (project.hasProperty('quickPlay')) {
+                programArgs '--quickPlaySingleplayer', project.property('quickPlay')
+            }
+            // -Pserver joins the local dev server straight from the launch, so a
+            // scripted run reaches a world with real latency without any input.
+            if (project.hasProperty('server')) {
+                programArgs '--quickPlayMultiplayer', project.property('server')
+            }
+        }
+        server {
+            runDir = 'run-server'
+            programArgs '--nogui'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+tasks.register('exportMappings', Copy) {
+    description = 'Copies the resolved tiny v2 mappings next to tools/ for the native mapping generator.'
+    group = 'cobble'
+    from({ zipTree(configurations.mappings.singleFile) }) {
+        include 'mappings/mappings.tiny'
+    }
+    into rootProject.file('../build/mappings')
+    eachFile { it.path = it.name }
+    includeEmptyDirs = false
+}
