@@ -118,6 +118,23 @@ private:
         float on = 0.0f;
         float enter = 1.0f;  // 0..1 arrival, staggered by position in the list
         bool binding = false;
+
+        /* Text the row draws every frame but only changes when something it
+         * depends on does.
+         *
+         * Eliding walks the string and re-measures what is left of it once per
+         * dropped code point, and every measure is a hash lookup per glyph - a
+         * few thousand of them per frame across a list, to arrive at the same
+         * answer as the frame before. `title` is the uppercased name the subpage
+         * header wants, and the bind chip is a formatted key name. None of it
+         * depends on the frame, so none of it is recomputed on one. */
+        std::string title;         // upperCase(name), for the subpage header
+        std::string descShown;     // description, elided to descLimit
+        float descLimit = -1.0f;   // width descShown was elided to
+        float descScale = 0.0f;    // scale_ descShown was measured at
+        std::string bindShown;     // formatted keybind chip
+        int bindKey = -2;          // key bindShown was built from (-2 = unset)
+        bool bindListening = false;
     };
 
     struct Tab {
@@ -130,6 +147,16 @@ private:
         std::vector<std::size_t> rows;  // indices into rows_
         Rect bounds;
         float hover = 0.0f;
+
+        /* Uppercased label and its tracked width, which the header needs every
+         * frame and which only move when the scale does. The tracked width is a
+         * measure per glyph, so it is not free. */
+        std::string title;
+        float titleWidth = 0.0f;
+        float titleScale = 0.0f;
+        /* "8 MODULES", rebuilt only when the row count changes. */
+        std::string count;
+        std::size_t countFor = static_cast<std::size_t>(-1);
     };
 
     /* One saved/loadable config file beside the payload DLL. */
@@ -185,7 +212,7 @@ private:
 
     void drawTabBar();
     void drawCard();
-    void drawCardHeader(const Tab& tab);
+    void drawCardHeader(Tab& tab);
     void drawSubpageHeader(const Row& row);
     void drawRow(Row& row);
     void drawSetting(Row& owner, SettingRow& setting);
@@ -196,6 +223,16 @@ private:
     void drawChip(float x, float centreY, std::string_view text, const Color& background,
                   const Color& textColour);
     void renderCursor(render::Renderer& gfx);
+
+    /* Refresh the per-frame text caches only when their inputs moved. */
+    const std::string& rowBind(Row& row);
+    const std::string& rowDescription(Row& row, float limit);
+    /* Whether a rectangle can contribute a visible pixel to the card body, so a
+     * row scrolled out of sight costs nothing but this test. */
+    bool visibleInBody(const Rect& bounds) const;
+    /* Whether the body clip rectangle can actually cut anything this frame. The
+     * scissor is free but the flush that installing it forces is not. */
+    bool bodyNeedsClip() const;
 
     Row* findRow(std::string_view moduleName);
     void selectTab(std::size_t index);
@@ -242,10 +279,25 @@ private:
     bool pageLeaving_ = false;   // the outgoing page is on its way out
     float cardHeight_ = 0.0f;    // smoothed, so a taller category grows into place
 
+    /* The brand label, uppercased and measured with its tracking, plus the capsule
+     * width that follows from it. Both animations need all three every frame they
+     * run, and the measure is a hash lookup per glyph, so they are resolved once
+     * per scale instead. */
+    void refreshBrand();
+    float capsuleWidth(float barWidth);
+    std::string brandText_;
+    float brandWidth_ = 0.0f;
+    float brandScale_ = 0.0f;
+
     /* Once per injection, not once per open. */
     bool revealSpent_ = false;
     bool revealing_ = false;
     float revealClock_ = 0.0f;
+    /* Every close, on its own clock: the reveal in reverse and tightened up. Runs
+     * instead of the plain slide_ fade, which is left for the one case the exit
+     * cannot start from - a close that lands mid-reveal. */
+    bool exiting_ = false;
+    float exitClock_ = 0.0f;
     Reveal reveal_;
 
     std::size_t subpageRow_ = kNoRow;

@@ -46,8 +46,9 @@ private:
     int sourceWidth_ = 0;
     int sourceHeight_ = 0;
     /* Consecutive failed captures. A context that will not run the pyramid at
-     * all fails every frame, and one log line per frame buries everything
-     * else in the file. */
+     * all fails every frame: one log line per frame buries everything else in
+     * the file, and nine wasted render passes per frame is a framerate. */
+    static constexpr int kFailureLimit = 8;
     int failures_ = 0;
     bool valid_ = false;
     bool ready_ = false;

@@ -126,6 +126,33 @@ constexpr float kRevealUnfoldEnd = 1.66f;
 constexpr float kRevealEnd = 1.70f;
 constexpr float kRevealPopScale = 0.32f;  // capsule width at the start of the pop
 
+/* ------------------------------------------------------------------------- *
+ * Exit.
+ *
+ * The reveal run backwards on a tighter clock: the card folds up into the bar,
+ * the bar contracts back to the capsule, the capsule drops away. Same shapes,
+ * same eases, same trick of overlapping the windows - the bar starts narrowing
+ * while the card is still folding - which is what keeps it one movement instead
+ * of three in a queue.
+ *
+ * A third of the reveal's length, and with neither the brand label nor the hold.
+ * The entrance is the client introducing itself and can afford a beat to be read;
+ * on the way out there is nothing to read, and whoever triggered it is waiting to
+ * get back to the game. An exit that takes as long as an entrance reads as the
+ * menu being reluctant to leave.
+ * ------------------------------------------------------------------------- */
+constexpr float kExitFoldEnd = 0.16f;      // card folded back into the bar
+constexpr float kExitNarrowStart = 0.10f;  // before the fold ends, on purpose
+constexpr float kExitNarrowEnd = 0.28f;    // bar is a capsule again
+/* The name signs off inside the capsule, the way the reveal signs on: it arrives
+ * as the contraction settles and leaves as the collapse begins, so it is only
+ * ever on a shape that is holding still. The mechanical phases above were
+ * tightened to pay for the beat it needs. */
+constexpr float kExitLabelIn = 0.19f;
+constexpr float kExitLabelFull = 0.31f;
+constexpr float kExitPopStart = 0.40f;  // capsule starts dropping away
+constexpr float kExitEnd = 0.52f;
+
 constexpr std::size_t kMaxConfigName = 24;
 
 /* ------------------------------------------------------------------------- *
@@ -311,8 +338,77 @@ enum : int {
 Color ClickGui::accent(float alpha) const { return theme().accent.withAlpha(alpha_ * alpha); }
 
 /* ------------------------------------------------------------------------- *
+ * Per-frame work that does not need to be per-frame
+ * ------------------------------------------------------------------------- */
+
+bool ClickGui::visibleInBody(const Rect& bounds) const {
+    return bounds.bottom() > body_.y - 1.0f && bounds.y < body_.bottom() + 1.0f;
+}
+
+bool ClickGui::bodyNeedsClip() const {
+    /* Conservative on purpose: anything in flight gets the clip, and only a
+     * settled list that already fits goes without it. The cascade lifts a row
+     * above the body's top edge, a handover can be drawing the outgoing page
+     * while `content_` already describes the incoming one, and a scrolled or
+     * overflowing body obviously has to be cut. */
+    if (scroll_ > 0.5f) {
+        return true;
+    }
+    if (content_ > body_.height - 0.5f) {
+        return true;
+    }
+    return pageEnter_ < 0.999f || pageFade_ < 0.999f;
+}
+
+const std::string& ClickGui::rowBind(Row& row) {
+    const int key = row.module != nullptr ? row.module->key() : 0;
+    if (row.bindKey != key || row.bindListening != row.binding) {
+        row.bindKey = key;
+        row.bindListening = row.binding;
+        row.bindShown = bindLabel(key, row.binding);
+    }
+    return row.bindShown;
+}
+
+const std::string& ClickGui::rowDescription(Row& row, float limit) {
+    /* elide() re-measures what is left of the string once per code point it
+     * drops, and each measure is a hash lookup per glyph. The answer only moves
+     * when the width it has to fit or the scale it is measured at does. */
+    if (row.descLimit != limit || row.descScale != scale_) {
+        row.descLimit = limit;
+        row.descScale = scale_;
+        row.descShown = elideText(kDescFont, row.description, s(kDescBox), limit);
+    }
+    return row.descShown;
+}
+
+/* ------------------------------------------------------------------------- *
  * Reveal
  * ------------------------------------------------------------------------- */
+
+void ClickGui::refreshBrand() {
+    if (brandScale_ == scale_ && !brandText_.empty()) {
+        return;
+    }
+    brandScale_ = scale_;
+    /* Short name, rule, version - the build's own, so this line dates the binary
+     * it shipped in. */
+    brandText_ = upperCase(kClientShortName) + " | V" + std::string(kClientVersion);
+    /* Measured, and drawn, as one run.
+     *
+     * The card headers are tracked a glyph at a time, which suits a small title
+     * sitting in a row of other things. It is wrong here for two reasons: at this
+     * length the extra 1.4px per letter reads as the word coming apart, and every
+     * one of those per-glyph calls has its origin snapped to a whole pixel on its
+     * own, so the gaps come out uneven on top of being wide. One run lets the font
+     * space itself and rounds once. */
+    brandWidth_ = textWidth(kHeadingFont, brandText_, s(kHeadingBox));
+}
+
+float ClickGui::capsuleWidth(float barWidth) {
+    refreshBrand();
+    return std::min(barWidth, brandWidth_ + s(56.0f));
+}
 
 float ClickGui::entranceAt(std::size_t ordinal) const {
     if (pageEnter_ >= 1.0f) {
@@ -336,6 +432,53 @@ void ClickGui::advanceReveal(float deltaTime) {
         return done;  // glow 0, label 0, the two content alphas 1, card visible
     };
 
+    /* The exit fills the same rectangles from the other end, so every draw
+     * function below is unchanged: the card is painted at a frame that is now
+     * shrinking, and the clip it already installs while unfolding is what makes
+     * the fold hide its contents top-down instead of squashing them. */
+    if (exiting_) {
+        const float clock = exitClock_;
+        const float foldT = ease::morph(ease::window(clock, 0.0f, kExitFoldEnd));
+        const float narrowT = ease::morph(ease::window(clock, kExitNarrowStart, kExitNarrowEnd));
+        const float popT = ease::morph(ease::window(clock, kExitPopStart, kExitEnd));
+
+        reveal_ = settled();
+
+        /* Contents go first and quickly. Letting them ride the fold would drag a
+         * row halfway under the closing edge and hold it there. */
+        reveal_.cardContent = 1.0f - ease::outCubic(ease::window(clock, 0.0f, kExitFoldEnd * 0.6f));
+        reveal_.barContent =
+            1.0f - ease::outCubic(ease::window(clock, kExitNarrowStart - 0.06f,
+                                               kExitNarrowStart + 0.08f));
+
+        const float cardHeight = card_.height * (1.0f - foldT);
+        reveal_.cardVisible = cardHeight > 1.0f;
+        reveal_.card = Rect{card_.x, card_.y, card_.width, cardHeight};
+
+        /* Same capsule the reveal is born as, measured the same way, so the shape
+         * the bar contracts into is the shape it grew out of. */
+        const float capsule = capsuleWidth(bar_.width);
+        const float shrink = 1.0f - popT;
+        const float width = lerp(bar_.width, capsule, narrowT) * shrink;
+        const float height = bar_.height * shrink;
+        reveal_.bar = Rect{bar_.centerX() - width * 0.5f, bar_.centerY() - height * 0.5f, width,
+                           height};
+        reveal_.barRadius = lerp(s(kTabBarRadius), reveal_.bar.height * 0.5f, narrowT);
+
+        /* Mirror of the arrival ripple: the halo gathers as the capsule collapses,
+         * so it leaves the way it came in rather than simply ceasing to exist. */
+        reveal_.glow = popT * popT;
+
+        /* Up while the capsule is still, gone before it starts to shrink - the
+         * same rule the reveal's label follows, for the same reason: a centred
+         * string on a box that is changing width is the one thing that gives away
+         * that this is a rectangle being resized. */
+        reveal_.label = ease::outExpo(ease::window(clock, kExitLabelIn, kExitLabelFull)) *
+                        (1.0f - ease::morph(ease::window(clock, kExitPopStart,
+                                                         kExitPopStart + 0.07f)));
+        return;
+    }
+
     if (!revealing_) {
         reveal_ = settled();
         return;
@@ -358,9 +501,7 @@ void ClickGui::advanceReveal(float deltaTime) {
      * before the widen begins, so width is the only axis still travelling by then
      * and the bar cannot drift off the row it belongs on. */
     const float pop = lerp(kRevealPopScale, 1.0f, popT);
-    const std::string brand = upperCase(kClientName);
-    const float labelWidth = trackedWidth(kHeadingFont, brand, s(kHeadingBox), s(kTracking));
-    const float capsule = std::min(bar_.width, labelWidth + s(56.0f));
+    const float capsule = capsuleWidth(bar_.width);
 
     /* The spring overshoots, which is the point, but on a window narrow enough that
      * the capsule is already the full bar width that would briefly make it wider
@@ -525,6 +666,13 @@ void ClickGui::build() {
     }
     tabs_.push_back(std::move(settings));
 
+    /* One pass over everything that was just created, rather than a line at each
+     * of the six places a row is built. The subpage header draws this every
+     * frame and the name never changes. */
+    for (Row& row : rows_) {
+        row.title = upperCase(row.name);
+    }
+
     tab_ = 0;
     if (!pendingTab_.empty()) {
         for (std::size_t index = 0; index < tabs_.size(); ++index) {
@@ -576,6 +724,11 @@ void ClickGui::open() {
     build();
     open_ = true;
     closing_ = false;
+    /* Reopening part way through the exit abandons it outright rather than
+     * playing it backwards: the capsule is mid-collapse and rewinding it from
+     * there lands on a shape the entrance does not start from. */
+    exiting_ = false;
+    exitClock_ = 0.0f;
     slide_ = 0.0f;
     scroll_ = 0.0f;
     /* Every open unrolls its list; the first one of the session also gets the
@@ -595,8 +748,16 @@ void ClickGui::close() {
     if (!open_ || closing_) {
         return;
     }
-    closing_ = true;
-    revealing_ = false;  // shutting the menu mid-reveal abandons it; it stays spent
+    /* Shutting the menu mid-reveal abandons it; it stays spent. */
+    const bool wasRevealing = revealing_;
+    revealing_ = false;
+    /* The card folds back into the bar and the bar contracts into the capsule, on
+     * its own clock. From a standing menu only: mid-reveal the shapes on screen
+     * are a capsule and a half-open card, while the exit would start collapsing
+     * from the settled geometry - a visible jump. That case keeps the plain fade
+     * it always had. */
+    exiting_ = !wasRevealing;
+    exitClock_ = 0.0f;
     releaseAll();
     stopListening();
     if (bindRow_ != nullptr) {
@@ -1336,14 +1497,32 @@ void ClickGui::layout(modules::Context& context) {
     screenW_ = static_cast<float>(state.windowWidth);
     screenH_ = static_cast<float>(state.windowHeight);
 
-    slide_ = approach(slide_, open_ && !closing_ ? 1.0f : 0.0f, kSlideSpeed, deltaTime);
-    if (closing_ && slide_ < 0.02f) {
-        open_ = false;
-        closing_ = false;
-        slide_ = 0.0f;
-        hooks::input().setCapturing(false);
+    if (exiting_) {
+        /* The exit owns the whole close, so the ordinary fade is held wide open
+         * underneath it the same way the reveal holds it. Only the last stretch
+         * takes the alpha down, and by then there is nothing left but the capsule
+         * collapsing - so the fade lands on that and not on a full-size menu. */
+        exitClock_ += deltaTime;
+        slide_ = 1.0f;
+        alpha_ = 1.0f - ease::morph(ease::window(exitClock_, kExitPopStart + 0.04f, kExitEnd));
+        if (exitClock_ >= kExitEnd) {
+            exiting_ = false;
+            open_ = false;
+            closing_ = false;
+            slide_ = 0.0f;
+            alpha_ = 0.0f;
+            hooks::input().setCapturing(false);
+        }
+    } else {
+        slide_ = approach(slide_, open_ && !closing_ ? 1.0f : 0.0f, kSlideSpeed, deltaTime);
+        if (closing_ && slide_ < 0.02f) {
+            open_ = false;
+            closing_ = false;
+            slide_ = 0.0f;
+            hooks::input().setCapturing(false);
+        }
+        alpha_ = clamp(ease::outCubic(clamp(slide_, 0.0f, 1.0f)), 0.0f, 1.0f);
     }
-    alpha_ = clamp(ease::outCubic(clamp(slide_, 0.0f, 1.0f)), 0.0f, 1.0f);
     if (revealing_) {
         /* The reveal owns every fade and every movement while it runs, so the
          * ordinary open is held at "fully arrived" underneath it. Two openings
@@ -1401,9 +1580,10 @@ void ClickGui::layout(modules::Context& context) {
         return;
     }
     const float x = std::floor((screenW_ - width) * 0.5f);
-    /* No rise during the reveal: the capsule's spring is the arrival, and sliding
-     * the whole menu down underneath it would read as two arrivals. */
-    const float rise = revealing_ ? 0.0f : (1.0f - alpha_) * s(10.0f);
+    /* No rise during the reveal or the exit: the capsule's spring is the arrival
+     * and its collapse is the departure, and sliding the whole menu underneath
+     * either would read as two of them. */
+    const float rise = (revealing_ || exiting_) ? 0.0f : (1.0f - alpha_) * s(10.0f);
     const float y = std::floor(s(kTopMargin) - rise);
 
     bar_ = Rect{x, y, width, s(kTabBarHeight)};
@@ -1753,13 +1933,12 @@ void ClickGui::drawTabBar() {
  * splash style is what keeps the reveal looking like this menu introducing
  * itself instead of a loading screen bolted on in front of it. */
 void ClickGui::drawRevealLabel() {
-    const std::string brand = upperCase(kClientName);
+    refreshBrand();
     const float box = s(kHeadingBox);
-    const float tracking = s(kTracking);
-    const float width = trackedWidth(kHeadingFont, brand, box, tracking);
     const Rect frame = reveal_.bar;
-    drawTracked(kHeadingFont, brand, frame.centerX() - width * 0.5f, frame.centerY() - box * 0.5f,
-                box, theme().accent.withAlpha(alpha_ * reveal_.label), tracking);
+    drawText(kHeadingFont, brandText_, frame.centerX() - brandWidth_ * 0.5f,
+             frame.centerY() - box * 0.5f, box,
+             theme().accent.withAlpha(alpha_ * reveal_.label));
 }
 
 void ClickGui::drawCard() {
@@ -1801,7 +1980,15 @@ void ClickGui::drawCard() {
          * the card's structure and is the same line whichever page is showing. */
         const AlphaScope listAlpha{alpha_, pageFade_};
 
-        gfx.pushClip(body_);
+        /* Installing a clip costs a flush, and a flush orphans and refills the
+         * whole primitive buffer, dispatches the expansion kernel and breaks the
+         * frame into another draw call. Most frames the body has nothing to cut -
+         * the card is sized to its content - so the rectangle is only pushed on
+         * the frames where it changes a pixel. */
+        const bool clipBody = bodyNeedsClip();
+        if (clipBody) {
+            gfx.pushClip(body_);
+        }
         if (page != nullptr) {
             if (page->kind == RowKind::Configs) {
                 drawConfigs(*page);
@@ -1818,7 +2005,9 @@ void ClickGui::drawCard() {
                 drawRow(rows_[index]);
             }
         }
-        gfx.popClip();
+        if (clipBody) {
+            gfx.popClip();
+        }
     }
 
     if (unfolding) {
@@ -1826,7 +2015,7 @@ void ClickGui::drawCard() {
     }
 }
 
-void ClickGui::drawCardHeader(const Tab& tab) {
+void ClickGui::drawCardHeader(Tab& tab) {
     render::Renderer& gfx = render::renderer();
     const float height = s(kHeaderHeight);
     const float centreY = card_.y + height * 0.5f;
@@ -1841,20 +2030,32 @@ void ClickGui::drawCardHeader(const Tab& tab) {
         gfx.icon(tab.icon, Rect{cursorX, centreY - iconBox * 0.5f, iconBox, iconBox}, accent());
         cursorX += iconBox + s(10.0f);
 
-        const std::string title = upperCase(tab.label);
+        /* The uppercased label and its tracked width are a measure per glyph;
+         * they only move when the scale does. */
         const float tracking = s(kTracking);
-        drawTracked(kHeadingFont, title, cursorX, centreY - s(kHeadingBox) * 0.5f, s(kHeadingBox),
-                    accent(), tracking);
-        cursorX += trackedWidth(kHeadingFont, title, s(kHeadingBox), tracking) + s(14.0f);
+        if (tab.title.empty()) {
+            tab.title = upperCase(tab.label);
+        }
+        if (tab.titleScale != scale_) {
+            tab.titleScale = scale_;
+            tab.titleWidth = trackedWidth(kHeadingFont, tab.title, s(kHeadingBox), tracking);
+        }
+        drawTracked(kHeadingFont, tab.title, cursorX, centreY - s(kHeadingBox) * 0.5f,
+                    s(kHeadingBox), accent(), tracking);
+        cursorX += tab.titleWidth + s(14.0f);
 
         gfx.line(cursorX, centreY - s(7.0f), cursorX, centreY + s(7.0f), std::max(1.0f, s(1.0f)),
                  fade(kSeparator));
         cursorX += s(14.0f);
 
-        char count[64];
-        std::snprintf(count, sizeof(count), "%d %s", static_cast<int>(tab.rows.size()),
-                      tab.countNoun != nullptr ? tab.countNoun : "MODULES");
-        drawText(kMicroFont, count, cursorX, centreY - s(kMicroBox) * 0.5f, s(kMicroBox),
+        if (tab.countFor != tab.rows.size()) {
+            tab.countFor = tab.rows.size();
+            char count[64];
+            std::snprintf(count, sizeof(count), "%d %s", static_cast<int>(tab.rows.size()),
+                          tab.countNoun != nullptr ? tab.countNoun : "MODULES");
+            tab.count = count;
+        }
+        drawText(kMicroFont, tab.count, cursorX, centreY - s(kMicroBox) * 0.5f, s(kMicroBox),
                  fade(kTextFaint));
     }
 
@@ -1876,8 +2077,7 @@ void ClickGui::drawSubpageHeader(const Row& row) {
              Rect{back.centerX() - box * 0.5f, back.centerY() - box * 0.5f, box, box},
              fade(Color::mix(kTextMuted, kTextPrimary, backHover_)));
 
-    const std::string title = upperCase(row.name);
-    drawTracked(kHeadingFont, title, back.right() + s(8.0f), centreY - s(kHeadingBox) * 0.5f,
+    drawTracked(kHeadingFont, row.title, back.right() + s(8.0f), centreY - s(kHeadingBox) * 0.5f,
                 s(kHeadingBox), accent(), s(kTracking));
 
     gfx.line(card_.x, card_.y + height, card_.right(), card_.y + height, std::max(1.0f, s(1.0f)),
@@ -1918,6 +2118,12 @@ void ClickGui::drawRow(Row& row) {
     if (row.bounds.width <= 0.0f || row.enter <= 0.002f) {
         return;
     }
+    /* A row scrolled out of the body is clipped away by the scissor, but only
+     * after its sixty-odd primitives and every glyph lookup behind them have
+     * been paid for. */
+    if (!visibleInBody(row.bounds)) {
+        return;
+    }
     /* Fades with its own arrival, on top of whatever the page is doing. */
     const AlphaScope rowAlpha{alpha_, row.enter};
 
@@ -1947,8 +2153,7 @@ void ClickGui::drawRow(Row& row) {
         drawText(kLabelFont, row.name, textX, nameTop, s(kLabelBox), fade(kTextPrimary));
 
     if (row.kind == RowKind::Module && row.module != nullptr) {
-        drawChip(nameEnd + s(9.0f), nameTop + s(kLabelBox) * 0.5f,
-                 bindLabel(row.module->key(), row.binding), kChipBg,
+        drawChip(nameEnd + s(9.0f), nameTop + s(kLabelBox) * 0.5f, rowBind(row), kChipBg,
                  row.binding ? theme().accent : kChipText);
     }
 
@@ -1956,10 +2161,8 @@ void ClickGui::drawRow(Row& row) {
         float limit = bounds.right() - s(kPillMargin) - textX;
         if (hasPill) limit -= s(kPillWidth);
         if (row.chevron.width > 0.0f) limit -= s(28.0f);
-        const std::string shown =
-            elideText(kDescFont, row.description, s(kDescBox), std::max(limit, s(30.0f)));
-        drawText(kDescFont, shown, textX, bounds.y + s(kRowDescTop), s(kDescBox),
-                 fade(kTextMuted));
+        drawText(kDescFont, rowDescription(row, std::max(limit, s(30.0f))), textX,
+                 bounds.y + s(kRowDescTop), s(kDescBox), fade(kTextMuted));
     }
 
     if (hasPill) {
@@ -1984,6 +2187,12 @@ void ClickGui::drawSetting(Row& owner, SettingRow& setting) {
     if (setting.enter <= 0.002f) {
         return;
     }
+    /* Same as the list: bounds covers the line plus whatever the setting has
+     * unfolded under it, so this culls an expanded choice list or colour editor
+     * that has been scrolled past as one unit. */
+    if (!visibleInBody(setting.bounds)) {
+        return;
+    }
     const AlphaScope settingAlpha{alpha_, setting.enter};
 
     const Rect bounds = setting.bounds;
@@ -2000,8 +2209,7 @@ void ClickGui::drawSetting(Row& owner, SettingRow& setting) {
         /* The module's own bind. */
         drawText(kLabelFont, "Keybind", line.x + padX, line.centerY() - labelBox * 0.5f, labelBox,
                  fade(kTextPrimary));
-        const std::string label =
-            bindLabel(owner.module != nullptr ? owner.module->key() : 0, owner.binding);
+        const std::string& label = rowBind(owner);
         const float chipWidth = textWidth(kMicroFont, label, s(kMicroBox)) + s(12.0f);
         drawChip(rightEdge - chipWidth, line.centerY(), label, kChipBg,
                  owner.binding ? theme().accent : kChipText);

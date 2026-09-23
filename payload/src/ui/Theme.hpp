@@ -8,8 +8,14 @@
 namespace cold::ui {
 
 inline constexpr std::string_view kClientName = "Cobble Recode";
+/* What the client calls itself when there is no room to say it in full: the
+ * reveal capsule, which is sized to its own label. */
+inline constexpr std::string_view kClientShortName = "Cobble";
 inline constexpr std::string_view kClientBrand = "cobble.vip";
-inline constexpr std::string_view kClientVersion = "1.0";
+/* One source of truth for the build's version. The HUD watermark, the reveal
+ * capsule and Lua's cold.version all read this, so a bump lands everywhere at
+ * once rather than in whichever of the three someone remembered. */
+inline constexpr std::string_view kClientVersion = "2";
 
 /* One dark slab, one lavender accent.
  *

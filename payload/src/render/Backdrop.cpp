@@ -59,6 +59,9 @@ bool Backdrop::resize(int width, int height) {
 
     sourceWidth_ = width;
     sourceHeight_ = height;
+    /* New size, new question: a pyramid that would not build at the old one may
+     * well build at this one. */
+    failures_ = 0;
     for (int index = 0; index < kLevels; ++index) {
         Level& level = levels_[index];
         level.width = std::max(1, width >> (index + 1));
@@ -98,6 +101,14 @@ bool Backdrop::capture(int width, int height, float strength, const Color& tint)
      * core context rejects, and the panels would blend the raw half-res blit
      * instead of the solid fallback they were promised. */
     if (width <= 0 || height <= 0 || !ready_) {
+        return false;
+    }
+    /* A context that rejected the pyramid rejects it every frame, and the nine
+     * passes are paid for before the error is even read. Past a handful of
+     * consecutive failures stop asking: the menu already draws without a
+     * backdrop, so this changes nothing on screen and gives the frame back. A
+     * resolution change clears the count, because that is a different question. */
+    if (failures_ >= kFailureLimit) {
         return false;
     }
     if (!resize(width, height)) {
