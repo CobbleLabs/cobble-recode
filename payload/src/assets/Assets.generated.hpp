@@ -27,6 +27,7 @@ enum class IconAsset : std::uint8_t {
     Braces,
     Check,
     ChevronDown,
+    ChevronLeft,
     ChevronRight,
     ChevronUp,
     Cpu,
@@ -64,7 +65,7 @@ enum class IconAsset : std::uint8_t {
 
 inline constexpr auto kFontCount = static_cast<std::size_t>(FontAsset::Count);
 inline constexpr auto kIconCount = static_cast<std::size_t>(IconAsset::Count);
-inline constexpr std::uint32_t kBlobSize = 400392u;
+inline constexpr std::uint32_t kBlobSize = 400716u;
 
 extern const Span kFontSpans[kFontCount];
 extern const Span kIconSpans[kIconCount];

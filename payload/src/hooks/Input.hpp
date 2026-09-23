@@ -118,6 +118,21 @@ public:
     }
 
     void trackButton(int button, bool down) {
+        /* A click on a menu toggle is not the player attacking.
+         *
+         * The window procedure swallows the message while the menu owns the
+         * cursor, so the release that ends a press recorded here never arrives
+         * - and everything that reads attackHeld() acts on it in the meantime:
+         * TriggerBot fires, AutoTool swaps, and Clutch writes it into the
+         * game's own KeyBinding, where nothing is left to clear it and the
+         * player's real clicks stop registering because the game already
+         * believes the button is down. setCapturing zeroes the pair on the way
+         * in for exactly this reason; tracking through it undid that on the
+         * next click. The synthetic pair is separate, so the control channel's
+         * `hold attack` still works. */
+        if (capturing_) {
+            return;
+        }
         if (button == kMouseLeft) {
             attackHeld_ = down;
         } else if (button == kMouseRight) {

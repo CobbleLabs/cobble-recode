@@ -209,10 +209,13 @@ void Input::refresh() {
     if (!g_attached) {
         return;
     }
-    /* Live button state comes from the OS while the game owns the cursor, so
-     * a bind works whether or not the client saw the press that started it.
-     * While the menu owns the cursor the tracked pair is the only state, the
-     * OS never delivered an up we swallowed. */
+    /* Live button state comes from the OS while the game owns the cursor, so a
+     * bind works whether or not the client saw the press that started it.
+     * While the menu owns the cursor nothing counts as held: the player is
+     * clicking on widgets, setCapturing zeroed the pair going in and
+     * trackButton leaves it alone. This is also what puts the real state back
+     * the frame after the menu closes, so a module cannot be left acting on a
+     * click that was meant for a toggle. */
     if (!capturing_) {
         attackHeld_ = (GetAsyncKeyState(kVkLeft) & 0x8000) != 0;
         useHeld_ = (GetAsyncKeyState(kVkRight) & 0x8000) != 0;

@@ -45,6 +45,10 @@ private:
     Shader tintShader_;
     int sourceWidth_ = 0;
     int sourceHeight_ = 0;
+    /* Consecutive failed captures. A context that will not run the pyramid at
+     * all fails every frame, and one log line per frame buries everything
+     * else in the file. */
+    int failures_ = 0;
     bool valid_ = false;
     bool ready_ = false;
 };

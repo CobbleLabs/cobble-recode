@@ -18,38 +18,39 @@ const Span kIconSpans[kIconCount] = {
     {384620u, 457u},  // braces.svg
     {385080u, 315u},  // check.svg
     {385396u, 319u},  // chevron-down.svg
-    {385716u, 321u},  // chevron-right.svg
-    {386040u, 319u},  // chevron-up.svg
-    {386360u, 664u},  // cpu.svg
-    {387024u, 492u},  // crosshair.svg
-    {387516u, 434u},  // eye.svg
-    {387952u, 390u},  // flame.svg
-    {388344u, 601u},  // footprints.svg
-    {388948u, 354u},  // gauge.svg
-    {389304u, 407u},  // globe.svg
-    {389712u, 560u},  // hammer.svg
-    {390272u, 540u},  // keyboard.svg
-    {390812u, 587u},  // layers.svg
-    {391400u, 384u},  // lock.svg
-    {391784u, 308u},  // minus.svg
-    {392092u, 424u},  // monitor.svg
-    {392516u, 395u},  // move-3d.svg
-    {392912u, 649u},  // palette.svg
-    {393564u, 524u},  // pin.svg
-    {394088u, 331u},  // plus.svg
-    {394420u, 513u},  // radio.svg
-    {394936u, 378u},  // rotate-ccw.svg
-    {395316u, 352u},  // search.svg
-    {395668u, 405u},  // settings-2.svg
-    {396076u, 511u},  // sliders-horizontal.svg
-    {396588u, 676u},  // snowflake.svg
-    {397264u, 650u},  // swords.svg
-    {397916u, 391u},  // target.svg
-    {398308u, 360u},  // user-round.svg
-    {398668u, 432u},  // wifi.svg
-    {399100u, 494u},  // wrench.svg
-    {399596u, 332u},  // x.svg
-    {399928u, 464u},  // zap.svg
+    {385716u, 321u},  // chevron-left.svg
+    {386040u, 321u},  // chevron-right.svg
+    {386364u, 319u},  // chevron-up.svg
+    {386684u, 664u},  // cpu.svg
+    {387348u, 492u},  // crosshair.svg
+    {387840u, 434u},  // eye.svg
+    {388276u, 390u},  // flame.svg
+    {388668u, 601u},  // footprints.svg
+    {389272u, 354u},  // gauge.svg
+    {389628u, 407u},  // globe.svg
+    {390036u, 560u},  // hammer.svg
+    {390596u, 540u},  // keyboard.svg
+    {391136u, 587u},  // layers.svg
+    {391724u, 384u},  // lock.svg
+    {392108u, 308u},  // minus.svg
+    {392416u, 424u},  // monitor.svg
+    {392840u, 395u},  // move-3d.svg
+    {393236u, 649u},  // palette.svg
+    {393888u, 524u},  // pin.svg
+    {394412u, 331u},  // plus.svg
+    {394744u, 513u},  // radio.svg
+    {395260u, 378u},  // rotate-ccw.svg
+    {395640u, 352u},  // search.svg
+    {395992u, 405u},  // settings-2.svg
+    {396400u, 511u},  // sliders-horizontal.svg
+    {396912u, 676u},  // snowflake.svg
+    {397588u, 650u},  // swords.svg
+    {398240u, 391u},  // target.svg
+    {398632u, 360u},  // user-round.svg
+    {398992u, 432u},  // wifi.svg
+    {399424u, 494u},  // wrench.svg
+    {399920u, 332u},  // x.svg
+    {400252u, 464u},  // zap.svg
 };
 
 const char* const kIconNames[kIconCount] = {
@@ -58,6 +59,7 @@ const char* const kIconNames[kIconCount] = {
     "braces",
     "check",
     "chevron-down",
+    "chevron-left",
     "chevron-right",
     "chevron-up",
     "cpu",

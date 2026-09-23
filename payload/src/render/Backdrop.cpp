@@ -104,6 +104,13 @@ bool Backdrop::capture(int width, int height, float strength, const Color& tint)
         return false;
     }
 
+    /* The game's own frame can leave errors queued - Lunar's 1.8.9 renderer
+     * does - and glGetError reports whatever is oldest. Draining first is what
+     * makes the check at the bottom a statement about this capture rather than
+     * about whatever ran before it. */
+    while (glGetError() != GL_NO_ERROR) {
+    }
+
     glDisable(GL_BLEND);
     glDisable(GL_SCISSOR_TEST);
     glDisable(GL_DEPTH_TEST);
@@ -166,7 +173,23 @@ bool Backdrop::capture(int width, int height, float strength, const Color& tint)
     gl::BindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, width, height);
     glEnable(GL_BLEND);
-    gl::checkError("backdrop capture");
+
+    /* A capture that errored has an unknown level 0, and handing that to the
+     * menu paints the whole screen with it. Reporting invalid instead makes the
+     * menu draw without a backdrop, which is the state it ships in. */
+    const GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        if (failures_ == 0) {
+            COLD_ERROR(kScope, "blur pyramid failed with GL 0x%04X; drawing without a backdrop",
+                       error);
+        }
+        ++failures_;
+        return false;
+    }
+    if (failures_ > 0) {
+        COLD_INFO(kScope, "blur pyramid recovered after %d failed captures", failures_);
+        failures_ = 0;
+    }
     valid_ = true;
     return true;
 }

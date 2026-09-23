@@ -23,55 +23,89 @@ namespace {
 
 constexpr std::string_view kScope = "gui";
 
-/* Minecraft GUI-scaled units throughout; the reference works in scaled pixels
- * and px() multiplies by the game's own scale factor. */
-constexpr float kBarY = 12.0f;
-constexpr float kPanelWidth = 140.0f;
-constexpr float kHeaderHeight = 16.0f;
-constexpr float kRowHeight = 12.0f;
-constexpr float kPadding = 4.0f;
-constexpr float kCatGap = 12.0f;
-constexpr float kHoverShift = 3.0f;
-constexpr float kToggleSize = 6.0f;
-constexpr float kSliderHeight = 1.5f;
+/* ------------------------------------------------------------------------- *
+ * Design metrics, in the layout's own pixels at scale 1.0.
+ * ------------------------------------------------------------------------- */
 
-constexpr float kTextSize = 9.0f;
-constexpr float kArrowSize = 6.0f;
+constexpr float kMenuWidth = 660.0f;
+constexpr float kTopMargin = 18.0f;
+constexpr float kTabBarHeight = 38.0f;
+constexpr float kTabBarRadius = 12.0f;
+constexpr float kPanelGap = 9.0f;
+constexpr float kCardRadius = 14.0f;
+constexpr float kHeaderHeight = 38.0f;
+constexpr float kCardPadX = 12.0f;
+constexpr float kRowHeight = 50.0f;
+constexpr float kRowGap = 4.0f;
+constexpr float kRowRadius = 8.0f;
+constexpr float kGearSlotWidth = 52.0f;
 
-constexpr float kSlideSpeed = 14.0f;
-constexpr float kStagger = 0.12f;
-constexpr float kHoverSpeed = 12.0f;
-constexpr float kEnableSpeed = 10.0f;
+constexpr float kRowIconCentre = 27.0f;
+constexpr float kRowTextX = 56.0f;
+constexpr float kRowNameTop = 9.0f;
+constexpr float kRowDescTop = 27.0f;
+constexpr float kPillWidth = 38.0f;
+constexpr float kPillHeight = 19.0f;
+constexpr float kPillMargin = 16.0f;
+
+/* Subpage rows are their own, shorter line: one setting, no description. */
+constexpr float kSettingHeight = 40.0f;
+constexpr float kSettingPadX = 14.0f;
+constexpr float kChoiceItemHeight = 26.0f;
+constexpr float kSliderTrack = 4.0f;
+constexpr float kEditorHeight = 140.0f;
+constexpr float kEditorField = 96.0f;
+constexpr float kEditorStrip = 10.0f;
+constexpr float kEditorSwatch = 18.0f;
+constexpr float kEditorGap = 8.0f;
+
+/* Type sizes as the design measures them: the height of the line box, which is
+ * what both ImGui and render::Renderer::text() place from. */
+constexpr float kLabelBox = 15.0f;
+constexpr float kDescBox = 12.5f;
+constexpr float kMicroBox = 9.5f;
+constexpr float kHeadingBox = 11.5f;
+constexpr float kIconBox = 17.0f;
+constexpr float kChevronBox = 13.0f;
+constexpr float kTracking = 1.4f;
+
+constexpr auto kLabelFont = render::FontRole::Bold;
+constexpr auto kDescFont = render::FontRole::Medium;
+constexpr auto kMicroFont = render::FontRole::Bold;
+constexpr auto kHeadingFont = render::FontRole::Bold;
+
+constexpr float kSlideSpeed = 16.0f;
+constexpr float kHoverSpeed = 16.0f;
+constexpr float kOnSpeed = 18.0f;
+constexpr float kTabSpeed = 20.0f;
+constexpr float kSubpageSpeed = 22.0f;
 constexpr float kExpandSpeed = 14.0f;
-constexpr float kChoiceExpandSpeed = 12.0f;
-
-constexpr float kPickerWidth = 105.0f;
-constexpr float kPickerHeight = 100.0f;
-constexpr float kPickerPad = 5.0f;
-constexpr float kPickerField = 62.0f;
-constexpr float kPickerStrip = 6.0f;
-/* Gap between a panel and its floating popup (colour picker). The old 8
- * read as two disconnected widgets; the popup is part of the panel's
- * setting, so it hugs the edge it opens from. */
-constexpr float kPickerGap = 2.0f;
 
 constexpr std::size_t kMaxConfigName = 24;
-constexpr int kKeyEnter = 257;
 
-const Color kBase = Color::rgb(0x121212);
-const Color kHoverBg = Color::rgb(0x1C1C1C);
-const Color kActiveBg = Color::rgb(0x1D1D1D);
-const Color kModuleBg = Color::rgb(0x282828);
-const Color kModuleHover = Color::rgb(0x323232);
-const Color kSettingBg = Color::rgb(0x1D1D1D);
-const Color kSettingDeep = Color::rgb(0x141414);
-const Color kTrackBg = Color::rgb(0x141414);
-const Color kOutlineDark = Color::rgb(0x363636);
-const Color kTextDim = Color::rgb(0xAAAAAA);
-const Color kTextMid = Color::rgb(0xDDDDDD);
-const Color kTextOn = Color::rgb(0xE8E8E8);
-const Color kItemIdle = Color::rgb(0x666666);
-const Color kBindIdle = Color::rgb(0x949494);
+/* ------------------------------------------------------------------------- *
+ * Palette. The accent comes from the shared theme, so the gear tab's colour
+ * editor moves the whole menu with it.
+ * ------------------------------------------------------------------------- */
+
+const Color kCardBg = Color::rgb(0x111113, 236.0f / 255.0f);
+const Color kCardBorder = Color::rgb(0x262629);
+const Color kTabBarBg = Color::rgb(0x171719, 236.0f / 255.0f);
+const Color kTabChipBg = Color::rgb(0x28282B);
+const Color kRowBg = Color::rgb(0x171719, 170.0f / 255.0f);
+const Color kRowBgOn = Color::rgb(0x202023, 235.0f / 255.0f);
+const Color kSeparator = Color::rgb(0x303034);
+const Color kTextPrimary = Color::rgb(0xEDEDEF);
+const Color kTextMuted = Color::rgb(0x8A8A90);
+const Color kTextFaint = Color::rgb(0x6C6C72);
+const Color kChipBg = Color::rgb(0x2C2C2F);
+const Color kChipText = Color::rgb(0x9E9EA4);
+const Color kToggleOff = Color::rgb(0x3A3A3F);
+const Color kKnobOff = Color::rgb(0xA8A8AE);
+const Color kKnobOn = Color::rgb(0xFFFFFF);
+const Color kIconOn = Color::rgb(0xD6D6DA);
+const Color kHoverWash = Color::rgb(0xFFFFFF, 18.0f / 255.0f);
+const Color kTrackBg = Color::rgb(0x000000, 0.35f);
 
 float approach(float current, float target, float rate, float deltaTime) {
     const float step = 1.0f - std::exp(-rate * deltaTime);
@@ -79,12 +113,84 @@ float approach(float current, float target, float rate, float deltaTime) {
     return std::fabs(target - next) < 0.0015f ? target : next;
 }
 
-Color darker(const Color& colour, int times) {
-    Color out = colour;
-    for (int i = 0; i < times; ++i) {
-        out = Color{out.r * 0.7f, out.g * 0.7f, out.b * 0.7f, out.a};
+/* A size in this file means the height of the line box, the way the design
+ * sheet and ImGui both mean it. The renderer means an em, which for Inter is a
+ * fifth smaller, so every call goes through here. */
+float fontEm(render::FontRole role, float box) {
+    const render::FontFace& face = render::renderer().fonts().face(role);
+    const float ratio = (face.ascent() - face.descent()) * face.scaleFor(1.0f);
+    return ratio > 0.0001f ? box / ratio : box;
+}
+
+float textWidth(render::FontRole role, std::string_view value, float box) {
+    return render::renderer().measure(role, value, fontEm(role, box));
+}
+
+float drawText(render::FontRole role, std::string_view value, float x, float top, float box,
+               const Color& colour, render::Align align = render::Align::Left) {
+    return render::renderer().text(role, value, x, top, fontEm(role, box), colour, align);
+}
+
+std::string elideText(render::FontRole role, std::string_view value, float box, float maxWidth) {
+    return render::renderer().elide(role, value, fontEm(role, box), maxWidth);
+}
+
+/* The category title carries tracking, so it is drawn a glyph at a time. */
+void drawTracked(render::FontRole role, std::string_view value, float x, float top, float box,
+                 const Color& colour, float tracking) {
+    const float em = fontEm(role, box);
+    render::Renderer& gfx = render::renderer();
+    for (char character : value) {
+        const std::string_view glyph(&character, 1);
+        gfx.text(role, glyph, x, top, em, colour);
+        x += gfx.measure(role, glyph, em) + tracking;
+    }
+}
+
+float trackedWidth(render::FontRole role, std::string_view value, float box, float tracking) {
+    const float em = fontEm(role, box);
+    render::Renderer& gfx = render::renderer();
+    float width = 0.0f;
+    for (char character : value) {
+        width += gfx.measure(role, std::string_view(&character, 1), em) + tracking;
+    }
+    return width > 0.0f ? width - tracking : 0.0f;
+}
+
+std::string upperCase(std::string_view value) {
+    std::string out(value);
+    for (char& character : out) {
+        if (character >= 'a' && character <= 'z') {
+            character = static_cast<char>(character - 32);
+        }
     }
     return out;
+}
+
+std::string lowerCase(std::string_view value) {
+    std::string out;
+    out.reserve(value.size());
+    for (char character : value) {
+        if (character == ' ') continue;
+        out.push_back(static_cast<char>(character >= 'A' && character <= 'Z' ? character + 32
+                                                                            : character));
+    }
+    return out;
+}
+
+/* The chip beside a module name. Anything at eight and below is a mouse button,
+ * which is the rule the binds themselves follow. */
+std::string bindLabel(int key, bool listening) {
+    if (listening) {
+        return "...";
+    }
+    if (key == 0) {
+        return "NONE";
+    }
+    if (key <= 8) {
+        return "MOUSE";
+    }
+    return upperCase(keyName(key));
 }
 
 std::string formatNumber(const modules::Setting& setting) {
@@ -97,17 +203,6 @@ std::string formatNumber(const modules::Setting& setting) {
         if (!text.empty() && text.back() == '.') text.pop_back();
     }
     return text;
-}
-
-std::string lowercase(std::string_view value) {
-    std::string out;
-    out.reserve(value.size());
-    for (char character : value) {
-        if (character == ' ') continue;
-        out.push_back(static_cast<char>(character >= 'A' && character <= 'Z' ? character + 32
-                                                                             : character));
-    }
-    return out;
 }
 
 float hueOf(const Color& colour) {
@@ -138,14 +233,27 @@ std::wstring widenAscii(const std::string& text) {
     return std::wstring(text.begin(), text.end());
 }
 
+enum : int {
+    kActionReloadScripts = 0,
+    kActionReloadConfigs,
+    kActionOpenFolder,
+    kActionUnload,
+};
+
 }  // namespace
+
+Color ClickGui::accent(float alpha) const { return theme().accent.withAlpha(alpha_ * alpha); }
+
+/* ------------------------------------------------------------------------- *
+ * Build
+ * ------------------------------------------------------------------------- */
 
 void ClickGui::build() {
     if (built_) {
         return;
     }
     rows_.clear();
-    panels_.clear();
+    tabs_.clear();
 
     for (int index = 0; index < static_cast<int>(modules::Category::Count); ++index) {
         const auto category = static_cast<modules::Category>(index);
@@ -153,14 +261,21 @@ void ClickGui::build() {
         if (inCategory.empty()) {
             continue;
         }
-        Panel panel;
-        panel.category = category;
-        panel.key = modules::categoryName(category);
-        panel.label = modules::categoryName(category);
-        panel.icon = modules::categoryIcon(category);
+        Tab tab;
+        tab.key = modules::categoryName(category);
+        tab.label = modules::categoryName(category);
+        tab.icon = modules::categoryIcon(category);
+        tab.countNoun = "MODULES";
         for (modules::Module* module : inCategory) {
-            ModuleRow row;
+            Row row;
+            row.kind = RowKind::Module;
             row.module = module;
+            row.name = module->name();
+            row.description = module->description();
+            row.icon = module->icon();
+            /* The module's own bind leads its subpage: the list only shows it,
+             * and a middle click is not something anyone discovers. */
+            row.settings.push_back(SettingRow{});
             for (const std::unique_ptr<modules::Setting>& setting : module->settings()) {
                 SettingRow settingRow;
                 settingRow.setting = setting.get();
@@ -168,76 +283,113 @@ void ClickGui::build() {
                 settingRow.hue = hueOf(setting->colour());
                 row.settings.push_back(settingRow);
             }
-            panel.rows.push_back(rows_.size());
+            tab.rows.push_back(rows_.size());
             rows_.push_back(std::move(row));
         }
-        panels_.push_back(std::move(panel));
+        tabs_.push_back(std::move(tab));
     }
 
-    Panel configs;
-    configs.configs = true;
-    configs.key = "Configs";
-    configs.label = "Configs";
-    configs.icon = assets::IconAsset::Settings2;
-    panels_.push_back(std::move(configs));
+    /* The gear: the client's own settings, the config manager and the four
+     * things the menu can do to the client itself. */
+    Tab settings;
+    settings.key = "Settings";
+    settings.label = "Settings";
+    settings.icon = assets::IconAsset::Settings2;
+    settings.countNoun = "OPTIONS";
+    settings.iconOnly = true;
 
-    Panel actions;
-    actions.actions = true;
-    actions.key = "ClientActions";
-    actions.label = "Client";
-    actions.icon = assets::IconAsset::Wrench;
-    panels_.push_back(std::move(actions));
+    const auto addRow = [&](Row row) {
+        settings.rows.push_back(rows_.size());
+        rows_.push_back(std::move(row));
+    };
 
-    actions_.clear();
-    actions_.push_back(ActionRow{"Reload Scripts"});
-    actions_.push_back(ActionRow{"Reload Configs"});
-    actions_.push_back(ActionRow{"Open Folder"});
-    actions_.push_back(ActionRow{"Unload"});
-
-    /* Centred row on first sight; afterwards panels stay where they were put,
-     * across rebuilds via pending_ and across restarts via loadLayout. */
-    float cursorX = 0.0f;
     {
-        float totalWidth = 0.0f;
-        for (std::size_t i = 0; i < panels_.size(); ++i) {
-            totalWidth += kPanelWidth;
-            if (i + 1 < panels_.size()) totalWidth += kCatGap;
-        }
-        const float scaledWidth = scaledW_ > 0.0f ? scaledW_ : 640.0f;
-        cursorX = (scaledWidth - std::min(totalWidth, scaledWidth - 16.0f)) * 0.5f;
+        Row row;
+        row.kind = RowKind::Configs;
+        row.name = "Configs";
+        row.description = "Create, load and delete your configs.";
+        row.icon = assets::IconAsset::Box;
+        addRow(std::move(row));
     }
-    for (Panel& panel : panels_) {
-        bool restored = false;
-        for (const auto& [key, x, y, expanded] : pending_) {
-            if (key == panel.key) {
-                panel.x = x;
-                panel.y = y;
-                panel.expanded = expanded;
-                panel.placed = true;
-                restored = true;
+
+    if (modules::Module* self = modules::modules().find("ClickGUI"); self != nullptr) {
+        if (modules::Setting* accentSetting = self->setting("Accent"); accentSetting != nullptr) {
+            Row row;
+            row.kind = RowKind::Colour;
+            row.setting = accentSetting;
+            row.name = "Accent";
+            row.description = "Pick the colour the whole client follows.";
+            row.icon = assets::IconAsset::Palette;
+            SettingRow editor;
+            editor.setting = accentSetting;
+            editor.hue = hueOf(accentSetting->colour());
+            editor.pickerOpen = true;
+            editor.picker = 1.0f;
+            row.settings.push_back(editor);
+            addRow(std::move(row));
+        }
+        if (modules::Setting* blurSetting = self->setting("Backdrop blur"); blurSetting != nullptr) {
+            Row row;
+            row.kind = RowKind::Flag;
+            row.setting = blurSetting;
+            row.name = "Backdrop blur";
+            row.description = "Frost the scene behind the menu.";
+            row.icon = assets::IconAsset::Layers;
+            addRow(std::move(row));
+        }
+    }
+
+    struct ActionSpec {
+        int action;
+        const char* name;
+        const char* description;
+        assets::IconAsset icon;
+    };
+    const ActionSpec specs[] = {
+        {kActionReloadScripts, "Reload scripts", "Re-read every Lua script from disk.",
+         assets::IconAsset::Braces},
+        {kActionReloadConfigs, "Reload configs", "Rescan the config folder.",
+         assets::IconAsset::RotateCcw},
+        {kActionOpenFolder, "Open folder", "Show the client's data folder.",
+         assets::IconAsset::Globe},
+        {kActionUnload, "Unload", "Detach the client from the game.", assets::IconAsset::X},
+    };
+    for (const ActionSpec& spec : specs) {
+        Row row;
+        row.kind = RowKind::Action;
+        row.action = spec.action;
+        row.name = spec.name;
+        row.description = spec.description;
+        row.icon = spec.icon;
+        addRow(std::move(row));
+    }
+    tabs_.push_back(std::move(settings));
+
+    tab_ = 0;
+    if (!pendingTab_.empty()) {
+        for (std::size_t index = 0; index < tabs_.size(); ++index) {
+            if (tabs_[index].key == pendingTab_) {
+                tab_ = index;
                 break;
             }
         }
-        if (!restored) {
-            panel.x = cursorX;
-            panel.y = kBarY;
-            panel.placed = true;
-            cursorX += kPanelWidth + kCatGap;
-        }
+        pendingTab_.clear();
     }
-    pending_.clear();
+    subpageRow_ = kNoRow;
+    subpageAnim_ = 0.0f;
+    indicator_ = static_cast<float>(tab_);
+    indicatorAlpha_ = tabs_[tab_].iconOnly ? 0.0f : 1.0f;
 
     refreshConfigs();
     built_ = true;
-    COLD_INFO(kScope, "%zu modules across %zu panels", rows_.size(), panels_.size());
+    COLD_INFO(kScope, "%zu rows across %zu tabs", rows_.size(), tabs_.size());
 }
 
 void ClickGui::reset() {
-    /* A rebuild must not lose where the panels were: script modules arriving
-     * late would otherwise teleport the whole menu back to the centre. */
-    pending_.clear();
-    for (const Panel& panel : panels_) {
-        pending_.emplace_back(panel.key, panel.x, panel.y, panel.expanded);
+    /* A rebuild must not lose which tab was open: script modules arriving late
+     * would otherwise throw the menu back to the first category. */
+    if (!tabs_.empty() && tab_ < tabs_.size()) {
+        pendingTab_ = tabs_[tab_].key;
     }
     releaseAll();
     stopListening();
@@ -245,11 +397,11 @@ void ClickGui::reset() {
         bindRow_->binding = false;
         bindRow_ = nullptr;
     }
-    dragPanel_ = nullptr;
     editingName_ = false;
+    subpageRow_ = kNoRow;
     built_ = false;
     rows_.clear();
-    panels_.clear();
+    tabs_.clear();
 }
 
 void ClickGui::open() {
@@ -260,6 +412,7 @@ void ClickGui::open() {
     open_ = true;
     closing_ = false;
     slide_ = 0.0f;
+    scroll_ = 0.0f;
     refreshConfigs();
     hooks::input().setCapturing(true);
 }
@@ -275,9 +428,7 @@ void ClickGui::close() {
         bindRow_->binding = false;
         bindRow_ = nullptr;
     }
-    dragPanel_ = nullptr;
     editingName_ = false;
-    closePickers();
 }
 
 void ClickGui::toggle() {
@@ -290,63 +441,144 @@ void ClickGui::toggle() {
 
 void ClickGui::releaseAll() {
     mouseDown_ = false;
-    dragPanel_ = nullptr;
     activeSlider_ = nullptr;
     activePicker_ = nullptr;
     pickerAxis_ = -1;
-    for (ModuleRow& row : rows_) {
+    for (Row& row : rows_) {
         for (SettingRow& setting : row.settings) {
             setting.draggingSlider = false;
         }
     }
 }
 
-ClickGui::ModuleRow* ClickGui::findRow(std::string_view moduleName) {
-    for (ModuleRow& row : rows_) {
-        if (row.module->name() == moduleName) {
+void ClickGui::stopListening() {
+    if (keyListener_ != nullptr) {
+        keyListener_->listeningForKey = false;
+        keyListener_ = nullptr;
+    }
+}
+
+void ClickGui::closePickers() {
+    for (Row& row : rows_) {
+        if (row.kind == RowKind::Colour) {
+            continue;  // the accent editor is the whole subpage; it stays open
+        }
+        for (SettingRow& setting : row.settings) {
+            setting.pickerOpen = false;
+        }
+    }
+    activePicker_ = nullptr;
+    pickerAxis_ = -1;
+}
+
+bool ClickGui::pickerOpenAnywhere() const {
+    for (const Row& row : rows_) {
+        if (row.kind == RowKind::Colour) {
+            continue;
+        }
+        for (const SettingRow& setting : row.settings) {
+            if (setting.pickerOpen) return true;
+        }
+    }
+    return false;
+}
+
+ClickGui::Row* ClickGui::findRow(std::string_view moduleName) {
+    for (Row& row : rows_) {
+        if (row.module != nullptr && row.module->name() == moduleName) {
             return &row;
         }
     }
     return nullptr;
 }
 
+ClickGui::Row* ClickGui::subpage() {
+    return subpageRow_ < rows_.size() ? &rows_[subpageRow_] : nullptr;
+}
+
+void ClickGui::selectTab(std::size_t index) {
+    if (index >= tabs_.size()) {
+        return;
+    }
+    tab_ = index;
+    closeSubpage();
+    scroll_ = 0.0f;
+}
+
+void ClickGui::openSubpage(std::size_t rowIndex) {
+    if (rowIndex >= rows_.size()) {
+        return;
+    }
+    subpageRow_ = rowIndex;
+    subpageAnim_ = 0.0f;
+    scroll_ = 0.0f;
+}
+
+void ClickGui::closeSubpage() {
+    subpageRow_ = kNoRow;
+    stopListening();
+    closePickers();
+    editingName_ = false;
+    scroll_ = 0.0f;
+}
+
+/* ------------------------------------------------------------------------- *
+ * Scripted access
+ * ------------------------------------------------------------------------- */
+
 bool ClickGui::setExpanded(std::string_view moduleName, bool expanded) {
     build();
-    ModuleRow* row = findRow(moduleName);
+    Row* row = findRow(moduleName);
     if (row == nullptr) {
         return false;
     }
-    row->expanded = expanded;
+    const std::size_t index = static_cast<std::size_t>(row - rows_.data());
+    if (!expanded) {
+        if (subpageRow_ == index) {
+            closeSubpage();
+        }
+        return true;
+    }
+    for (std::size_t tab = 0; tab < tabs_.size(); ++tab) {
+        const std::vector<std::size_t>& list = tabs_[tab].rows;
+        if (std::find(list.begin(), list.end(), index) != list.end()) {
+            tab_ = tab;
+            break;
+        }
+    }
+    openSubpage(index);
     return true;
 }
 
 bool ClickGui::showScreen(std::string_view name) {
     build();
-    const std::string needle = lowercase(name);
-    if (needle == "search" || needle == "scripts") {
-        return true;
-    }
-    for (const Panel& panel : panels_) {
-        if (lowercase(panel.label) == needle) {
+    const std::string needle = lowerCase(name);
+    for (std::size_t index = 0; index < tabs_.size(); ++index) {
+        if (lowerCase(tabs_[index].label) == needle) {
+            selectTab(index);
             return true;
         }
+    }
+    /* Names the old sidebar carried and the suite still probes. */
+    if (needle == "search" || needle == "configs" || needle == "clientactions") {
+        return true;
     }
     return false;
 }
 
 bool ClickGui::setPickerOpen(std::string_view moduleName, bool open) {
     build();
-    ModuleRow* row = findRow(moduleName);
+    Row* row = findRow(moduleName);
     if (row == nullptr) {
         return false;
     }
-    closePickers();
     for (SettingRow& setting : row->settings) {
-        if (setting.setting->type() != modules::Setting::Type::Colour) {
+        if (setting.setting == nullptr ||
+            setting.setting->type() != modules::Setting::Type::Colour) {
             continue;
         }
         if (open) {
-            row->expanded = true;
+            setExpanded(moduleName, true);
         }
         setting.pickerOpen = open;
         setting.hue = hueOf(setting.setting->colour());
@@ -355,61 +587,46 @@ bool ClickGui::setPickerOpen(std::string_view moduleName, bool open) {
     return false;
 }
 
+/* ------------------------------------------------------------------------- *
+ * Persisted state
+ * ------------------------------------------------------------------------- */
+
 void ClickGui::loadLayout(config::Document& config) {
-    pending_.clear();
-    for (int index = 0; index < static_cast<int>(modules::Category::Count); ++index) {
-        const std::string key =
-            modules::categoryName(static_cast<modules::Category>(index));
-        const std::string section = "gui.panel." + key;
-        if (!config.hasSection(section)) {
-            continue;
-        }
-        pending_.emplace_back(key, config.getNumber(section, "x", 0.0f),
-                              config.getNumber(section, "y", kBarY),
-                              config.getBool(section, "expanded", true));
+    if (!config.hasSection("gui.menu")) {
+        return;
     }
-    for (const char* key : {"Configs", "ClientActions"}) {
-        const std::string section = std::string("gui.panel.") + key;
-        if (!config.hasSection(section)) {
-            continue;
-        }
-        pending_.emplace_back(key, config.getNumber(section, "x", 0.0f),
-                              config.getNumber(section, "y", kBarY),
-                              config.getBool(section, "expanded", true));
+    const std::string wanted = config.get("gui.menu", "tab", "");
+    if (wanted.empty()) {
+        return;
     }
-    /* Already open (a config loaded mid-session): apply straight away. */
-    for (Panel& panel : panels_) {
-        for (const auto& [key, x, y, expanded] : pending_) {
-            if (key == panel.key) {
-                panel.x = x;
-                panel.y = y;
-                panel.expanded = expanded;
-                break;
-            }
-        }
+    if (tabs_.empty()) {
+        pendingTab_ = wanted;
+        return;
     }
-    if (!panels_.empty()) {
-        pending_.clear();
+    for (std::size_t index = 0; index < tabs_.size(); ++index) {
+        if (tabs_[index].key == wanted) {
+            tab_ = index;
+            indicator_ = static_cast<float>(index);
+            closeSubpage();
+            break;
+        }
     }
 }
 
 void ClickGui::saveLayout(config::Document& config) const {
-    for (const Panel& panel : panels_) {
-        const std::string section = "gui.panel." + panel.key;
-        config.setNumber(section, "x", panel.x, 1);
-        config.setNumber(section, "y", panel.y, 1);
-        config.setBool(section, "expanded", panel.expanded);
+    if (tabs_.empty() || tab_ >= tabs_.size()) {
+        return;
     }
+    config.set("gui.menu", "tab", tabs_[tab_].key);
 }
 
 bool ClickGui::contains(float x, float y) const {
-    for (const Panel& panel : panels_) {
-        if (panel.outer.contains(x, y)) {
-            return true;
-        }
-    }
-    return false;
+    return bar_.contains(x, y) || card_.contains(x, y);
 }
+
+/* ------------------------------------------------------------------------- *
+ * Configs
+ * ------------------------------------------------------------------------- */
 
 void ClickGui::refreshConfigs() {
     configs_.clear();
@@ -447,8 +664,7 @@ bool ClickGui::loadNamedConfig(const std::string& name) {
     if (name.empty()) {
         return false;
     }
-    const std::wstring path =
-        client().directory() + L"\\cobble-" + widenAscii(name) + L".cfg";
+    const std::wstring path = client().directory() + L"\\cobble-" + widenAscii(name) + L".cfg";
     if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
         return false;
     }
@@ -463,8 +679,7 @@ bool ClickGui::saveNamedConfig(const std::string& name) {
     if (name.empty()) {
         return false;
     }
-    const std::wstring path =
-        client().directory() + L"\\cobble-" + widenAscii(name) + L".cfg";
+    const std::wstring path = client().directory() + L"\\cobble-" + widenAscii(name) + L".cfg";
     modules::modules().saveConfig(path);
     /* saveConfig only carries module sections, so the layout goes in after. */
     config::Document document;
@@ -489,8 +704,7 @@ bool ClickGui::deleteNamedConfig(const std::string& name) {
     if (name.empty()) {
         return false;
     }
-    const std::wstring path =
-        client().directory() + L"\\cobble-" + widenAscii(name) + L".cfg";
+    const std::wstring path = client().directory() + L"\\cobble-" + widenAscii(name) + L".cfg";
     const bool ok = DeleteFileW(path.c_str()) != FALSE;
     if (ok) {
         COLD_INFO(kScope, "config %s deleted", name.c_str());
@@ -498,6 +712,34 @@ bool ClickGui::deleteNamedConfig(const std::string& name) {
     }
     return ok;
 }
+
+void ClickGui::runAction(int action, modules::Context& context) {
+    switch (action) {
+        case kActionReloadScripts:
+            script::manager().requestReload({});
+            COLD_INFO(kScope, "scripts reloading");
+            break;
+        case kActionReloadConfigs:
+            refreshConfigs();
+            break;
+        case kActionOpenFolder:
+            ShellExecuteW(nullptr, L"open", client().directory().c_str(), nullptr, nullptr,
+                          SW_SHOWNORMAL);
+            break;
+        case kActionUnload:
+            if (auto* self = modules::modules().get<modules::ClickGuiModule>(); self != nullptr) {
+                self->setEnabled(false, &context);
+            }
+            client().requestShutdown();
+            break;
+        default:
+            break;
+    }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Input
+ * ------------------------------------------------------------------------- */
 
 void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& context) {
     if (!open_) {
@@ -515,12 +757,6 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
         case hooks::InputEvent::Kind::MouseMove:
             mouseX_ = static_cast<float>(event.x) * scaleX;
             mouseY_ = static_cast<float>(event.y) * scaleY;
-            if (dragPanel_ != nullptr) {
-                dragPanel_->x = clamp(mouseX_ / unit_ - dragDX_, -panelW_ + 40.0f,
-                                      std::max(scaledW_ - 40.0f, -panelW_ + 40.0f));
-                dragPanel_->y = clamp(mouseY_ / unit_ - dragDY_, 0.0f,
-                                      std::max(scaledH_ - 20.0f, 0.0f));
-            }
             break;
 
         case hooks::InputEvent::Kind::MouseButton:
@@ -534,7 +770,6 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
                 pressAt(mouseX_, mouseY_, event.code, context);
             } else {
                 mouseDown_ = false;
-                dragPanel_ = nullptr;
                 if (activeSlider_ != nullptr) {
                     activeSlider_->draggingSlider = false;
                     activeSlider_ = nullptr;
@@ -545,6 +780,13 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
             break;
 
         case hooks::InputEvent::Kind::Scroll:
+            /* The card clips rather than scrolls in the design, which only
+             * works while everything fits. A long settings page on a short
+             * screen has to be reachable. */
+            if (content_ > body_.height) {
+                scroll_ = clamp(scroll_ - static_cast<float>(event.y) * s(48.0f), 0.0f,
+                                content_ - body_.height);
+            }
             break;
 
         case hooks::InputEvent::Kind::Key: {
@@ -556,15 +798,14 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
                     editingName_ = false;
                 } else if (event.code == hooks::kKeyBackspace) {
                     if (!configName_.empty()) configName_.pop_back();
-                } else if (event.code == kKeyEnter && !configName_.empty()) {
-                    saveNamedConfig(configName_);
+                } else if (event.code == hooks::kKeyEnter && !configName_.empty()) {
+                    configStatus_ = saveNamedConfig(configName_) ? "Saved" : "Could not save";
                     editingName_ = false;
                 }
                 break;
             }
             if (keyListener_ != nullptr) {
-                keyListener_->setting->setKey(event.code == hooks::kKeyEscape ? 0
-                                                                              : event.code);
+                keyListener_->setting->setKey(event.code == hooks::kKeyEscape ? 0 : event.code);
                 keyListener_->listeningForKey = false;
                 keyListener_ = nullptr;
                 break;
@@ -580,8 +821,8 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
                 break;
             }
             if (event.code == hooks::kKeyEscape) {
-                if (pickerOpenAnywhere()) {
-                    closePickers();
+                if (subpageOpen()) {
+                    closeSubpage();
                 } else {
                     close();
                 }
@@ -600,297 +841,290 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
     }
 }
 
-void ClickGui::stopListening() {
-    if (keyListener_ != nullptr) {
-        keyListener_->listeningForKey = false;
-        keyListener_ = nullptr;
-    }
-}
-
-bool ClickGui::pickerOpenAnywhere() const {
-    for (const ModuleRow& row : rows_) {
-        for (const SettingRow& setting : row.settings) {
-            if (setting.pickerOpen) return true;
-        }
-    }
-    return false;
-}
-
-void ClickGui::closePickers() {
-    for (ModuleRow& row : rows_) {
-        for (SettingRow& setting : row.settings) {
-            setting.pickerOpen = false;
-        }
-    }
-    activePicker_ = nullptr;
-    pickerAxis_ = -1;
-}
-
-float ClickGui::settingsHeight(ModuleRow& row) {
-    float height = 0.0f;
-    for (const SettingRow& setting : row.settings) {
-        if (!setting.setting->visible()) {
-            continue;
-        }
-        height += kRowHeight;
-        if (setting.setting->type() == modules::Setting::Type::Choice) {
-            height += static_cast<float>(setting.setting->choices().size()) * kRowHeight *
-                      setting.expand;
-        }
-    }
-    return height * row.expand;
-}
-
-float ClickGui::panelContentHeight(Panel& panel) {
-    if (panel.configs) {
-        return configsHeight() * panel.expand;
-    }
-    if (panel.actions) {
-        return actionsHeight() * panel.expand;
-    }
-    float height = 0.0f;
-    for (std::size_t index : panel.rows) {
-        ModuleRow& row = rows_[index];
-        height += kRowHeight + settingsHeight(row);
-    }
-    return height * panel.expand;
-}
-
-float ClickGui::configsHeight() {
-    return static_cast<float>(configs_.size() + 4) * kRowHeight;
-}
-
-float ClickGui::actionsHeight() {
-    return static_cast<float>(actions_.size()) * kRowHeight;
-}
-
 bool ClickGui::pressAt(float x, float y, int button, modules::Context& context) {
     stopListening();
-
-    for (ModuleRow& row : rows_) {
-        for (SettingRow& setting : row.settings) {
-            if (!setting.pickerOpen || setting.picker < 0.5f || setting.control.width <= 0.0f) {
-                continue;
-            }
-            const Rect popup{setting.control.right() + px(8.0f), setting.control.y - px(3.0f),
-                             px(kPickerWidth), px(kPickerHeight)};
-            if (!popup.contains(x, y)) {
-                continue;
-            }
-            const Rect field{popup.x + px(kPickerPad), popup.y + px(kPickerPad),
-                             popup.width - px(kPickerPad * 2.0f), px(kPickerField)};
-            activePicker_ = &setting;
-            pickerAxis_ = y < field.bottom() + px(kPickerPad * 0.5f) ? 0 : 1;
-            return true;
-        }
-    }
 
     if (!contains(x, y)) {
         editingName_ = false;
         return false;
     }
 
-    for (Panel& panel : panels_) {
-        if (panel.header.contains(x, y)) {
-            if (button == hooks::kMouseRight) {
-                panel.expanded = !panel.expanded;
-            } else if (button == hooks::kMouseLeft) {
-                /* A header press drags; expanding is the right button's job. */
-                dragPanel_ = &panel;
-                dragDX_ = x / unit_ - panel.x;
-                dragDY_ = y / unit_ - panel.y;
+    if (bar_.contains(x, y)) {
+        if (button != hooks::kMouseLeft) {
+            return true;
+        }
+        for (std::size_t index = 0; index < tabs_.size(); ++index) {
+            const Tab& tab = tabs_[index];
+            if (tab.bounds.width > 0.0f && tab.bounds.contains(x, y)) {
+                selectTab(index);
+                return true;
+            }
+        }
+        return true;
+    }
+
+    /* The back chevron sits in the card header, above the clipped body. */
+    if (subpageOpen()) {
+        const Rect back{card_.x + s(8.0f), card_.y + s(4.0f), s(34.0f),
+                        s(kHeaderHeight) - s(8.0f)};
+        if (back.contains(x, y)) {
+            if (button == hooks::kMouseLeft || button == hooks::kMouseRight) {
+                closeSubpage();
             }
             return true;
         }
     }
 
-    for (Panel& panel : panels_) {
-        if (panel.configs) {
-            if (panel.expand > 0.05f && pressConfigs(panel, x, y, button)) {
-                return true;
-            }
-            continue;
-        }
-        if (panel.actions) {
-            if (panel.expand > 0.05f && pressActions(panel, x, y, button, context)) {
-                return true;
-            }
-            continue;
-        }
-        if (!panel.expanded || panel.expand < 0.05f) {
-            continue;
-        }
-        for (std::size_t index : panel.rows) {
-            ModuleRow& row = rows_[index];
-            if (row.head.width > 0.0f && row.head.contains(x, y)) {
-                if (button == hooks::kMouseLeft) {
-                    row.module->toggle(&context);
-                } else if (button == hooks::kMouseRight) {
-                    row.expanded = !row.expanded;
-                } else if (button == hooks::kMouseMiddle) {
-                    if (bindRow_ != nullptr) {
-                        bindRow_->binding = false;
-                    }
-                    bindRow_ = &row;
-                    row.binding = true;
-                }
-                return true;
-            }
-            if (!row.expanded || row.expand < 0.05f) {
-                continue;
-            }
-            for (SettingRow& setting : row.settings) {
-                if (!setting.setting->visible() || setting.bounds.width <= 0.0f ||
-                    !setting.bounds.contains(x, y)) {
-                    continue;
-                }
-                switch (setting.setting->type()) {
-                    case modules::Setting::Type::Boolean:
-                        if (button == hooks::kMouseLeft) {
-                            setting.setting->setBoolean(!setting.setting->booleanValue());
-                        }
-                        break;
-                    case modules::Setting::Type::Number:
-                        if (button == hooks::kMouseLeft) {
-                            setting.draggingSlider = true;
-                            activeSlider_ = &setting;
-                            if (setting.control.width > 0.0f) {
-                                setting.setting->setNormalised(
-                                    (x - setting.control.x) / setting.control.width);
-                            }
-                        }
-                        break;
-                    case modules::Setting::Type::Choice: {
-                        const float localY = y - setting.bounds.y;
-                        if (localY < px(kRowHeight)) {
-                            if (button == hooks::kMouseLeft ||
-                                button == hooks::kMouseRight) {
-                                setting.expanded = !setting.expanded;
-                            }
-                        } else if (setting.expand > 0.3f) {
-                            const int item = static_cast<int>((localY - px(kRowHeight)) /
-                                                              px(kRowHeight));
-                            const auto& choices = setting.setting->choices();
-                            if (item >= 0 &&
-                                item < static_cast<int>(choices.size())) {
-                                setting.setting->setChoice(item);
-                            }
-                        }
-                        break;
-                    }
-                    case modules::Setting::Type::Key:
-                        if (button == hooks::kMouseLeft) {
-                            setting.listeningForKey = true;
-                            keyListener_ = &setting;
-                        }
-                        break;
-                    case modules::Setting::Type::Colour: {
-                        if (button == hooks::kMouseLeft || button == hooks::kMouseRight) {
-                            const bool wasOpen = setting.pickerOpen;
-                            closePickers();
-                            setting.pickerOpen = !wasOpen;
-                            if (setting.pickerOpen) {
-                                setting.hue = hueOf(setting.setting->colour());
-                            }
-                        }
-                        break;
-                    }
-                }
-                return true;
-            }
-        }
+    if (!body_.contains(x, y)) {
+        editingName_ = false;
+        return true;
     }
 
+    if (Row* row = subpage(); row != nullptr) {
+        if (row->kind == RowKind::Configs) {
+            pressConfigs(*row, x, y, button);
+            return true;
+        }
+        for (SettingRow& setting : row->settings) {
+            if (setting.bounds.width <= 0.0f || !setting.bounds.contains(x, y)) {
+                continue;
+            }
+            pressSetting(setting, x, y, button);
+            return true;
+        }
+        return true;
+    }
+
+    if (tab_ >= tabs_.size()) {
+        return true;
+    }
+    for (std::size_t index : tabs_[tab_].rows) {
+        Row& row = rows_[index];
+        if (row.bounds.width > 0.0f && row.bounds.contains(x, y)) {
+            return pressRow(index, x, y, button, context);
+        }
+    }
     return true;
 }
 
-bool ClickGui::pressConfigs(Panel& panel, float x, float y, int button) {
+bool ClickGui::pressRow(std::size_t index, float x, float y, int button,
+                        modules::Context& context) {
+    Row& row = rows_[index];
+    const bool onChevron = row.chevron.width > 0.0f && row.chevron.contains(x, y);
+
+    if (row.kind == RowKind::Action) {
+        if (button == hooks::kMouseLeft) {
+            runAction(row.action, context);
+        }
+        return true;
+    }
+
+    if (row.kind == RowKind::Module && button == hooks::kMouseMiddle) {
+        if (bindRow_ != nullptr) {
+            bindRow_->binding = false;
+        }
+        bindRow_ = &row;
+        row.binding = true;
+        return true;
+    }
+
+    const bool wantsSubpage =
+        row.kind == RowKind::Colour || row.kind == RowKind::Configs ||
+        ((onChevron || button == hooks::kMouseRight) && row.kind == RowKind::Module);
+    if (wantsSubpage) {
+        if (button == hooks::kMouseLeft || button == hooks::kMouseRight) {
+            openSubpage(index);
+        }
+        return true;
+    }
+
+    if (button != hooks::kMouseLeft) {
+        return true;
+    }
+    if (row.kind == RowKind::Module) {
+        row.module->toggle(&context);
+    } else if (row.kind == RowKind::Flag && row.setting != nullptr) {
+        row.setting->setBoolean(!row.setting->booleanValue());
+    }
+    return true;
+}
+
+bool ClickGui::pressSetting(SettingRow& setting, float x, float y, int button) {
+    if (setting.setting == nullptr) {
+        /* The module's own bind. */
+        if (button == hooks::kMouseLeft) {
+            Row* row = subpage();
+            if (row != nullptr && row->module != nullptr) {
+                if (bindRow_ != nullptr) {
+                    bindRow_->binding = false;
+                }
+                bindRow_ = row;
+                row->binding = true;
+            }
+        } else if (button == hooks::kMouseRight) {
+            Row* row = subpage();
+            if (row != nullptr && row->module != nullptr) {
+                row->module->setKey(0);
+            }
+        }
+        return true;
+    }
+
+    modules::Setting& value = *setting.setting;
+    switch (value.type()) {
+        case modules::Setting::Type::Boolean:
+            if (button == hooks::kMouseLeft) {
+                value.setBoolean(!value.booleanValue());
+            }
+            break;
+
+        case modules::Setting::Type::Number:
+            if (button == hooks::kMouseLeft && setting.control.width > 0.0f) {
+                setting.draggingSlider = true;
+                activeSlider_ = &setting;
+                value.setNormalised((x - setting.control.x) / setting.control.width);
+            }
+            break;
+
+        case modules::Setting::Type::Choice: {
+            const float localY = y - setting.bounds.y;
+            if (localY < s(kSettingHeight)) {
+                if (button == hooks::kMouseLeft || button == hooks::kMouseRight) {
+                    setting.expanded = !setting.expanded;
+                }
+            } else if (setting.expand > 0.3f) {
+                const int item =
+                    static_cast<int>((localY - s(kSettingHeight)) / s(kChoiceItemHeight));
+                if (item >= 0 && item < static_cast<int>(value.choices().size())) {
+                    value.setChoice(item);
+                }
+            }
+            break;
+        }
+
+        case modules::Setting::Type::Key:
+            if (button == hooks::kMouseLeft) {
+                setting.listeningForKey = true;
+                keyListener_ = &setting;
+            } else if (button == hooks::kMouseRight) {
+                value.setKey(0);
+            }
+            break;
+
+        case modules::Setting::Type::Colour: {
+            const Rect editor{setting.bounds.x, setting.bounds.y + s(kSettingHeight),
+                              setting.bounds.width, s(kEditorHeight)};
+            if (setting.pickerOpen && setting.picker > 0.5f && editor.contains(x, y)) {
+                const Rect field{editor.x + s(kSettingPadX), editor.y + s(kEditorGap),
+                                 editor.width - s(kSettingPadX) * 2.0f, s(kEditorField)};
+                activePicker_ = &setting;
+                pickerAxis_ = y < field.bottom() + s(kEditorGap) * 0.5f ? 0 : 1;
+                break;
+            }
+            if (button == hooks::kMouseLeft || button == hooks::kMouseRight) {
+                setting.pickerOpen = !setting.pickerOpen;
+                if (setting.pickerOpen) {
+                    setting.hue = hueOf(value.colour());
+                }
+            }
+            break;
+        }
+    }
+    return true;
+}
+
+bool ClickGui::pressConfigs(Row& row, float x, float y, int button) {
+    (void)row;
     if (button != hooks::kMouseLeft) {
         return false;
-    }
-    for (std::size_t i = 0; i < configs_.size(); ++i) {
-        if (configs_[i].bounds.width > 0.0f && configs_[i].bounds.contains(x, y)) {
-            selectedConfig_ = static_cast<int>(i);
-            configName_ = configs_[i].name;
-            editingName_ = false;
-            return true;
-        }
     }
     if (nameField_.width > 0.0f && nameField_.contains(x, y)) {
         editingName_ = true;
         return true;
     }
-    if (loadButton_.width > 0.0f && loadButton_.contains(x, y)) {
-        editingName_ = false;
-        if (selectedConfig_ >= 0 &&
-            selectedConfig_ < static_cast<int>(configs_.size())) {
-            loadNamedConfig(configs_[static_cast<std::size_t>(selectedConfig_)].name);
-        }
-        return true;
-    }
     if (saveButton_.width > 0.0f && saveButton_.contains(x, y)) {
         editingName_ = false;
-        if (!configName_.empty()) {
-            saveNamedConfig(configName_);
-        }
+        configStatus_ = configName_.empty()
+                            ? "Name it first"
+                            : (saveNamedConfig(configName_) ? "Saved" : "Could not save");
         return true;
     }
-    if (deleteButton_.width > 0.0f && deleteButton_.contains(x, y)) {
-        editingName_ = false;
-        if (selectedConfig_ >= 0 &&
-            selectedConfig_ < static_cast<int>(configs_.size())) {
-            deleteNamedConfig(configs_[static_cast<std::size_t>(selectedConfig_)].name);
+    for (std::size_t i = 0; i < configs_.size(); ++i) {
+        ConfigFile& entry = configs_[i];
+        if (entry.remove.width > 0.0f && entry.remove.contains(x, y)) {
+            editingName_ = false;
+            configStatus_ = deleteNamedConfig(entry.name) ? "Deleted" : "Could not delete";
+            return true;
         }
-        return true;
+        if (entry.bounds.width > 0.0f && entry.bounds.contains(x, y)) {
+            editingName_ = false;
+            selectedConfig_ = static_cast<int>(i);
+            configName_ = entry.name;
+            configStatus_ = loadNamedConfig(entry.name) ? "Loaded" : "Could not load";
+            return true;
+        }
     }
-    (void)panel;
-    return false;
+    editingName_ = false;
+    return true;
 }
 
-bool ClickGui::pressActions(Panel& panel, float x, float y, int button,
-                             modules::Context& context) {
-    if (button != hooks::kMouseLeft) {
-        return false;
+/* ------------------------------------------------------------------------- *
+ * Layout
+ * ------------------------------------------------------------------------- */
+
+float ClickGui::settingHeight(const SettingRow& row) const {
+    float height = s(kSettingHeight);
+    if (row.setting == nullptr) {
+        return height;
     }
-    for (std::size_t i = 0; i < actions_.size(); ++i) {
-        if (actions_[i].bounds.width <= 0.0f || !actions_[i].bounds.contains(x, y)) {
+    if (row.setting->type() == modules::Setting::Type::Choice) {
+        height += static_cast<float>(row.setting->choices().size()) * s(kChoiceItemHeight) *
+                  row.expand;
+    } else if (row.setting->type() == modules::Setting::Type::Colour) {
+        height += s(kEditorHeight) * row.picker;
+    }
+    return height;
+}
+
+float ClickGui::listHeight(const Tab& tab) const {
+    return static_cast<float>(tab.rows.size()) * (s(kRowHeight) + s(kRowGap)) + s(kRowGap);
+}
+
+float ClickGui::subpageHeight(Row& row) {
+    if (row.kind == RowKind::Configs) {
+        return configsBodyHeight();
+    }
+    float height = s(kRowGap);
+    for (const SettingRow& setting : row.settings) {
+        if (setting.setting != nullptr && !setting.setting->visible()) {
             continue;
         }
-        switch (i) {
-            case 0:
-                script::manager().requestReload({});
-                COLD_INFO(kScope, "scripts reloading");
-                break;
-            case 1:
-                refreshConfigs();
-                break;
-            case 2:
-                ShellExecuteW(nullptr, L"open", client().directory().c_str(), nullptr,
-                              nullptr, SW_SHOWNORMAL);
-                break;
-            case 3:
-                if (auto* self = modules::modules().get<modules::ClickGuiModule>();
-                    self != nullptr) {
-                    self->setEnabled(false, &context);
-                }
-                client().requestShutdown();
-                break;
-            default:
-                break;
-        }
-        (void)panel;
-        return true;
+        height += settingHeight(setting) + s(kRowGap);
     }
-    return false;
+    return height;
+}
+
+float ClickGui::configsBodyHeight() const {
+    return s(kRowGap) + s(kSettingHeight) + s(kRowGap) +
+           static_cast<float>(configs_.size()) * (s(kSettingHeight) + s(kRowGap)) +
+           s(kSettingHeight);
 }
 
 void ClickGui::layout(modules::Context& context) {
     const game::FrameState& state = *context.state;
     const float deltaTime = context.deltaTime;
+    time_ = context.time;
+
     const float factor = state.scaledWidth > 0 ? static_cast<float>(state.windowWidth) /
                                                      static_cast<float>(state.scaledWidth)
                                                : 2.0f;
     unit_ = std::max(factor, 0.5f);
+    /* The design is drawn at one device pixel per design pixel when Minecraft
+     * is at GUI scale 2, which is where its own interface is 1:1 with it. */
+    scale_ = clamp(unit_ * 0.5f, 0.7f, 2.2f);
+
+    screenW_ = static_cast<float>(state.windowWidth);
+    screenH_ = static_cast<float>(state.windowHeight);
 
     slide_ = approach(slide_, open_ && !closing_ ? 1.0f : 0.0f, kSlideSpeed, deltaTime);
     if (closing_ && slide_ < 0.02f) {
@@ -899,179 +1133,110 @@ void ClickGui::layout(modules::Context& context) {
         slide_ = 0.0f;
         hooks::input().setCapturing(false);
     }
+    alpha_ = clamp(ease::outCubic(clamp(slide_, 0.0f, 1.0f)), 0.0f, 1.0f);
 
-    scaledW_ = state.scaledWidth > 0 ? static_cast<float>(state.scaledWidth)
-                                     : static_cast<float>(state.windowWidth) / unit_;
-    scaledH_ = state.scaledHeight > 0 ? static_cast<float>(state.scaledHeight)
-                                      : static_cast<float>(state.windowHeight) / unit_;
-
-    /* The reference is 140-wide panels; on a narrow screen they would hang
-     * off both edges, so they shrink just enough to fit instead. */
-    panelW_ = kPanelWidth;
-    if (!panels_.empty()) {
-        const float fit = (scaledW_ - 16.0f -
-                           kCatGap * static_cast<float>(panels_.size() - 1)) /
-                          static_cast<float>(panels_.size());
-        panelW_ = clamp(std::min(kPanelWidth, fit), 70.0f, kPanelWidth);
+    if (tabs_.empty()) {
+        bar_ = Rect{};
+        card_ = Rect{};
+        body_ = Rect{};
+        return;
+    }
+    if (tab_ >= tabs_.size()) {
+        tab_ = 0;
     }
 
-    fullHeight_ = 0.0f;
-    for (Panel& panel : panels_) {
-        panel.expand = approach(panel.expand, panel.expanded ? 1.0f : 0.0f, kExpandSpeed,
-                                deltaTime);
-        fullHeight_ = std::max(fullHeight_, kHeaderHeight + panelContentHeight(panel) + 1.0f);
+    const float width = std::min(s(kMenuWidth), screenW_ - s(32.0f));
+    /* A window too narrow to hold the card at all, or a frame captured mid
+     * resize with no size yet. Laying out to a negative width would hand the
+     * batcher inverted quads. */
+    if (width <= s(120.0f) || screenH_ <= s(120.0f)) {
+        bar_ = Rect{};
+        card_ = Rect{};
+        body_ = Rect{};
+        return;
+    }
+    const float x = std::floor((screenW_ - width) * 0.5f);
+    const float rise = (1.0f - alpha_) * s(10.0f);
+    const float y = std::floor(s(kTopMargin) - rise);
+
+    bar_ = Rect{x, y, width, s(kTabBarHeight)};
+
+    /* Tab slots: the named ones split what the gear leaves. */
+    std::size_t named = 0;
+    for (const Tab& tab : tabs_) {
+        if (!tab.iconOnly) ++named;
+    }
+    const float inset = s(4.0f);
+    const float gearWidth = s(kGearSlotWidth);
+    const float slotWidth =
+        named > 0 ? (width - inset * 2.0f - gearWidth) / static_cast<float>(named) : 0.0f;
+
+    std::size_t slot = 0;
+    for (std::size_t index = 0; index < tabs_.size(); ++index) {
+        Tab& tab = tabs_[index];
+        if (tab.iconOnly) {
+            tab.bounds = Rect{bar_.right() - inset - gearWidth, bar_.y + s(3.0f), gearWidth,
+                              bar_.height - s(6.0f)};
+            gearSlot_ = tab.bounds;
+        } else {
+            tab.bounds = Rect{bar_.x + inset + static_cast<float>(slot) * slotWidth,
+                              bar_.y + s(3.0f), slotWidth, bar_.height - s(6.0f)};
+            if (index == tab_) {
+                indicator_ = approach(indicator_, static_cast<float>(slot), kTabSpeed, deltaTime);
+            }
+            ++slot;
+        }
+        const bool hovered = interactive() && tab.bounds.contains(mouseX_, mouseY_);
+        if (tab.iconOnly) {
+            gearHover_ = approach(gearHover_, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+        }
+        tab.hover = approach(tab.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+    }
+    indicatorAlpha_ =
+        approach(indicatorAlpha_, tabs_[tab_].iconOnly ? 0.0f : 1.0f, 18.0f, deltaTime);
+
+    Row* page = subpage();
+    subpageAnim_ = approach(subpageAnim_, page != nullptr ? 1.0f : 0.0f, kSubpageSpeed, deltaTime);
+    backHover_ = approach(backHover_,
+                          interactive() && page != nullptr &&
+                                  Rect{card_.x + s(8.0f), card_.y + s(4.0f), s(34.0f),
+                                       s(kHeaderHeight) - s(8.0f)}
+                                      .contains(mouseX_, mouseY_)
+                              ? 1.0f
+                              : 0.0f,
+                          kHoverSpeed, deltaTime);
+
+    /* Animations run for every row, not only the visible ones: a toggle driven
+     * from a script or a bind must not snap when its tab comes back. */
+    for (Row& row : rows_) {
+        float target = 0.0f;
+        if (row.kind == RowKind::Module && row.module != nullptr) {
+            target = row.module->enabled() ? 1.0f : 0.0f;
+        } else if (row.kind == RowKind::Flag && row.setting != nullptr) {
+            target = row.setting->booleanValue() ? 1.0f : 0.0f;
+        }
+        row.on = approach(row.on, target, kOnSpeed, deltaTime);
     }
 
-    const float maxX = std::max(scaledW_ - 40.0f, -panelW_ + 40.0f);
-    const float maxY = std::max(scaledH_ - 20.0f, 0.0f);
-    time_ = context.time;
-    for (std::size_t i = 0; i < panels_.size(); ++i) {
-        Panel& panel = panels_[i];
-        panel.x = clamp(panel.x, -panelW_ + 40.0f, maxX);
-        panel.y = clamp(panel.y, 0.0f, maxY);
+    content_ = page != nullptr ? subpageHeight(*page) : listHeight(tabs_[tab_]);
 
-        const float start = static_cast<float>(i) * kStagger;
-        const float local =
-            clamp((slide_ - start) / std::max(1.0f - start, 0.001f), 0.0f, 1.0f);
-        const float yOffset = (local - 1.0f) * fullHeight_;
+    const float cardY = bar_.bottom() + s(kPanelGap);
+    const float header = s(kHeaderHeight);
+    const float maxHeight = std::max(header + s(40.0f), screenH_ - cardY - s(24.0f));
+    const float wanted = header + content_ + s(8.0f);
+    const float height = std::min(maxHeight, std::max(header + s(40.0f), wanted));
 
-        const float contentH = panelContentHeight(panel);
-        const float totalH = kHeaderHeight + contentH + 1.0f;
-        panel.header = Rect{px(panel.x), px(panel.y + yOffset), px(panelW_),
-                            px(kHeaderHeight)};
-        panel.outer = Rect{px(panel.x), px(panel.y + yOffset), px(panelW_), px(totalH)};
+    card_ = Rect{x, cardY, width, height};
+    body_ = Rect{card_.x + s(kCardPadX), card_.y + header + s(4.0f),
+                 card_.width - s(kCardPadX) * 2.0f,
+                 std::max(s(20.0f), card_.height - header - s(6.0f))};
 
-        const bool headerHovered =
-            open_ && !closing_ && panel.header.contains(mouseX_, mouseY_);
-        panel.hover = approach(panel.hover, headerHovered ? 1.0f : 0.0f, kHoverSpeed,
-                               deltaTime);
+    scroll_ = clamp(scroll_, 0.0f, std::max(0.0f, content_ - body_.height));
 
-        if (panel.configs) {
-            float rowTop = panel.y + yOffset + kHeaderHeight;
-            for (ConfigFile& entry : configs_) {
-                entry.bounds =
-                    panel.expand > 0.02f
-                        ? Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}
-                        : Rect{};
-                const bool hovered =
-                    open_ && !closing_ && entry.bounds.width > 0.0f &&
-                    entry.bounds.contains(mouseX_, mouseY_);
-                entry.hover = approach(entry.hover, hovered ? 1.0f : 0.0f, kHoverSpeed,
-                                       deltaTime);
-                rowTop += kRowHeight * panel.expand;
-            }
-            nameField_ =
-                panel.expand > 0.02f
-                    ? Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}
-                    : Rect{};
-            rowTop += kRowHeight * panel.expand;
-            loadButton_ =
-                panel.expand > 0.02f
-                    ? Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}
-                    : Rect{};
-            rowTop += kRowHeight * panel.expand;
-            saveButton_ =
-                panel.expand > 0.02f
-                    ? Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}
-                    : Rect{};
-            rowTop += kRowHeight * panel.expand;
-            deleteButton_ =
-                panel.expand > 0.02f
-                    ? Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}
-                    : Rect{};
-            const bool nameHovered = open_ && !closing_ && nameField_.width > 0.0f &&
-                                     nameField_.contains(mouseX_, mouseY_);
-            const bool loadHovered = open_ && !closing_ && loadButton_.width > 0.0f &&
-                                     loadButton_.contains(mouseX_, mouseY_);
-            const bool saveHovered = open_ && !closing_ && saveButton_.width > 0.0f &&
-                                     saveButton_.contains(mouseX_, mouseY_);
-            const bool deleteHovered = open_ && !closing_ && deleteButton_.width > 0.0f &&
-                                       deleteButton_.contains(mouseX_, mouseY_);
-            nameHover_ = approach(nameHover_, nameHovered ? 1.0f : 0.0f, kHoverSpeed,
-                                  deltaTime);
-            loadHover_ = approach(loadHover_, loadHovered ? 1.0f : 0.0f, kHoverSpeed,
-                                  deltaTime);
-            saveHover_ = approach(saveHover_, saveHovered ? 1.0f : 0.0f, kHoverSpeed,
-                                  deltaTime);
-            deleteHover_ = approach(deleteHover_, deleteHovered ? 1.0f : 0.0f, kHoverSpeed,
-                                    deltaTime);
-            continue;
-        }
-
-        if (panel.actions) {
-            float rowTop = panel.y + yOffset + kHeaderHeight;
-            for (ActionRow& action : actions_) {
-                action.bounds =
-                    panel.expand > 0.02f
-                        ? Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}
-                        : Rect{};
-                const bool hovered =
-                    open_ && !closing_ && action.bounds.width > 0.0f &&
-                    action.bounds.contains(mouseX_, mouseY_);
-                action.hover = approach(action.hover, hovered ? 1.0f : 0.0f, kHoverSpeed,
-                                        deltaTime);
-                rowTop += kRowHeight * panel.expand;
-            }
-            continue;
-        }
-
-        float rowTop = panel.y + yOffset + kHeaderHeight;
-        for (std::size_t index : panel.rows) {
-            ModuleRow& row = rows_[index];
-            const bool rowHovered =
-                open_ && !closing_ && panel.expand > 0.3f &&
-                Rect{panel.outer.x, px(rowTop), panel.outer.width, px(kRowHeight)}.contains(
-                    mouseX_, mouseY_);
-            row.hover = approach(row.hover, rowHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
-            row.enabled = approach(row.enabled, row.module->enabled() ? 1.0f : 0.0f,
-                                   kEnableSpeed, deltaTime);
-            row.expand = approach(row.expand, row.expanded ? 1.0f : 0.0f, kExpandSpeed,
-                                  deltaTime);
-
-            row.head = panel.expand > 0.02f
-                           ? Rect{panel.outer.x, px(rowTop), panel.outer.width,
-                                  px(kRowHeight)}
-                           : Rect{};
-
-            float settingTop = rowTop + kRowHeight;
-            for (SettingRow& setting : row.settings) {
-                if (!setting.setting->visible()) {
-                    setting.bounds = Rect{};
-                    setting.control = Rect{};
-                    continue;
-                }
-                const float h = kRowHeight +
-                                (setting.setting->type() == modules::Setting::Type::Choice
-                                     ? static_cast<float>(setting.setting->choices().size()) *
-                                           kRowHeight * setting.expand
-                                     : 0.0f);
-                const bool settingHovered =
-                    open_ && !closing_ && row.expand > 0.3f && panel.expand > 0.3f &&
-                    Rect{panel.outer.x, px(settingTop), panel.outer.width, px(h)}.contains(
-                        mouseX_, mouseY_);
-                setting.hover =
-                    approach(setting.hover, settingHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
-                setting.expand = approach(setting.expand, setting.expanded ? 1.0f : 0.0f,
-                                          kChoiceExpandSpeed, deltaTime);
-                setting.picker = approach(setting.picker, setting.pickerOpen ? 1.0f : 0.0f,
-                                          16.0f, deltaTime);
-                if (setting.setting->type() == modules::Setting::Type::Number) {
-                    setting.knob = approach(setting.knob, setting.setting->normalised(),
-                                            20.0f, deltaTime);
-                }
-                setting.bounds =
-                    (row.expand > 0.02f && panel.expand > 0.02f)
-                        ? Rect{panel.outer.x, px(settingTop), panel.outer.width, px(h)}
-                        : Rect{};
-                settingTop += (kRowHeight +
-                               (setting.setting->type() == modules::Setting::Type::Choice
-                                    ? static_cast<float>(setting.setting->choices().size()) *
-                                          kRowHeight * setting.expand
-                                    : 0.0f)) *
-                              row.expand;
-            }
-            rowTop += (kRowHeight + settingsHeight(row)) * panel.expand;
-        }
+    if (page != nullptr) {
+        layoutSubpage(*page, deltaTime);
+    } else {
+        layoutList(tabs_[tab_], deltaTime);
     }
 
     if (activeSlider_ != nullptr && mouseDown_ && activeSlider_->control.width > 0.0f) {
@@ -1079,87 +1244,629 @@ void ClickGui::layout(modules::Context& context) {
         activeSlider_->setting->setNormalised((mouseX_ - track.x) / track.width);
     }
 
-    if (activePicker_ != nullptr && mouseDown_) {
+    if (activePicker_ != nullptr && mouseDown_ && activePicker_->setting != nullptr) {
         SettingRow& settingRow = *activePicker_;
-        const Rect popup{settingRow.control.right() + px(kPickerGap),
-                         settingRow.control.y - px(1.5f), px(kPickerWidth),
-                         px(kPickerHeight)};
-        const Rect field{popup.x + px(kPickerPad), popup.y + px(kPickerPad),
-                         popup.width - px(kPickerPad * 2.0f), px(kPickerField)};
+        const Rect editor{settingRow.bounds.x, settingRow.bounds.y + s(kSettingHeight),
+                          settingRow.bounds.width, s(kEditorHeight)};
+        const Rect field{editor.x + s(kSettingPadX), editor.y + s(kEditorGap),
+                         editor.width - s(kSettingPadX) * 2.0f, s(kEditorField)};
         const Color current = settingRow.setting->colour();
         if (pickerAxis_ == 0) {
-            const float saturation = clamp((mouseX_ - field.x) / std::max(field.width, 1.0f),
-                                           0.0f, 1.0f);
+            const float saturation =
+                clamp((mouseX_ - field.x) / std::max(field.width, 1.0f), 0.0f, 1.0f);
             const float value =
                 1.0f - clamp((mouseY_ - field.y) / std::max(field.height, 1.0f), 0.0f, 1.0f);
-            settingRow.setting->setColour(Color::hsv(settingRow.hue, saturation, value,
-                                                     current.a));
+            settingRow.setting->setColour(
+                Color::hsv(settingRow.hue, saturation, value, current.a));
         } else {
-            const Rect strip{field.x, field.bottom() + px(kPickerPad), field.width,
-                             px(kPickerStrip)};
-            settingRow.hue =
-                clamp((mouseX_ - strip.x) / std::max(strip.width, 1.0f), 0.0f, 1.0f);
+            const Rect strip{field.x, field.bottom() + s(kEditorGap), field.width,
+                             s(kEditorStrip)};
+            settingRow.hue = clamp((mouseX_ - strip.x) / std::max(strip.width, 1.0f), 0.0f, 1.0f);
             const float maximum = std::max({current.r, current.g, current.b});
             const float minimum = std::min({current.r, current.g, current.b});
             const float saturation = maximum <= 0.0f ? 1.0f : (maximum - minimum) / maximum;
-            settingRow.setting->setColour(Color::hsv(
-                settingRow.hue, saturation, maximum <= 0.0f ? 1.0f : maximum, current.a));
+            settingRow.setting->setColour(Color::hsv(settingRow.hue, saturation,
+                                                     maximum <= 0.0f ? 1.0f : maximum, current.a));
         }
     }
 }
+
+void ClickGui::layoutList(Tab& tab, float deltaTime) {
+    float top = body_.y + s(kRowGap) - scroll_;
+    for (std::size_t index : tab.rows) {
+        Row& row = rows_[index];
+        row.bounds = Rect{body_.x, top, body_.width, s(kRowHeight)};
+
+        const bool hasPill = row.kind == RowKind::Module || row.kind == RowKind::Flag;
+        const float chevronCentre =
+            row.bounds.right() -
+            (hasPill ? s(kPillMargin + kPillWidth + kChevronBox) : s(22.0f));
+        row.chevron = row.kind == RowKind::Flag
+                          ? Rect{}
+                          : Rect{chevronCentre - s(14.0f), row.bounds.y, s(28.0f),
+                                 row.bounds.height};
+
+        const bool hovered = interactive() && body_.contains(mouseX_, mouseY_) &&
+                             row.bounds.contains(mouseX_, mouseY_);
+        row.hover = approach(row.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+        top += s(kRowHeight) + s(kRowGap);
+    }
+}
+
+void ClickGui::layoutSubpage(Row& row, float deltaTime) {
+    const float slide = s(10.0f) * (1.0f - subpageAnim_);
+    float top = body_.y + s(kRowGap) - scroll_;
+
+    if (row.kind == RowKind::Configs) {
+        layoutConfigs(row, top, deltaTime);
+        return;
+    }
+
+    for (SettingRow& setting : row.settings) {
+        if (setting.setting != nullptr && !setting.setting->visible()) {
+            setting.bounds = Rect{};
+            setting.control = Rect{};
+            continue;
+        }
+        setting.expand = approach(setting.expand, setting.expanded ? 1.0f : 0.0f, kExpandSpeed,
+                                  deltaTime);
+        setting.picker =
+            approach(setting.picker, setting.pickerOpen ? 1.0f : 0.0f, 16.0f, deltaTime);
+        if (setting.setting != nullptr &&
+            setting.setting->type() == modules::Setting::Type::Number) {
+            setting.knob = approach(setting.knob, setting.setting->normalised(), 20.0f, deltaTime);
+        }
+
+        const float height = settingHeight(setting);
+        setting.bounds = Rect{body_.x + slide, top, body_.width - slide, height};
+
+        const bool hovered = interactive() && body_.contains(mouseX_, mouseY_) &&
+                             setting.bounds.contains(mouseX_, mouseY_);
+        setting.hover = approach(setting.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+
+        if (setting.setting != nullptr &&
+            setting.setting->type() == modules::Setting::Type::Number) {
+            setting.control = Rect{setting.bounds.x + s(kSettingPadX),
+                                   setting.bounds.y + s(kSettingHeight) - s(11.0f),
+                                   setting.bounds.width - s(kSettingPadX) * 2.0f, s(kSliderTrack)};
+        } else {
+            setting.control = setting.bounds;
+        }
+        top += height + s(kRowGap);
+    }
+}
+
+void ClickGui::layoutConfigs(Row& row, float top, float deltaTime) {
+    (void)row;
+    const float slide = s(10.0f) * (1.0f - subpageAnim_);
+    const float left = body_.x + slide;
+    const float width = body_.width - slide;
+    const float buttonWidth = s(84.0f);
+
+    nameField_ = Rect{left, top, width - buttonWidth - s(kRowGap), s(kSettingHeight)};
+    saveButton_ = Rect{nameField_.right() + s(kRowGap), top, buttonWidth, s(kSettingHeight)};
+    const bool nameHovered = interactive() && nameField_.contains(mouseX_, mouseY_);
+    const bool saveHovered = interactive() && saveButton_.contains(mouseX_, mouseY_);
+    nameHover_ = approach(nameHover_, nameHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+    saveHover_ = approach(saveHover_, saveHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+    top += s(kSettingHeight) + s(kRowGap);
+
+    for (ConfigFile& entry : configs_) {
+        entry.bounds = Rect{left, top, width, s(kSettingHeight)};
+        entry.remove = Rect{entry.bounds.right() - s(kSettingPadX) - s(62.0f),
+                            entry.bounds.y + s(7.0f), s(62.0f), s(kSettingHeight) - s(14.0f)};
+        const bool hovered = interactive() && body_.contains(mouseX_, mouseY_) &&
+                             entry.bounds.contains(mouseX_, mouseY_);
+        const bool removeHovered = hovered && entry.remove.contains(mouseX_, mouseY_);
+        entry.hover = approach(entry.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+        entry.removeHover =
+            approach(entry.removeHover, removeHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
+        top += s(kSettingHeight) + s(kRowGap);
+    }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Render
+ * ------------------------------------------------------------------------- */
 
 void ClickGui::render(modules::Context& context) {
     build();
     layout(context);
-    if (slide_ <= 0.004f || panels_.empty()) {
+    if (slide_ <= 0.004f || tabs_.empty()) {
         return;
     }
 
     render::Renderer& gfx = render::renderer();
-    const float alpha = clamp(slide_, 0.0f, 1.0f);
 
-    /* Dimmed scene behind the panels, fading with the slide. */
-    const float screenWidth = static_cast<float>(context.state->windowWidth);
-    const float screenHeight = static_cast<float>(context.state->windowHeight);
+    /* The design puts nothing behind the menu; the card carries its own body.
+     * The blur is opt-in for the same reason it always was. */
     const render::Backdrop& backdrop = client().backdrop();
     if (blur_ && backdrop.valid()) {
-        const Rect full{0.0f, 0.0f, screenWidth, screenHeight};
+        const Rect full{0.0f, 0.0f, screenW_, screenH_};
         const Rect uv{0.0f, 1.0f, 1.0f, -1.0f};
-        gfx.image(full, uv, backdrop.texture(), Color{1.0f, 1.0f, 1.0f, alpha}, 0.0f);
-        gfx.rect(full, Color::rgb(0x000000, 0.47f * alpha), 0.0f);
+        gfx.image(full, uv, backdrop.texture(), Color{1.0f, 1.0f, 1.0f, alpha_}, 0.0f);
+        gfx.rect(full, Color::rgb(0x000000, 0.28f * alpha_), 0.0f);
+    }
+
+    drawTabBar();
+    drawCard();
+    renderCursor(gfx);
+}
+
+void ClickGui::drawTabBar() {
+    render::Renderer& gfx = render::renderer();
+
+    gfx.rect(bar_, fade(kTabBarBg), s(kTabBarRadius));
+    gfx.outline(bar_, fade(kCardBorder), std::max(1.0f, s(1.0f)), s(kTabBarRadius));
+
+    std::size_t named = 0;
+    for (const Tab& tab : tabs_) {
+        if (!tab.iconOnly) ++named;
+    }
+    if (named == 0) {
+        return;
+    }
+    const float inset = s(4.0f);
+    const float gearWidth = s(kGearSlotWidth);
+    const float slotWidth = (bar_.width - inset * 2.0f - gearWidth) / static_cast<float>(named);
+
+    /* Chip and underline of the active slot, interpolated so they slide. */
+    if (indicatorAlpha_ > 0.001f) {
+        const float chipX = bar_.x + inset + indicator_ * slotWidth;
+        const Rect chip{chipX, bar_.y + s(3.0f), slotWidth, bar_.height - s(6.0f)};
+        gfx.rect(chip, fade(kTabChipBg, indicatorAlpha_), s(9.0f));
+
+        const float underlineWidth = slotWidth * 0.78f;
+        const float underlineHeight = s(2.5f);
+        gfx.rect(Rect{chip.x + (slotWidth - underlineWidth) * 0.5f,
+                      chip.bottom() - underlineHeight, underlineWidth, underlineHeight},
+                 accent(indicatorAlpha_), underlineHeight * 0.5f);
+    }
+
+    for (std::size_t index = 0; index < tabs_.size(); ++index) {
+        const Tab& tab = tabs_[index];
+        if (tab.iconOnly) {
+            /* The gear stays in the accent, as the design has it. */
+            const float box = s(kIconBox);
+            const Color colour = Color::mix(theme().accent, Color::rgb(0xFFFFFF),
+                                            gearHover_ * 0.35f);
+            gfx.icon(tab.icon,
+                     Rect{tab.bounds.centerX() - box * 0.5f, tab.bounds.centerY() - box * 0.5f,
+                          box, box},
+                     fade(colour));
+            continue;
+        }
+        const bool selected = index == tab_;
+        const Color colour = selected ? kTextPrimary
+                                      : Color::mix(kTextMuted, kTextPrimary, tab.hover * 0.7f);
+        drawText(kLabelFont, tab.label, tab.bounds.centerX(),
+                 tab.bounds.centerY() - s(kLabelBox) * 0.5f, s(kLabelBox), fade(colour),
+                 render::Align::Center);
+    }
+}
+
+void ClickGui::drawCard() {
+    render::Renderer& gfx = render::renderer();
+
+    gfx.rect(card_, fade(kCardBg), s(kCardRadius));
+    gfx.outline(card_, fade(kCardBorder), std::max(1.0f, s(1.0f)), s(kCardRadius));
+
+    Row* page = subpage();
+    if (page != nullptr) {
+        drawSubpageHeader(*page);
     } else {
-        gfx.rect(Rect{0.0f, 0.0f, screenWidth, screenHeight},
-                 Color::rgb(0x000000, 0.47f * alpha), 0.0f);
+        drawCardHeader(tabs_[tab_]);
     }
 
-    for (Panel& panel : panels_) {
-        renderPanel(panel);
-    }
-
-    for (ModuleRow& row : rows_) {
-        for (SettingRow& setting : row.settings) {
-            if (setting.picker > 0.004f) {
-                renderPicker(setting);
+    gfx.pushClip(body_);
+    if (page != nullptr) {
+        if (page->kind == RowKind::Configs) {
+            drawConfigs(*page);
+        } else {
+            for (SettingRow& setting : page->settings) {
+                if (setting.bounds.width <= 0.0f) {
+                    continue;
+                }
+                drawSetting(*page, setting);
             }
         }
+    } else {
+        for (std::size_t index : tabs_[tab_].rows) {
+            drawRow(rows_[index]);
+        }
+    }
+    gfx.popClip();
+}
+
+void ClickGui::drawCardHeader(const Tab& tab) {
+    render::Renderer& gfx = render::renderer();
+    const float height = s(kHeaderHeight);
+    const float centreY = card_.y + height * 0.5f;
+    float cursorX = card_.x + s(16.0f);
+
+    const float iconBox = s(16.0f);
+    gfx.icon(tab.icon, Rect{cursorX, centreY - iconBox * 0.5f, iconBox, iconBox}, accent());
+    cursorX += iconBox + s(10.0f);
+
+    const std::string title = upperCase(tab.label);
+    const float tracking = s(kTracking);
+    drawTracked(kHeadingFont, title, cursorX, centreY - s(kHeadingBox) * 0.5f, s(kHeadingBox),
+                accent(), tracking);
+    cursorX += trackedWidth(kHeadingFont, title, s(kHeadingBox), tracking) + s(14.0f);
+
+    gfx.line(cursorX, centreY - s(7.0f), cursorX, centreY + s(7.0f), std::max(1.0f, s(1.0f)),
+             fade(kSeparator));
+    cursorX += s(14.0f);
+
+    char count[64];
+    std::snprintf(count, sizeof(count), "%d %s", static_cast<int>(tab.rows.size()),
+                  tab.countNoun != nullptr ? tab.countNoun : "MODULES");
+    drawText(kMicroFont, count, cursorX, centreY - s(kMicroBox) * 0.5f, s(kMicroBox),
+             fade(kTextFaint));
+
+    gfx.line(card_.x, card_.y + height, card_.right(), card_.y + height, std::max(1.0f, s(1.0f)),
+             fade(kSeparator));
+}
+
+void ClickGui::drawSubpageHeader(const Row& row) {
+    render::Renderer& gfx = render::renderer();
+    const float height = s(kHeaderHeight);
+    const float centreY = card_.y + height * 0.5f;
+
+    const Rect back{card_.x + s(8.0f), card_.y + s(4.0f), s(34.0f), height - s(8.0f)};
+    if (backHover_ > 0.001f) {
+        gfx.rect(back, fade(Color::rgb(0xFFFFFF, 20.0f / 255.0f), backHover_), s(7.0f));
+    }
+    const float box = s(kChevronBox);
+    gfx.icon(assets::IconAsset::ChevronLeft,
+             Rect{back.centerX() - box * 0.5f, back.centerY() - box * 0.5f, box, box},
+             fade(Color::mix(kTextMuted, kTextPrimary, backHover_)));
+
+    const std::string title = upperCase(row.name);
+    drawTracked(kHeadingFont, title, back.right() + s(8.0f), centreY - s(kHeadingBox) * 0.5f,
+                s(kHeadingBox), accent(), s(kTracking));
+
+    gfx.line(card_.x, card_.y + height, card_.right(), card_.y + height, std::max(1.0f, s(1.0f)),
+             fade(kSeparator));
+}
+
+void ClickGui::drawPill(const Rect& bounds, float on) {
+    render::Renderer& gfx = render::renderer();
+    const float radius = bounds.height * 0.5f;
+    if (on > 0.001f) {
+        gfx.rect(bounds.inset(-s(2.0f)), accent(0.16f * on), radius + s(2.0f));
+    }
+    gfx.rect(bounds, fade(Color::mix(kToggleOff, theme().accent, on)), radius);
+
+    const float knobRadius = radius - s(2.5f);
+    const float left = bounds.x + s(2.5f) + knobRadius;
+    const float right = bounds.right() - s(2.5f) - knobRadius;
+    const float centreX = left + (right - left) * on;
+    gfx.rect(Rect{centreX - knobRadius, bounds.centerY() - knobRadius, knobRadius * 2.0f,
+                  knobRadius * 2.0f},
+             fade(Color::mix(kKnobOff, kKnobOn, on)), knobRadius);
+}
+
+void ClickGui::drawChip(float x, float centreY, std::string_view text, const Color& background,
+                        const Color& textColour) {
+    render::Renderer& gfx = render::renderer();
+    const float padX = s(6.0f);
+    const float box = s(kMicroBox);
+    const float chipHeight = box + s(5.0f);
+    const float width = textWidth(kMicroFont, text, box) + padX * 2.0f;
+    const Rect chip{x, centreY - chipHeight * 0.5f, width, chipHeight};
+    gfx.rect(chip, fade(background), s(4.0f));
+    drawText(kMicroFont, text, chip.x + padX, chip.centerY() - box * 0.5f, box, fade(textColour));
+}
+
+void ClickGui::drawRow(Row& row) {
+    render::Renderer& gfx = render::renderer();
+    if (row.bounds.width <= 0.0f) {
+        return;
+    }
+    const Rect bounds = row.bounds;
+    const float height = bounds.height;
+    const bool hasPill = row.kind == RowKind::Module || row.kind == RowKind::Flag;
+
+    Color background = Color::mix(kRowBg, kRowBgOn, row.on);
+    background = Color::mix(background, kHoverWash, row.hover * 0.6f);
+    gfx.rect(bounds, fade(background), s(kRowRadius));
+
+    if (row.on > 0.001f) {
+        const float barInset = s(7.0f);
+        gfx.rect(Rect{bounds.x, bounds.y + barInset, s(3.0f), height - barInset * 2.0f},
+                 accent(row.on), s(1.5f));
     }
 
-    renderCursor(gfx, alpha);
+    const float iconBox = s(kIconBox);
+    gfx.icon(row.icon,
+             Rect{bounds.x + s(kRowIconCentre) - iconBox * 0.5f, bounds.centerY() - iconBox * 0.5f,
+                  iconBox, iconBox},
+             fade(Color::mix(kTextMuted, kIconOn, row.on)));
+
+    const float textX = bounds.x + s(kRowTextX);
+    const float nameTop = bounds.y + s(kRowNameTop);
+    const float nameEnd =
+        drawText(kLabelFont, row.name, textX, nameTop, s(kLabelBox), fade(kTextPrimary));
+
+    if (row.kind == RowKind::Module && row.module != nullptr) {
+        drawChip(nameEnd + s(9.0f), nameTop + s(kLabelBox) * 0.5f,
+                 bindLabel(row.module->key(), row.binding), kChipBg,
+                 row.binding ? theme().accent : kChipText);
+    }
+
+    if (!row.description.empty()) {
+        float limit = bounds.right() - s(kPillMargin) - textX;
+        if (hasPill) limit -= s(kPillWidth);
+        if (row.chevron.width > 0.0f) limit -= s(28.0f);
+        const std::string shown =
+            elideText(kDescFont, row.description, s(kDescBox), std::max(limit, s(30.0f)));
+        drawText(kDescFont, shown, textX, bounds.y + s(kRowDescTop), s(kDescBox),
+                 fade(kTextMuted));
+    }
+
+    if (hasPill) {
+        const float pillWidth = s(kPillWidth);
+        const float pillHeight = s(kPillHeight);
+        drawPill(Rect{bounds.right() - s(kPillMargin) - pillWidth,
+                      bounds.centerY() - pillHeight * 0.5f, pillWidth, pillHeight},
+                 row.on);
+    }
+
+    if (row.chevron.width > 0.0f) {
+        const float box = s(kChevronBox);
+        gfx.icon(assets::IconAsset::ChevronRight,
+                 Rect{row.chevron.centerX() - box * 0.5f, row.chevron.centerY() - box * 0.5f, box,
+                      box},
+                 fade(Color::mix(kTextFaint, kTextPrimary, row.hover)));
+    }
+}
+
+void ClickGui::drawSetting(Row& owner, SettingRow& setting) {
+    render::Renderer& gfx = render::renderer();
+    const Rect bounds = setting.bounds;
+    const Rect line{bounds.x, bounds.y, bounds.width, s(kSettingHeight)};
+
+    Color background = Color::mix(kRowBg, kHoverWash, setting.hover * 0.6f);
+    gfx.rect(line, fade(background), s(kRowRadius));
+
+    const float labelBox = s(13.0f);
+    const float padX = s(kSettingPadX);
+    const float rightEdge = line.right() - padX;
+
+    if (setting.setting == nullptr) {
+        /* The module's own bind. */
+        drawText(kLabelFont, "Keybind", line.x + padX, line.centerY() - labelBox * 0.5f, labelBox,
+                 fade(kTextPrimary));
+        const std::string label =
+            bindLabel(owner.module != nullptr ? owner.module->key() : 0, owner.binding);
+        const float chipWidth = textWidth(kMicroFont, label, s(kMicroBox)) + s(12.0f);
+        drawChip(rightEdge - chipWidth, line.centerY(), label, kChipBg,
+                 owner.binding ? theme().accent : kChipText);
+        return;
+    }
+
+    modules::Setting& value = *setting.setting;
+    switch (value.type()) {
+        case modules::Setting::Type::Boolean: {
+            drawText(kLabelFont, value.name(), line.x + padX, line.centerY() - labelBox * 0.5f,
+                     labelBox, fade(kTextPrimary));
+            const float pillWidth = s(32.0f);
+            const float pillHeight = s(17.0f);
+            drawPill(Rect{rightEdge - pillWidth, line.centerY() - pillHeight * 0.5f, pillWidth,
+                          pillHeight},
+                     value.booleanValue() ? 1.0f : 0.0f);
+            break;
+        }
+
+        case modules::Setting::Type::Number: {
+            drawText(kLabelFont, value.name(), line.x + padX, line.y + s(8.0f), labelBox,
+                     fade(kTextPrimary));
+            drawText(kMicroFont, formatNumber(value), rightEdge, line.y + s(9.5f), s(kMicroBox),
+                     fade(kChipText), render::Align::Right);
+            const Rect track = setting.control;
+            if (track.width > 0.0f) {
+                gfx.rect(track, fade(kTrackBg), track.height * 0.5f);
+                const float fill = track.width * clamp(setting.knob, 0.0f, 1.0f);
+                if (fill > 0.5f) {
+                    gfx.rect(Rect{track.x, track.y, fill, track.height}, accent(),
+                             track.height * 0.5f);
+                }
+                const float knobRadius = s(5.0f);
+                gfx.rect(Rect{track.x + fill - knobRadius, track.centerY() - knobRadius,
+                              knobRadius * 2.0f, knobRadius * 2.0f},
+                         fade(kKnobOn), knobRadius);
+            }
+            break;
+        }
+
+        case modules::Setting::Type::Choice: {
+            drawText(kLabelFont, value.name(), line.x + padX, line.centerY() - labelBox * 0.5f,
+                     labelBox, fade(kTextPrimary));
+            const std::string current = value.choiceName();
+            const float chipWidth = textWidth(kMicroFont, current, s(kMicroBox)) + s(12.0f);
+            drawChip(rightEdge - chipWidth, line.centerY(), current, kChipBg, kChipText);
+            if (setting.expand > 0.01f) {
+                drawChoiceItems(setting);
+            }
+            break;
+        }
+
+        case modules::Setting::Type::Key: {
+            drawText(kLabelFont, value.name(), line.x + padX, line.centerY() - labelBox * 0.5f,
+                     labelBox, fade(kTextPrimary));
+            const std::string label = bindLabel(value.key(), setting.listeningForKey);
+            const float chipWidth = textWidth(kMicroFont, label, s(kMicroBox)) + s(12.0f);
+            drawChip(rightEdge - chipWidth, line.centerY(), label, kChipBg,
+                     setting.listeningForKey ? theme().accent : kChipText);
+            break;
+        }
+
+        case modules::Setting::Type::Colour: {
+            drawText(kLabelFont, value.name(), line.x + padX, line.centerY() - labelBox * 0.5f,
+                     labelBox, fade(kTextPrimary));
+            const float swatchWidth = s(30.0f);
+            const float swatchHeight = s(16.0f);
+            const Rect swatch{rightEdge - swatchWidth, line.centerY() - swatchHeight * 0.5f,
+                              swatchWidth, swatchHeight};
+            gfx.rect(swatch, fade(value.colour()), s(4.0f));
+            gfx.outline(swatch, fade(kCardBorder), std::max(1.0f, s(1.0f)), s(4.0f));
+            if (setting.picker > 0.01f) {
+                drawColourEditor(setting,
+                                 Rect{bounds.x, bounds.y + s(kSettingHeight), bounds.width,
+                                      s(kEditorHeight)});
+            }
+            break;
+        }
+    }
+}
+
+void ClickGui::drawChoiceItems(SettingRow& setting) {
+    render::Renderer& gfx = render::renderer();
+    modules::Setting& value = *setting.setting;
+    const float reveal = clamp(setting.expand, 0.0f, 1.0f);
+    const float itemHeight = s(kChoiceItemHeight);
+    const float full = static_cast<float>(value.choices().size()) * itemHeight;
+    const Rect area{setting.bounds.x, setting.bounds.y + s(kSettingHeight), setting.bounds.width,
+                    full * reveal};
+    if (area.height <= 0.5f) {
+        return;
+    }
+    gfx.pushClip(area);
+    for (std::size_t i = 0; i < value.choices().size(); ++i) {
+        const float itemY = area.y + static_cast<float>(i) * itemHeight;
+        const bool hovered = interactive() && mouseX_ >= area.x && mouseX_ <= area.right() &&
+                             mouseY_ >= itemY && mouseY_ <= itemY + itemHeight;
+        const bool selected = static_cast<int>(i) == value.choice();
+        if (hovered) {
+            gfx.rect(Rect{area.x + s(6.0f), itemY + s(1.0f), area.width - s(12.0f),
+                          itemHeight - s(2.0f)},
+                     fade(kHoverWash, 0.7f), s(5.0f));
+        }
+        const Color colour = selected ? theme().accent : Color::mix(kTextMuted, kTextPrimary,
+                                                                    hovered ? 1.0f : 0.0f);
+        drawText(kDescFont, value.choices()[i], area.x + s(kSettingPadX + 10.0f),
+                 itemY + (itemHeight - s(kDescBox)) * 0.5f, s(kDescBox), fade(colour));
+    }
+    gfx.popClip();
+}
+
+void ClickGui::drawColourEditor(SettingRow& setting, const Rect& area) {
+    render::Renderer& gfx = render::renderer();
+    const float reveal = clamp(setting.picker, 0.0f, 1.0f);
+    if (reveal <= 0.01f) {
+        return;
+    }
+    gfx.pushClip(Rect{area.x, area.y, area.width, area.height * reveal});
+
+    const Color current = setting.setting->colour();
+    const float maximum = std::max({current.r, current.g, current.b});
+    const float minimum = std::min({current.r, current.g, current.b});
+    const float saturation = maximum <= 0.0f ? 0.0f : (maximum - minimum) / maximum;
+
+    const Rect field{area.x + s(kSettingPadX), area.y + s(kEditorGap),
+                     area.width - s(kSettingPadX) * 2.0f, s(kEditorField)};
+    gfx.rectHorizontal(field, fade(Color{1.0f, 1.0f, 1.0f, 1.0f}),
+                       fade(Color::hsv(setting.hue, 1.0f, 1.0f)), s(6.0f));
+    gfx.rectVertical(field, Color{0.0f, 0.0f, 0.0f, 0.0f}, fade(Color{0.0f, 0.0f, 0.0f, 1.0f}),
+                     s(6.0f));
+    gfx.ring(field.x + field.width * saturation, field.y + field.height * (1.0f - maximum),
+             s(5.0f), s(2.0f), 1.0f, fade(Color{1.0f, 1.0f, 1.0f, 1.0f}));
+
+    const Rect strip{field.x, field.bottom() + s(kEditorGap), field.width, s(kEditorStrip)};
+    const int segments = 6;
+    const float segmentWidth = strip.width / static_cast<float>(segments);
+    for (int index = 0; index < segments; ++index) {
+        const float from = static_cast<float>(index) / static_cast<float>(segments);
+        const float to = static_cast<float>(index + 1) / static_cast<float>(segments);
+        gfx.rectHorizontal(Rect{strip.x + segmentWidth * static_cast<float>(index), strip.y,
+                                segmentWidth, strip.height},
+                           fade(Color::hsv(from, 1.0f, 1.0f)),
+                           fade(Color::hsv(to - 0.0001f, 1.0f, 1.0f)), 0.0f);
+    }
+    gfx.rect(Rect{strip.x + strip.width * setting.hue - s(1.5f), strip.y - s(2.0f), s(3.0f),
+                  strip.height + s(4.0f)},
+             fade(Color{1.0f, 1.0f, 1.0f, 1.0f}), s(1.5f));
+
+    const Rect preview{field.x, strip.bottom() + s(kEditorGap), field.width, s(kEditorSwatch)};
+    gfx.rect(preview, fade(current), s(5.0f));
+    char hex[16];
+    std::snprintf(hex, sizeof(hex), "#%06X", current.packed() >> 8);
+    drawText(kMicroFont, hex, preview.centerX(), preview.centerY() - s(kMicroBox) * 0.5f,
+             s(kMicroBox), fade(Color{0.0f, 0.0f, 0.0f, 0.7f}), render::Align::Center);
+
+    gfx.popClip();
+}
+
+void ClickGui::drawConfigs(Row& row) {
+    (void)row;
+    render::Renderer& gfx = render::renderer();
+    const float labelBox = s(13.0f);
+    const float padX = s(kSettingPadX);
+
+    gfx.rect(nameField_, fade(Color::mix(kRowBg, kHoverWash, nameHover_ * 0.6f)), s(kRowRadius));
+    const bool empty = configName_.empty();
+    const std::string shown = empty ? "Config name" : configName_;
+    const float end = drawText(kLabelFont, shown, nameField_.x + padX,
+                               nameField_.centerY() - labelBox * 0.5f, labelBox,
+                               fade(empty ? kTextFaint : kTextPrimary));
+    if (editingName_) {
+        const float blink = 0.5f + 0.5f * std::sin(time_ * 6.0f);
+        gfx.rect(Rect{end + s(2.0f), nameField_.centerY() - labelBox * 0.5f, s(1.5f), labelBox},
+                 accent(blink), s(0.75f));
+    }
+
+    gfx.rect(saveButton_, fade(Color::mix(kRowBg, kHoverWash, 0.4f + saveHover_ * 0.6f)),
+             s(kRowRadius));
+    drawText(kLabelFont, "Save", saveButton_.centerX(), saveButton_.centerY() - labelBox * 0.5f,
+             labelBox, fade(Color::mix(kTextMuted, kTextPrimary, saveHover_)),
+             render::Align::Center);
+
+    for (std::size_t i = 0; i < configs_.size(); ++i) {
+        const ConfigFile& entry = configs_[i];
+        if (entry.bounds.width <= 0.0f) {
+            continue;
+        }
+        const bool selected = static_cast<int>(i) == selectedConfig_;
+        gfx.rect(entry.bounds, fade(Color::mix(kRowBg, kHoverWash, entry.hover * 0.6f)),
+                 s(kRowRadius));
+        if (selected) {
+            gfx.rect(Rect{entry.bounds.x, entry.bounds.y + s(7.0f), s(3.0f),
+                          entry.bounds.height - s(14.0f)},
+                     accent(), s(1.5f));
+        }
+        drawText(kLabelFont, entry.name, entry.bounds.x + padX,
+                 entry.bounds.centerY() - labelBox * 0.5f, labelBox,
+                 fade(selected ? kTextPrimary : Color::mix(kTextMuted, kTextPrimary, entry.hover)));
+
+        gfx.rect(entry.remove,
+                 fade(Color::mix(kChipBg, theme().negative, entry.removeHover * 0.75f)), s(5.0f));
+        drawText(kMicroFont, "DELETE", entry.remove.centerX(),
+                 entry.remove.centerY() - s(kMicroBox) * 0.5f, s(kMicroBox),
+                 fade(Color::mix(kChipText, kTextPrimary, entry.removeHover)),
+                 render::Align::Center);
+    }
+
+    if (!configStatus_.empty() && !configs_.empty()) {
+        const float top = configs_.back().bounds.bottom() + s(kRowGap) + s(10.0f);
+        drawText(kDescFont, configStatus_, body_.x + padX, top, s(kDescBox), fade(kTextFaint));
+    } else if (!configStatus_.empty()) {
+        drawText(kDescFont, configStatus_, body_.x + padX,
+                 nameField_.bottom() + s(kRowGap) + s(10.0f), s(kDescBox), fade(kTextFaint));
+    }
 }
 
 /* The game's cursor is grabbed (and therefore invisible) while the menu owns
  * it, so the menu draws its own. The GWEN-style triangle with a hairline edge
- * reads against both the dim and the blurred backdrops. */
-void ClickGui::renderCursor(render::Renderer& gfx, float alpha) {
+ * reads against both a bright scene and the card. */
+void ClickGui::renderCursor(render::Renderer& gfx) {
     const float x = mouseX_;
     const float y = mouseY_;
-    float w = px(6.0f);
-    float h = px(9.5f);
+    const float w = s(6.0f);
+    const float h = s(9.5f);
     const float xs[4] = {x, x, x + w, x + w * 0.62f};
     const float ys[4] = {y, y + h, y + h * 0.68f, y + h * 0.68f};
-    /* One-pixel outline first, then the fill inset toward the centroid, so the
-     * edge reads on any background. */
-    gfx.face(xs, ys, Color::rgb(0xE8ECF2, 0.9f * alpha));
+    gfx.face(xs, ys, Color::rgb(0xE8ECF2, 0.9f * alpha_));
     float cx = 0.0f;
     float cy = 0.0f;
     for (int i = 0; i < 4; ++i) {
@@ -1173,430 +1880,7 @@ void ClickGui::renderCursor(render::Renderer& gfx, float alpha) {
         xs2[i] = cx + (xs[i] - cx) * inset;
         ys2[i] = cy + (ys[i] - cy) * inset;
     }
-    gfx.face(xs2, ys2, Color::rgb(0x0B0E14, 0.9f * alpha));
-}
-
-void ClickGui::renderPanel(Panel& panel) {
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f);
-    const Color& accent = palette.accent;
-
-    /* Accent hairline around the whole panel, then the dark body inset by one
-     * device pixel. */
-    gfx.rect(panel.outer, accent.withAlpha(alpha), 0.0f);
-    gfx.rect(panel.outer.inset(1.0f), darker(kModuleBg, 2).withAlpha(alpha), 0.0f);
-
-    if (panel.expand > 0.005f) {
-        gfx.pushClip(Rect{panel.outer.x + 1.0f, panel.header.bottom() - 1.0f,
-                          panel.outer.width - 2.0f,
-                          std::max(0.0f, panel.outer.bottom() - panel.header.bottom())});
-        float rowTop = panel.header.y / unit_ + kHeaderHeight;
-        if (panel.configs) {
-            renderConfigs(panel, rowTop);
-        } else if (panel.actions) {
-            renderActions(panel, rowTop);
-        } else {
-            for (std::size_t index : panel.rows) {
-                ModuleRow& row = rows_[index];
-                renderModuleRow(panel, row, rowTop);
-                rowTop += (kRowHeight + settingsHeight(row)) * panel.expand;
-            }
-        }
-        gfx.popClip();
-    }
-
-    /* Header over the module block: base, hover, then the active step. */
-    const Color header =
-        Color::mix(Color::mix(kBase, kHoverBg, panel.hover), kActiveBg, panel.expand);
-    gfx.rect(Rect{panel.outer.x + 1.5f, panel.outer.y + 1.5f, panel.outer.width - 3.0f,
-                  px(kHeaderHeight) - 2.5f},
-             header.withAlpha(alpha), 0.0f);
-
-    /* Indicator line growing from the centre, quadratic ease-out. */
-    if (panel.expand > 0.005f) {
-        const float ease = 1.0f - (1.0f - panel.expand) * (1.0f - panel.expand);
-        const float half = (panel.outer.width * 0.5f - 1.5f) * ease;
-        const float mid = panel.outer.x + panel.outer.width * 0.5f;
-        gfx.rect(Rect{mid - half, panel.outer.y + 1.5f, half * 2.0f, px(0.5f)},
-                 accent.withAlpha(alpha), 0.0f);
-    }
-
-    const Color text =
-        Color::mix(Color::mix(kTextDim, kTextMid, panel.hover), Color::rgb(0xFFFFFF),
-                   panel.expand);
-    gfx.textCap(render::FontRole::Medium, panel.label, panel.outer.x + px(kPadding),
-                panel.outer.y + px((kHeaderHeight - kTextSize * 0.727f) * 0.5f), px(kTextSize),
-                text.withAlpha(alpha));
-    const float iconSize = px(9.0f);
-    gfx.icon(panel.icon,
-             Rect{panel.outer.right() - px(kPadding) - iconSize - 1.0f,
-                  panel.outer.y + (px(kHeaderHeight) - iconSize) * 0.5f, iconSize, iconSize},
-             accent.withAlpha(alpha));
-}
-
-void ClickGui::renderModuleRow(Panel& panel, ModuleRow& row, float top) {
-    (void)panel;
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f);
-    const Color& accent = palette.accent;
-
-    if (row.head.width <= 0.0f) {
-        return;
-    }
-    const Rect head{row.head.x + 1.5f, row.head.y, row.head.width - 3.0f,
-                    px(kRowHeight)};
-
-    const Color disabled = Color::mix(kModuleBg, kModuleHover, row.hover);
-    gfx.rect(head, Color::mix(disabled, darker(accent, 2), row.enabled).withAlpha(alpha),
-             0.0f);
-
-    const Color text = Color::mix(Color::mix(kTextDim, kTextMid, row.hover), kTextOn,
-                                  row.enabled);
-    const float drawX = head.x + px(kPadding) + px(kHoverShift) * row.hover;
-    const float textY = head.y + px(2.0f);
-    const float size = px(kTextSize);
-    const float nameEnd =
-        gfx.textCap(render::FontRole::Medium, row.module->name(), drawX, textY, size,
-                    text.withAlpha(alpha));
-
-    if (row.binding) {
-        gfx.textCap(render::FontRole::Medium, "[...]", nameEnd + px(kTextSize * 0.5f), textY,
-                    size, accent.withAlpha(alpha));
-    } else if (row.module->key() != 0) {
-        char bind[32];
-        std::snprintf(bind, sizeof(bind), "[%s]", keyName(row.module->key()).c_str());
-        gfx.textCap(render::FontRole::Medium, bind, nameEnd + px(kTextSize * 0.5f), textY,
-                    size, kBindIdle.withAlpha(alpha));
-    }
-
-    bool hasSettings = false;
-    for (const SettingRow& setting : row.settings) {
-        if (setting.setting->visible()) {
-            hasSettings = true;
-            break;
-        }
-    }
-    if (hasSettings) {
-        const Color idle = Color::mix(kItemIdle, kTextMid, row.hover);
-        const Color arrow = Color::mix(Color::mix(idle, accent, row.expand),
-                                       kTextOn, row.enabled);
-        const float arrowX = head.right() - px(kPadding) - px(5.0f);
-        const float arrowY = head.y + px(3.0f);
-        /* No rotated text in the batcher, so the chevron crossfades from left
-         * to down across the expand animation instead of rotating. */
-        gfx.textCap(render::FontRole::Medium, "<", arrowX, arrowY, px(kArrowSize),
-                    arrow.withAlpha(alpha * (1.0f - row.expand)));
-        gfx.textCap(render::FontRole::Medium, "v", arrowX, arrowY, px(kArrowSize),
-                    arrow.withAlpha(alpha * row.expand));
-    }
-
-    if (row.expand <= 0.005f) {
-        return;
-    }
-    float settingTop = top + kRowHeight;
-    for (SettingRow& setting : row.settings) {
-        if (!setting.setting->visible()) {
-            continue;
-        }
-        renderSetting(row, setting, settingTop);
-        settingTop += kRowHeight +
-                      (setting.setting->type() == modules::Setting::Type::Choice
-                           ? static_cast<float>(setting.setting->choices().size()) *
-                                 kRowHeight * setting.expand
-                           : 0.0f);
-    }
-}
-
-void ClickGui::renderSetting(ModuleRow& row, SettingRow& setting, float top) {
-    (void)row;
-    (void)top;
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f);
-    const Color& accent = palette.accent;
-    modules::Setting& value = *setting.setting;
-
-    if (setting.bounds.height <= 0.5f) {
-        return;
-    }
-
-    const float x = setting.bounds.x + 1.5f;
-    const float width = setting.bounds.width - 3.0f;
-    gfx.rect(Rect{x, setting.bounds.y, width, px(kRowHeight)}, kSettingBg.withAlpha(alpha),
-             0.0f);
-
-    const float size = px(kTextSize);
-    const float drawX = x + px(kPadding) + px(kHoverShift) * setting.hover;
-    const float textY = setting.bounds.y + px(2.0f);
-    const Color text = Color::mix(kTextDim, kTextMid, setting.hover);
-
-    switch (value.type()) {
-        case modules::Setting::Type::Boolean: {
-            gfx.textCap(render::FontRole::Medium, value.name(), drawX, textY, size,
-                        text.withAlpha(alpha));
-            const float box = px(kToggleSize);
-            const Rect frame{setting.bounds.right() - 1.5f - px(kPadding) - box - 1.0f,
-                             setting.bounds.y + (px(kRowHeight) - box) * 0.5f - 1.0f,
-                             box + 2.0f, box + 2.0f};
-            setting.control = Rect{frame.x + 1.0f, frame.y + 1.0f, box, box};
-            gfx.rect(frame, kOutlineDark.withAlpha(alpha), 0.0f);
-            if (value.booleanValue()) {
-                gfx.rect(setting.control, accent.withAlpha(alpha), 0.0f);
-            }
-            break;
-        }
-
-        case modules::Setting::Type::Number: {
-            const std::string label = value.name() + ": " + formatNumber(value);
-            gfx.textCap(render::FontRole::Medium, label, drawX, textY, size,
-                        text.withAlpha(alpha));
-            const Rect track{x, setting.bounds.y + px(kRowHeight - kSliderHeight),
-                             width, px(kSliderHeight)};
-            setting.control = track;
-            gfx.rect(track, kTrackBg.withAlpha(alpha), 0.0f);
-            const float fill = track.width * clamp(value.normalised(), 0.0f, 1.0f);
-            if (fill > 0.5f) {
-                gfx.rectHorizontal(Rect{track.x, track.y, fill, track.height},
-                                   accent.withAlpha(alpha),
-                                   darker(accent, 1).withAlpha(alpha), 0.0f);
-            }
-            break;
-        }
-
-        case modules::Setting::Type::Choice: {
-            gfx.textCap(render::FontRole::Medium, value.name(), drawX, textY, size,
-                        text.withAlpha(alpha));
-            const std::string& current = value.choiceName();
-            gfx.textCap(render::FontRole::Medium, current,
-                        setting.bounds.right() - 1.5f - px(kPadding), textY, size,
-                        text.withAlpha(alpha), render::Align::Right);
-            setting.control = setting.bounds;
-            if (setting.expand > 0.01f) {
-                renderChoiceItems(row, setting, top);
-            }
-            break;
-        }
-
-        case modules::Setting::Type::Key: {
-            gfx.textCap(render::FontRole::Medium, value.name(), drawX, textY, size,
-                        text.withAlpha(alpha));
-            const std::string label =
-                setting.listeningForKey ? "[...]" : "[" + keyName(value.key()) + "]";
-            gfx.textCap(render::FontRole::Medium, label,
-                        setting.bounds.right() - 1.5f - px(kPadding), textY, size,
-                        (setting.listeningForKey ? accent : text).withAlpha(alpha),
-                        render::Align::Right);
-            setting.control = setting.bounds;
-            break;
-        }
-
-        case modules::Setting::Type::Colour: {
-            gfx.textCap(render::FontRole::Medium, value.name(), drawX, textY, size,
-                        text.withAlpha(alpha));
-            const float box = px(kToggleSize);
-            setting.control = Rect{setting.bounds.right() - 1.5f - px(kPadding) - box,
-                                   setting.bounds.y + (px(kRowHeight) - box) * 0.5f, box,
-                                   box};
-            gfx.rect(Rect{setting.control.x - 1.0f, setting.control.y - 1.0f, box + 2.0f,
-                          box + 2.0f},
-                     kOutlineDark.withAlpha(alpha), 0.0f);
-            gfx.rect(setting.control, value.colour().withAlpha(alpha), 0.0f);
-            break;
-        }
-    }
-}
-
-void ClickGui::renderChoiceItems(ModuleRow& row, SettingRow& setting, float top) {
-    (void)row;
-    (void)top;
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f) * clamp(setting.expand, 0.0f, 1.0f);
-    if (alpha <= 0.01f) {
-        return;
-    }
-    modules::Setting& value = *setting.setting;
-    const float x = setting.bounds.x + 1.5f;
-    const float width = setting.bounds.width - 3.0f;
-    const float size = px(kTextSize);
-
-    gfx.rect(Rect{x, setting.bounds.y + px(kRowHeight), width,
-                  static_cast<float>(value.choices().size()) * px(kRowHeight) *
-                      setting.expand},
-             kSettingDeep.withAlpha(alpha), 0.0f);
-
-    const float revealed =
-        static_cast<float>(value.choices().size()) * px(kRowHeight) * setting.expand;
-    for (std::size_t i = 0; i < value.choices().size(); ++i) {
-        const float itemY =
-            setting.bounds.y + px(kRowHeight + static_cast<float>(i) * kRowHeight);
-        if (itemY + px(kRowHeight) > setting.bounds.y + px(kRowHeight) + revealed + 0.5f) {
-            break;
-        }
-        const bool selected = static_cast<int>(i) == value.choice();
-        const bool hovered =
-            mouseX_ >= setting.bounds.x && mouseX_ <= setting.bounds.right() &&
-            mouseY_ >= itemY && mouseY_ <= itemY + px(kRowHeight);
-        Color colour = Color::mix(kItemIdle, kTextMid, hovered ? 1.0f : 0.0f);
-        if (selected) {
-            colour = palette.accent;
-        }
-        gfx.textCap(render::FontRole::Medium, value.choices()[i],
-                    x + px(kPadding) + (hovered ? px(kHoverShift) : 0.0f),
-                    itemY + px(2.0f), size, colour.withAlpha(alpha));
-    }
-}
-
-void ClickGui::renderConfigs(Panel& panel, float top) {
-    (void)top;
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f);
-    const Color& accent = palette.accent;
-    const float size = px(kTextSize);
-
-    for (std::size_t i = 0; i < configs_.size(); ++i) {
-        const ConfigFile& entry = configs_[i];
-        if (entry.bounds.width <= 0.0f) {
-            continue;
-        }
-        const Rect row{entry.bounds.x + 1.5f, entry.bounds.y, entry.bounds.width - 3.0f,
-                       px(kRowHeight)};
-        gfx.rect(row, kSettingBg.withAlpha(alpha), 0.0f);
-        const bool selected = static_cast<int>(i) == selectedConfig_;
-        const Color text =
-            selected ? accent : Color::mix(kTextDim, kTextMid, entry.hover);
-        gfx.textCap(render::FontRole::Medium, entry.name,
-                    row.x + px(kPadding) + px(kHoverShift) * entry.hover,
-                    row.y + px(2.0f), size, text.withAlpha(alpha));
-    }
-
-    if (nameField_.width > 0.0f) {
-        const Rect row{nameField_.x + 1.5f, nameField_.y, nameField_.width - 3.0f,
-                       px(kRowHeight)};
-        gfx.rect(row, kSettingDeep.withAlpha(alpha), 0.0f);
-        const std::string shown =
-            configName_.empty() ? "Config name..." : configName_;
-        const Color text = configName_.empty()
-                               ? kItemIdle.withAlpha(alpha)
-                               : Color::mix(kTextDim, kTextMid, nameHover_).withAlpha(alpha);
-        const float end = gfx.textCap(render::FontRole::Medium, shown,
-                                      row.x + px(kPadding), row.y + px(2.0f), size, text);
-        if (editingName_) {
-            const float blink = 0.5f + 0.5f * std::sin(time_ * 6.0f);
-            gfx.rect(Rect{end + px(1.5f), row.y + px(2.0f), px(1.0f), size},
-                     accent.withAlpha(alpha * blink), 0.0f);
-        }
-    }
-
-    struct Button {
-        const Rect* bounds;
-        const char* label;
-        float hover;
-    };
-    const Button buttons[] = {
-        {&loadButton_, "Load", loadHover_},
-        {&saveButton_, "Save", saveHover_},
-        {&deleteButton_, "Delete", deleteHover_},
-    };
-    for (const Button& button : buttons) {
-        if (button.bounds->width <= 0.0f) {
-            continue;
-        }
-        const Rect row{button.bounds->x + 1.5f, button.bounds->y,
-                       button.bounds->width - 3.0f, px(kRowHeight)};
-        gfx.rect(row, Color::mix(kSettingBg, kModuleHover, button.hover).withAlpha(alpha),
-                 0.0f);
-        gfx.textCap(render::FontRole::Medium, button.label, row.x + px(kPadding),
-                    row.y + px(2.0f), size,
-                    Color::mix(kTextDim, kTextOn, button.hover).withAlpha(alpha));
-    }
-    (void)panel;
-}
-
-void ClickGui::renderActions(Panel& panel, float top) {
-    (void)panel;
-    (void)top;
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f);
-    const float size = px(kTextSize);
-
-    for (std::size_t i = 0; i < actions_.size(); ++i) {
-        const ActionRow& action = actions_[i];
-        if (action.bounds.width <= 0.0f) {
-            continue;
-        }
-        const Rect row{action.bounds.x + 1.5f, action.bounds.y,
-                       action.bounds.width - 3.0f, px(kRowHeight)};
-        gfx.rect(row, Color::mix(kSettingBg, kModuleHover, action.hover).withAlpha(alpha),
-                 0.0f);
-        /* The way out is the one row that is not like the others. */
-        const Color text = i + 1 == actions_.size()
-                               ? Color::mix(palette.textDim, palette.negative, action.hover)
-                               : Color::mix(kTextDim, kTextOn, action.hover);
-        gfx.textCap(render::FontRole::Medium, action.label, row.x + px(kPadding),
-                    row.y + px(2.0f), size, text.withAlpha(alpha));
-    }
-}
-
-void ClickGui::renderPicker(SettingRow& setting) {
-    render::Renderer& gfx = render::renderer();
-    const Palette& palette = theme();
-    const float alpha = clamp(slide_, 0.0f, 1.0f) *
-                        ease::outQuint(clamp(setting.picker, 0.0f, 1.0f));
-    if (alpha <= 0.004f || setting.control.width <= 0.0f) {
-        return;
-    }
-
-    const Rect popup{setting.control.right() + px(kPickerGap), setting.control.y - px(1.5f),
-                     px(kPickerWidth), px(kPickerHeight)};
-    gfx.shadow(popup, palette.shadow.withAlpha(alpha), px(14.0f), px(9.0f));
-    gfx.rect(popup, palette.header.withAlpha(alpha), px(9.0f));
-
-    const Color current = setting.setting->colour();
-    const float saturation = [&] {
-        const float maximum = std::max({current.r, current.g, current.b});
-        const float minimum = std::min({current.r, current.g, current.b});
-        return maximum <= 0.0f ? 0.0f : (maximum - minimum) / maximum;
-    }();
-    const float value = std::max({current.r, current.g, current.b});
-
-    const Rect field{popup.x + px(kPickerPad), popup.y + px(kPickerPad),
-                     popup.width - px(kPickerPad * 2.0f), px(kPickerField)};
-    gfx.rectHorizontal(field, Color{1.0f, 1.0f, 1.0f, alpha},
-                       Color::hsv(setting.hue, 1.0f, 1.0f, alpha), px(4.0f));
-    gfx.rectVertical(field, Color{0.0f, 0.0f, 0.0f, 0.0f}, Color{0.0f, 0.0f, 0.0f, alpha},
-                     px(4.0f));
-    gfx.ring(field.x + field.width * saturation, field.y + field.height * (1.0f - value),
-             px(3.2f), px(1.3f), 1.0f, Color{1.0f, 1.0f, 1.0f, alpha});
-
-    const Rect strip{field.x, field.bottom() + px(kPickerPad), field.width,
-                     px(kPickerStrip)};
-    const int segments = 6;
-    const float segmentWidth = strip.width / static_cast<float>(segments);
-    for (int index = 0; index < segments; ++index) {
-        const float from = static_cast<float>(index) / static_cast<float>(segments);
-        const float to = static_cast<float>(index + 1) / static_cast<float>(segments);
-        gfx.rectHorizontal(
-            Rect{strip.x + segmentWidth * static_cast<float>(index), strip.y, segmentWidth,
-                 strip.height},
-            Color::hsv(from, 1.0f, 1.0f, alpha), Color::hsv(to - 0.0001f, 1.0f, 1.0f, alpha),
-            0.0f);
-    }
-    gfx.rect(Rect{strip.x + strip.width * setting.hue - px(1.0f), strip.y - px(1.5f),
-                  px(2.0f), strip.height + px(3.0f)},
-             Color{1.0f, 1.0f, 1.0f, alpha}, px(1.0f));
-
-    const Rect preview{field.x, strip.bottom() + px(kPickerPad), field.width, px(12.0f)};
-    gfx.rect(preview, current.withAlpha(alpha), px(3.0f));
-    char hex[16];
-    std::snprintf(hex, sizeof(hex), "#%06X", current.packed() >> 8);
-    gfx.textCap(render::FontRole::Mono, hex, preview.centerX(),
-                preview.centerY() - px(3.0f), px(6.6f),
-                Color{0.0f, 0.0f, 0.0f, alpha * 0.65f}, render::Align::Center);
+    gfx.face(xs2, ys2, Color::rgb(0x0B0E14, 0.9f * alpha_));
 }
 
 }  // namespace cold::ui

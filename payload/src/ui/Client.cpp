@@ -474,6 +474,21 @@ void Client::renderFrame(void* window) {
         lastFrameTime_ = nowSeconds();
     } else {
         ensureGpuResources();
+        /* LWJGL 2 does not resize its window when the display mode changes, it
+         * destroys the peer and creates another one - so windowed to fullscreen
+         * and back hands us a different HWND every time. The frame hook sits on
+         * wglSwapBuffers and does not care, but the window procedure subclass
+         * was installed on the window that no longer exists: without this the
+         * client stops seeing the keyboard and the menu can never be opened
+         * again. The capture state has to be re-asserted because attaching to a
+         * new window drops it. */
+        if (window != nullptr && hooks::input().window() != window) {
+            const bool wasCapturing = hooks::input().capturing();
+            if (hooks::input().attach(window) && wasCapturing) {
+                hooks::input().setCapturing(true);
+            }
+            COLD_INFO(kScope, "window replaced by the game; input re-attached");
+        }
     }
 
     if (shutdownRequested_) {

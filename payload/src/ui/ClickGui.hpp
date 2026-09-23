@@ -1,9 +1,12 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
-#include <tuple>
+#include <string_view>
 #include <vector>
 
+#include "assets/Assets.generated.hpp"
 #include "core/Config.hpp"
 #include "core/Math.hpp"
 #include "hooks/Input.hpp"
@@ -17,20 +20,21 @@ class Renderer;
 
 namespace cold::ui {
 
-/* Dropdown panels in a centred row, one per category plus configs and client
- * action panels.
+/* Tab menu: one pill-shaped tab bar and one card, both centred at the top of
+ * the screen.
  *
- * Everything is laid out in Minecraft's own GUI-scaled units and multiplied up
- * by the scale factor the game is already using, so the menu is the same size
- * on screen as the rest of the interface at any resolution. Sizes are the
- * reference client's own: 140-wide panels on a 16-high header, 12-high module
- * and setting rows, settings folded inline under the module that owns them.
+ * The bar carries a chip that slides to the selected slot with an accent
+ * underline, plus a gear at its right end for the client's own settings. The
+ * card below it shows the tab's rows - icon, name, keybind chip, description
+ * and a pill toggle - and a row with settings opens its own subpage in place,
+ * with a back chevron where the category title was.
  *
- * Panels drag by their headers and remember their positions in cobble.cfg;
- * a header right-click folds the panel. Layout runs every frame from the same
- * clock as the animations, and the rectangles it produces are kept for the
- * next frame's hit tests - the pointer is one frame behind the pixels, which
- * is invisible and saves laying the whole menu out twice. */
+ * Geometry is the design's own pixels multiplied by one scale factor, which is
+ * derived from Minecraft's GUI scale so the menu is the same size on screen as
+ * the rest of the interface. Nothing drags: the menu has one position and the
+ * layout runs every frame from the same clock as the animations. The rectangles
+ * it produces are kept for the next frame's hit tests, which puts the pointer
+ * one frame behind the pixels and saves laying the whole menu out twice. */
 class ClickGui {
 public:
     void build();
@@ -50,29 +54,32 @@ public:
     void handleEvent(const hooks::InputEvent& event, modules::Context& context);
     void render(modules::Context& context);
 
-    /* Folds a module's settings open without a click, for scripted runs. */
+    /* Opens a module's subpage without a click, for scripted runs. */
     bool setExpanded(std::string_view moduleName, bool expanded);
-    /* Every panel is always on screen, so any known screen name selects
-     * nothing and succeeds; the control channel uses this to probe. */
+    /* Selects the tab with that name; the control channel uses it to probe. */
     bool showScreen(std::string_view name);
     bool setPickerOpen(std::string_view moduleName, bool open);
 
-    /* Panel positions and the configs they carry, across restarts. */
+    /* The selected tab, across restarts. */
     void loadLayout(config::Document& config);
     void saveLayout(config::Document& config) const;
 
-    /* Whether a point is inside any panel, so what is outside it can be
-     * offered to whatever else wants the click. */
+    /* Whether a point is inside the menu, so what is outside it can be offered
+     * to whatever else wants the click. */
     bool contains(float x, float y) const;
 
     void setBlur(bool blur) { blur_ = blur; }
     bool blurEnabled() const { return blur_; }
 
 private:
+    static constexpr std::size_t kNoRow = static_cast<std::size_t>(-1);
+
     struct SettingRow {
+        /* nullptr is the module's own keybind, which is a row in the subpage
+         * as well as a chip in the list. */
         modules::Setting* setting = nullptr;
-        Rect bounds;   // whole 12-unit line, the click target
-        Rect control;  // slider track, toggle box or swatch
+        Rect bounds;   // whole line, the click target
+        Rect control;  // slider track, pill, chip or swatch
         float hover = 0.0f;
         float knob = 0.0f;  // smoothed slider position
         bool expanded = false;
@@ -80,130 +87,160 @@ private:
         bool draggingSlider = false;
         bool listeningForKey = false;
         bool pickerOpen = false;
-        float picker = 0.0f;
+        float picker = 0.0f;  // colour editor open animation
         /* Remembered so a colour dragged down to black keeps the hue it was
          * dragged from; deriving it from the value would snap to red. */
         float hue = 0.0f;
     };
 
-    struct ModuleRow {
-        modules::Module* module = nullptr;
-        Rect head;  // 12-unit header: the toggle target
-        float hover = 0.0f;
-        float enabled = 0.0f;
-        float expand = 0.0f;
-        bool expanded = false;
-        bool binding = false;
-        std::vector<SettingRow> settings;
+    enum class RowKind : std::uint8_t {
+        Module,   // toggle pill plus a settings subpage
+        Flag,     // one boolean setting, toggle pill only
+        Colour,   // one colour setting, subpage with the editor
+        Configs,  // subpage with the config manager
+        Action,   // runs something when clicked
     };
 
-    struct Panel {
-        modules::Category category = modules::Category::Combat;
-        /* Stable identity for positions and config sections. Equals the label
-         * for categories; special panels carry their own ("Configs",
-         * "ClientActions") so two panels can share a label. */
+    struct Row {
+        RowKind kind = RowKind::Module;
+        modules::Module* module = nullptr;
+        modules::Setting* setting = nullptr;
+        int action = -1;
+        std::string name;
+        std::string description;
+        assets::IconAsset icon = assets::IconAsset::Box;
+        std::vector<SettingRow> settings;
+
+        Rect bounds;
+        Rect chevron;  // the strip that opens the subpage instead of toggling
+        float hover = 0.0f;
+        float on = 0.0f;
+        bool binding = false;
+    };
+
+    struct Tab {
         std::string key;
         std::string label;
-        assets::IconAsset icon = assets::IconAsset::Search;
-        bool configs = false;  // the configs panel, not a category
-        bool actions = false;  // the client actions panel, not a category
-        Rect header;           // 16-unit bar: drag handle, right-click folds
-        Rect outer;            // whole panel including the module block
-        float x = 0.0f;        // scaled units, top-left of outer
-        float y = 12.0f;
-        bool placed = false;  // positioned (centred row on first build)
-        float hover = 0.0f;
-        float expand = 0.0f;
-        bool expanded = true;
+        assets::IconAsset icon = assets::IconAsset::Box;
+        const char* countNoun = "MODULES";
+        /* The settings tab is only the gear at the end of the bar. */
+        bool iconOnly = false;
         std::vector<std::size_t> rows;  // indices into rows_
+        Rect bounds;
+        float hover = 0.0f;
     };
 
-    /* One saved/ loadable config file beside the payload DLL. */
+    /* One saved/loadable config file beside the payload DLL. */
     struct ConfigFile {
-        std::string name;  // without prefix or extension
+        std::string name;
         Rect bounds;
+        Rect remove;
         float hover = 0.0f;
-    };
-
-    struct ActionRow {
-        const char* label;
-        Rect bounds;
-        float hover = 0.0f;
+        float removeHover = 0.0f;
     };
 
     void layout(modules::Context& context);
-    float settingsHeight(ModuleRow& row);
-    float panelContentHeight(Panel& panel);
-    float configsHeight();
-    float actionsHeight();
-    void renderPanel(Panel& panel);
-    void renderModuleRow(Panel& panel, ModuleRow& row, float top);
-    void renderSetting(ModuleRow& row, SettingRow& setting, float top);
-    void renderChoiceItems(ModuleRow& row, SettingRow& setting, float top);
-    void renderConfigs(Panel& panel, float top);
-    void renderActions(Panel& panel, float top);
-    void renderPicker(SettingRow& row);
-    void renderCursor(render::Renderer& gfx, float alpha);
-    ModuleRow* findRow(std::string_view moduleName);
+    float listHeight(const Tab& tab) const;
+    float subpageHeight(Row& row);
+    float settingHeight(const SettingRow& row) const;
+    float configsBodyHeight() const;
+    void layoutList(Tab& tab, float deltaTime);
+    void layoutSubpage(Row& row, float deltaTime);
+    void layoutConfigs(Row& row, float top, float deltaTime);
+
+    void drawTabBar();
+    void drawCard();
+    void drawCardHeader(const Tab& tab);
+    void drawSubpageHeader(const Row& row);
+    void drawRow(Row& row);
+    void drawSetting(Row& owner, SettingRow& setting);
+    void drawChoiceItems(SettingRow& setting);
+    void drawColourEditor(SettingRow& setting, const Rect& area);
+    void drawConfigs(Row& row);
+    void drawPill(const Rect& bounds, float on);
+    void drawChip(float x, float centreY, std::string_view text, const Color& background,
+                  const Color& textColour);
+    void renderCursor(render::Renderer& gfx);
+
+    Row* findRow(std::string_view moduleName);
+    void selectTab(std::size_t index);
+    void openSubpage(std::size_t rowIndex);
+    void closeSubpage();
+    bool subpageOpen() const { return subpageRow_ != kNoRow; }
+    Row* subpage();
 
     void refreshConfigs();
     bool loadNamedConfig(const std::string& name);
     bool saveNamedConfig(const std::string& name);
     bool deleteNamedConfig(const std::string& name);
+    void runAction(int action, modules::Context& context);
 
     bool pressAt(float x, float y, int button, modules::Context& context);
-    bool pressConfigs(Panel& panel, float x, float y, int button);
-    bool pressActions(Panel& panel, float x, float y, int button, modules::Context& context);
+    bool pressRow(std::size_t index, float x, float y, int button, modules::Context& context);
+    bool pressSetting(SettingRow& setting, float x, float y, int button);
+    bool pressConfigs(Row& row, float x, float y, int button);
     void releaseAll();
     void stopListening();
-    bool pickerOpenAnywhere() const;
     void closePickers();
+    bool pickerOpenAnywhere() const;
 
-    /* Panel-local units to screen pixels. */
-    float px(float units) const { return units * unit_; }
+    /* Design pixels to screen pixels. */
+    float s(float value) const { return value * scale_; }
+    Color fade(const Color& colour) const { return colour.withAlpha(alpha_); }
+    Color fade(const Color& colour, float extra) const {
+        return colour.withAlpha(alpha_ * extra);
+    }
+    Color accent(float alpha = 1.0f) const;
 
-    std::vector<ModuleRow> rows_;
-    std::vector<Panel> panels_;
-    std::vector<ActionRow> actions_;
-    /* Positions surviving a rebuild (script modules arriving late). */
-    std::vector<std::tuple<std::string, float, float, bool>> pending_;
-
+    std::vector<Row> rows_;
+    std::vector<Tab> tabs_;
     std::vector<ConfigFile> configs_;
+
+    std::size_t tab_ = 0;
+    std::size_t subpageRow_ = kNoRow;
+    float subpageAnim_ = 0.0f;
+    float indicator_ = 0.0f;       // interpolated slot of the tab chip
+    float indicatorAlpha_ = 1.0f;  // fades out when the gear is selected
+    float gearHover_ = 0.0f;
+    float backHover_ = 0.0f;
+    Rect gearSlot_;
+    std::string pendingTab_;  // selection restored before the tabs exist
+
     int selectedConfig_ = -1;
     std::string configName_;
+    std::string configStatus_;
     bool editingName_ = false;
     Rect nameField_;
-    Rect loadButton_;
     Rect saveButton_;
-    Rect deleteButton_;
-    float loadHover_ = 0.0f;
-    float saveHover_ = 0.0f;
-    float deleteHover_ = 0.0f;
     float nameHover_ = 0.0f;
+    float saveHover_ = 0.0f;
 
     bool built_ = false;
     bool open_ = false;
     bool closing_ = false;
-    float slide_ = 0.0f;  // 0 = above the screen, 1 = in place
+    float slide_ = 0.0f;  // 0 = gone, 1 = in place
+    float alpha_ = 0.0f;
     bool blur_ = false;
 
+    float scale_ = 1.0f;
     float unit_ = 2.0f;
-    float panelW_ = 140.0f;
-    float fullHeight_ = 0.0f;  // slide distance: the tallest panel
-    float scaledW_ = 0.0f;
-    float scaledH_ = 0.0f;
+    float screenW_ = 0.0f;
+    float screenH_ = 0.0f;
+
+    Rect bar_;
+    Rect card_;
+    Rect body_;
+    float scroll_ = 0.0f;
+    float content_ = 0.0f;
 
     float mouseX_ = 0.0f;
     float mouseY_ = 0.0f;
     bool mouseDown_ = false;
     float time_ = 0.0f;
-    Panel* dragPanel_ = nullptr;
-    float dragDX_ = 0.0f;
-    float dragDY_ = 0.0f;
 
     SettingRow* activeSlider_ = nullptr;
     SettingRow* keyListener_ = nullptr;
-    ModuleRow* bindRow_ = nullptr;
+    Row* bindRow_ = nullptr;
     SettingRow* activePicker_ = nullptr;
     int pickerAxis_ = -1;
 };
