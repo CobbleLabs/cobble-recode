@@ -80,6 +80,51 @@ constexpr float kOnSpeed = 18.0f;
 constexpr float kTabSpeed = 20.0f;
 constexpr float kSubpageSpeed = 22.0f;
 constexpr float kExpandSpeed = 14.0f;
+/* The card resizes when a category with a different number of rows takes over.
+ * Slower than the fade on purpose: the fade is a cut, the resize is the frame
+ * itself moving, and a frame that snaps to a new size undoes the cut's work. */
+constexpr float kCardSpeed = 15.0f;
+
+/* Page handover. The old list leaves quickly and decisively; the new one arrives
+ * eased and unhurried, its rows staggered so the list unrolls downward instead of
+ * appearing all at once. */
+constexpr float kPageOutSeconds = 0.10f;
+constexpr float kPageInSeconds = 0.20f;
+constexpr float kPageCascadeSeconds = 0.42f;
+constexpr float kRowRise = 14.0f;   // design px a row drops through as it arrives
+constexpr float kRowStagger = 0.05f;  // cascade clock spent before the next row starts
+constexpr float kRowStaggerCap = 0.58f;
+
+/* ------------------------------------------------------------------------- *
+ * First-open reveal.
+ *
+ * The first time the menu opens after injection a small capsule carrying the
+ * client's name pops into the spot the tab bar will occupy, holds long enough to
+ * be read, stretches sideways until it *is* the tab bar, and then the card
+ * unfolds downward out of it. The container arrives first and the contents move
+ * in after, which is the whole trick.
+ *
+ * Phase windows along one shared clock rather than a chain of callbacks. Every
+ * value is a pure function of elapsed time, so the widen and the unfold can be
+ * given windows that deliberately OVERLAP - the card starts dropping open while
+ * the bar is still spreading - and that overlap is what fuses them into one
+ * movement instead of two that happen to be adjacent.
+ *
+ * The bar is already a pill at rest, which is why this shape of animation suits
+ * this menu: the capsule is not a foreign element that has to be explained away,
+ * it is the tab bar before it has been given its width.
+ * ------------------------------------------------------------------------- */
+constexpr float kRevealPopEnd = 0.42f;
+constexpr float kRevealHoldEnd = 0.72f;
+constexpr float kRevealWidenEnd = 1.20f;
+constexpr float kRevealUnfoldStart = 1.06f;  // before the widen ends, on purpose
+constexpr float kRevealUnfoldEnd = 1.66f;
+/* Everything has visibly settled by the unfold's end - the row cascade is released
+ * partway through it and finishes first - so this only has to be far enough past
+ * that to not cut the last frames off. It is also when the menu starts answering
+ * the pointer, so there is no reason to sit on it longer. */
+constexpr float kRevealEnd = 1.70f;
+constexpr float kRevealPopScale = 0.32f;  // capsule width at the start of the pop
 
 constexpr std::size_t kMaxConfigName = 24;
 
@@ -112,6 +157,27 @@ float approach(float current, float target, float rate, float deltaTime) {
     const float next = current + (target - current) * step;
     return std::fabs(target - next) < 0.0015f ? target : next;
 }
+
+/* Scales a float for the duration of a scope and puts it back.
+ *
+ * Every colour in this file resolves through fade() or accent(), and both fold in
+ * the menu's alpha_, so nudging that one member is how a single row or a single
+ * page is faded on its own - the alternative is threading a factor through a few
+ * dozen colour arguments and missing some. A guard rather than a pair of
+ * assignments because several of these draw functions return early. */
+class AlphaScope {
+public:
+    AlphaScope(float& target, float factor) : target_(target), saved_(target) {
+        target_ = saved_ * factor;
+    }
+    ~AlphaScope() { target_ = saved_; }
+    AlphaScope(const AlphaScope&) = delete;
+    AlphaScope& operator=(const AlphaScope&) = delete;
+
+private:
+    float& target_;
+    float saved_;
+};
 
 /* A size in this file means the height of the line box, the way the design
  * sheet and ImGui both mean it. The renderer means an em, which for Inter is a
@@ -243,6 +309,100 @@ enum : int {
 }  // namespace
 
 Color ClickGui::accent(float alpha) const { return theme().accent.withAlpha(alpha_ * alpha); }
+
+/* ------------------------------------------------------------------------- *
+ * Reveal
+ * ------------------------------------------------------------------------- */
+
+float ClickGui::entranceAt(std::size_t ordinal) const {
+    if (pageEnter_ >= 1.0f) {
+        return 1.0f;
+    }
+    const float delay =
+        std::min(kRowStaggerCap, static_cast<float>(ordinal) * kRowStagger);
+    const float span = std::max(0.12f, 1.0f - delay);
+    return ease::outCubic(clamp((pageEnter_ - delay) / span, 0.0f, 1.0f));
+}
+
+/* Resolve the reveal for this frame against the settled geometry the layout has
+ * just produced. `bar_` and `card_` are the finished rectangles throughout; what
+ * this computes is the smaller shapes the paint is currently allowed to fill. */
+void ClickGui::advanceReveal(float deltaTime) {
+    const auto settled = [this] {
+        Reveal done;
+        done.bar = bar_;
+        done.card = card_;
+        done.barRadius = s(kTabBarRadius);
+        return done;  // glow 0, label 0, the two content alphas 1, card visible
+    };
+
+    if (!revealing_) {
+        reveal_ = settled();
+        return;
+    }
+
+    revealClock_ += deltaTime;
+    if (revealClock_ >= kRevealEnd) {
+        revealing_ = false;
+        reveal_ = settled();
+        return;
+    }
+
+    const float clock = revealClock_;
+    const float popT = ease::springIn(ease::window(clock, 0.0f, kRevealPopEnd));
+    const float widenT = ease::morph(ease::window(clock, kRevealHoldEnd, kRevealWidenEnd));
+    const float unfoldT =
+        ease::morph(ease::window(clock, kRevealUnfoldStart, kRevealUnfoldEnd));
+
+    /* The capsule is born at the tab bar's own height and the pop is over long
+     * before the widen begins, so width is the only axis still travelling by then
+     * and the bar cannot drift off the row it belongs on. */
+    const float pop = lerp(kRevealPopScale, 1.0f, popT);
+    const std::string brand = upperCase(kClientName);
+    const float labelWidth = trackedWidth(kHeadingFont, brand, s(kHeadingBox), s(kTracking));
+    const float capsule = std::min(bar_.width, labelWidth + s(56.0f));
+
+    /* The spring overshoots, which is the point, but on a window narrow enough that
+     * the capsule is already the full bar width that would briefly make it wider
+     * than the bar it is turning into. The height is left free to overshoot: there
+     * it reads as the arrival having weight. */
+    const float width = std::min(bar_.width, lerp(capsule * pop, bar_.width, widenT));
+    const float height = bar_.height * pop;
+
+    /* Converge on the bar exactly rather than on a rounded-off centre, so the
+     * frame the capsule becomes the tab bar is not a fraction of a pixel out from
+     * the card that hangs off it. */
+    reveal_.bar = widenT >= 1.0f ? bar_
+                                 : Rect{bar_.centerX() - width * 0.5f,
+                                        bar_.centerY() - height * 0.5f, width, height};
+    reveal_.barRadius = lerp(reveal_.bar.height * 0.5f, s(kTabBarRadius), widenT);
+
+    /* Halo on arrival only: it expands out of the capsule and dissolves, so the
+     * pop looks like it displaced something instead of merely becoming visible. */
+    const float ripple = ease::window(clock, 0.0f, kRevealPopEnd * 0.9f);
+    reveal_.glow = (1.0f - ripple) * (1.0f - ripple);
+
+    /* The label arrives after the shape has landed and leaves the instant it
+     * starts to stretch. Riding the widen would smear a centred string across a
+     * growing box, which is the one thing that would give away that this is a
+     * rectangle being resized rather than an object changing form. */
+    reveal_.label = ease::outExpo(ease::window(clock, 0.12f, kRevealPopEnd + 0.06f)) *
+                    (1.0f - ease::morph(ease::window(clock, kRevealHoldEnd,
+                                                     kRevealHoldEnd + 0.16f)));
+    /* Tabs fade in once the bar has its full width, so none of them is ever seen
+     * half-clipped by an edge still on its way out. */
+    reveal_.barContent = ease::outCubic(ease::window(clock, kRevealWidenEnd - 0.04f,
+                                                     kRevealWidenEnd + 0.20f));
+
+    /* Not drawn at all until there is more than a hairline of it: a rectangle half a
+     * pixel tall carrying a fourteen-pixel corner radius is degenerate geometry, and
+     * what an SDF makes of it is not worth finding out one driver at a time. */
+    const float cardHeight = card_.height * unfoldT;
+    reveal_.cardVisible = cardHeight > 1.0f;
+    reveal_.card = Rect{card_.x, card_.y, card_.width, cardHeight};
+    reveal_.cardContent = ease::outCubic(ease::window(clock, kRevealUnfoldStart + 0.16f,
+                                                      kRevealUnfoldEnd));
+}
 
 /* ------------------------------------------------------------------------- *
  * Build
@@ -377,6 +537,11 @@ void ClickGui::build() {
     }
     subpageRow_ = kNoRow;
     subpageAnim_ = 0.0f;
+    /* A rebuild is not a navigation: the displayed tab catches up at once so the
+     * list does not fade itself out because the row vector was replaced. */
+    shownTab_ = tab_;
+    pageLeaving_ = false;
+    pageFade_ = 1.0f;
     indicator_ = static_cast<float>(tab_);
     indicatorAlpha_ = tabs_[tab_].iconOnly ? 0.0f : 1.0f;
 
@@ -413,6 +578,15 @@ void ClickGui::open() {
     closing_ = false;
     slide_ = 0.0f;
     scroll_ = 0.0f;
+    /* Every open unrolls its list; the first one of the session also gets the
+     * capsule. Claimed here rather than when it finishes, so a menu opened and
+     * shut inside a second does not queue the reveal up for next time. */
+    pageEnter_ = 0.0f;
+    if (!revealSpent_) {
+        revealSpent_ = true;
+        revealing_ = true;
+        revealClock_ = 0.0f;
+    }
     refreshConfigs();
     hooks::input().setCapturing(true);
 }
@@ -422,6 +596,7 @@ void ClickGui::close() {
         return;
     }
     closing_ = true;
+    revealing_ = false;  // shutting the menu mid-reveal abandons it; it stays spent
     releaseAll();
     stopListening();
     if (bindRow_ != nullptr) {
@@ -500,9 +675,21 @@ void ClickGui::selectTab(std::size_t index) {
     if (index >= tabs_.size()) {
         return;
     }
+    if (index == tab_) {
+        /* Re-picking the active category is a second way out of a subpage. Worth
+         * keeping: it is the same gesture as the back chevron and people find it by
+         * accident. There is no page to hand over to, so nothing animates. */
+        if (subpageOpen()) {
+            closeSubpage();
+        }
+        return;
+    }
+    /* The selection moves now - the chip has to leave under the click or the menu
+     * feels unresponsive - while the list below is only told to start leaving. The
+     * swap itself happens in layout() once the old page has faded out. */
     tab_ = index;
     closeSubpage();
-    scroll_ = 0.0f;
+    pageLeaving_ = true;
 }
 
 void ClickGui::openSubpage(std::size_t rowIndex) {
@@ -512,14 +699,22 @@ void ClickGui::openSubpage(std::size_t rowIndex) {
     subpageRow_ = rowIndex;
     subpageAnim_ = 0.0f;
     scroll_ = 0.0f;
+    /* subpageAnim_ already carries the sideways slide, so the swap stays immediate
+     * here; restarting the cascade is what makes the settings unroll downward into
+     * it rather than arriving as one block. */
+    pageEnter_ = 0.0f;
 }
 
 void ClickGui::closeSubpage() {
+    const bool wasOpen = subpageRow_ != kNoRow;
     subpageRow_ = kNoRow;
     stopListening();
     closePickers();
     editingName_ = false;
     scroll_ = 0.0f;
+    if (wasOpen) {
+        pageEnter_ = 0.0f;  // the list is coming back; unroll it again
+    }
 }
 
 /* ------------------------------------------------------------------------- *
@@ -542,7 +737,12 @@ bool ClickGui::setExpanded(std::string_view moduleName, bool expanded) {
     for (std::size_t tab = 0; tab < tabs_.size(); ++tab) {
         const std::vector<std::size_t>& list = tabs_[tab].rows;
         if (std::find(list.begin(), list.end(), index) != list.end()) {
+            /* Scripted, so it jumps rather than animating a handover nobody asked
+             * for; the subpage it is about to open draws from the row, not the tab. */
             tab_ = tab;
+            shownTab_ = tab;
+            pageLeaving_ = false;
+            pageFade_ = 1.0f;
             break;
         }
     }
@@ -605,7 +805,11 @@ void ClickGui::loadLayout(config::Document& config) {
     }
     for (std::size_t index = 0; index < tabs_.size(); ++index) {
         if (tabs_[index].key == wanted) {
+            /* Restoring a saved selection, not navigating to it: no handover. */
             tab_ = index;
+            shownTab_ = index;
+            pageLeaving_ = false;
+            pageFade_ = 1.0f;
             indicator_ = static_cast<float>(index);
             closeSubpage();
             break;
@@ -763,7 +967,11 @@ void ClickGui::handleEvent(const hooks::InputEvent& event, modules::Context& con
             mouseX_ = static_cast<float>(event.x) * scaleX;
             mouseY_ = static_cast<float>(event.y) * scaleY;
             if (event.action == hooks::kPress) {
-                if (closing_) {
+                /* Nothing is laid out under the pointer while the menu is still
+                 * assembling itself, and a row that has not arrived must not be
+                 * clickable. Swallowed rather than passed through: the cursor is up
+                 * and the mouse ungrabbed, so the game is the wrong place for it. */
+                if (closing_ || revealing_) {
                     break;
                 }
                 mouseDown_ = event.code == hooks::kMouseLeft;
@@ -895,10 +1103,12 @@ bool ClickGui::pressAt(float x, float y, int button, modules::Context& context) 
         return true;
     }
 
-    if (tab_ >= tabs_.size()) {
+    /* The displayed tab, not the selected one: these are the rows the last layout
+     * actually placed, and the rectangles being tested belong to them. */
+    if (shownTab_ >= tabs_.size()) {
         return true;
     }
-    for (std::size_t index : tabs_[tab_].rows) {
+    for (std::size_t index : tabs_[shownTab_].rows) {
         Row& row = rows_[index];
         if (row.bounds.width > 0.0f && row.bounds.contains(x, y)) {
             return pressRow(index, x, y, button, context);
@@ -1134,6 +1344,38 @@ void ClickGui::layout(modules::Context& context) {
         hooks::input().setCapturing(false);
     }
     alpha_ = clamp(ease::outCubic(clamp(slide_, 0.0f, 1.0f)), 0.0f, 1.0f);
+    if (revealing_) {
+        /* The reveal owns every fade and every movement while it runs, so the
+         * ordinary open is held at "fully arrived" underneath it. Two openings
+         * animating at once would fight over the same pixels. */
+        slide_ = 1.0f;
+        alpha_ = 1.0f;
+    }
+
+    /* Page handover. The old list leaves, the swap happens at zero opacity, then
+     * the new one arrives with its rows staggered. Deferring the swap is the whole
+     * point: committing on the click, as this did, means there is no moment at
+     * which anything can be cross-faded and the change can only ever be a cut. */
+    if (pageLeaving_) {
+        pageFade_ = std::max(0.0f, pageFade_ - deltaTime / kPageOutSeconds);
+        if (pageFade_ <= 0.0f) {
+            shownTab_ = tab_;
+            pageLeaving_ = false;
+            pageEnter_ = 0.0f;
+            scroll_ = 0.0f;
+        }
+    } else {
+        pageFade_ = std::min(1.0f, pageFade_ + deltaTime / kPageInSeconds);
+    }
+    /* Held at the start of its cascade until the card has begun to open, then
+     * released so the rows are arriving *while* it unfolds rather than after it.
+     * Waiting for the reveal to finish leaves the card hanging open and empty for a
+     * beat, and the card clips to its own growing edge anyway, so a row that lands
+     * below that edge is hidden until the card reaches it - the two movements cover
+     * for each other instead of queueing. */
+    if (!revealing_ || revealClock_ >= kRevealUnfoldStart + 0.10f) {
+        pageEnter_ = std::min(1.0f, pageEnter_ + deltaTime / kPageCascadeSeconds);
+    }
 
     if (tabs_.empty()) {
         bar_ = Rect{};
@@ -1143,6 +1385,9 @@ void ClickGui::layout(modules::Context& context) {
     }
     if (tab_ >= tabs_.size()) {
         tab_ = 0;
+    }
+    if (shownTab_ >= tabs_.size()) {
+        shownTab_ = tab_;
     }
 
     const float width = std::min(s(kMenuWidth), screenW_ - s(32.0f));
@@ -1156,7 +1401,9 @@ void ClickGui::layout(modules::Context& context) {
         return;
     }
     const float x = std::floor((screenW_ - width) * 0.5f);
-    const float rise = (1.0f - alpha_) * s(10.0f);
+    /* No rise during the reveal: the capsule's spring is the arrival, and sliding
+     * the whole menu down underneath it would read as two arrivals. */
+    const float rise = revealing_ ? 0.0f : (1.0f - alpha_) * s(10.0f);
     const float y = std::floor(s(kTopMargin) - rise);
 
     bar_ = Rect{x, y, width, s(kTabBarHeight)};
@@ -1186,7 +1433,7 @@ void ClickGui::layout(modules::Context& context) {
             }
             ++slot;
         }
-        const bool hovered = interactive() && tab.bounds.contains(mouseX_, mouseY_);
+        const bool hovered = pointable() && tab.bounds.contains(mouseX_, mouseY_);
         if (tab.iconOnly) {
             gearHover_ = approach(gearHover_, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
         }
@@ -1198,7 +1445,7 @@ void ClickGui::layout(modules::Context& context) {
     Row* page = subpage();
     subpageAnim_ = approach(subpageAnim_, page != nullptr ? 1.0f : 0.0f, kSubpageSpeed, deltaTime);
     backHover_ = approach(backHover_,
-                          interactive() && page != nullptr &&
+                          pointable() && page != nullptr &&
                                   Rect{card_.x + s(8.0f), card_.y + s(4.0f), s(34.0f),
                                        s(kHeaderHeight) - s(8.0f)}
                                       .contains(mouseX_, mouseY_)
@@ -1218,7 +1465,7 @@ void ClickGui::layout(modules::Context& context) {
         row.on = approach(row.on, target, kOnSpeed, deltaTime);
     }
 
-    content_ = page != nullptr ? subpageHeight(*page) : listHeight(tabs_[tab_]);
+    content_ = page != nullptr ? subpageHeight(*page) : listHeight(tabs_[shownTab_]);
 
     const float cardY = bar_.bottom() + s(kPanelGap);
     const float header = s(kHeaderHeight);
@@ -1226,7 +1473,17 @@ void ClickGui::layout(modules::Context& context) {
     const float wanted = header + content_ + s(8.0f);
     const float height = std::min(maxHeight, std::max(header + s(40.0f), wanted));
 
-    card_ = Rect{x, cardY, width, height};
+    /* Smoothed, so handing over from a three-row category to an eleven-row one
+     * grows the card into its new size instead of snapping it. Snapped instead on
+     * the first laid-out frame and whenever the menu is not up, so opening never
+     * starts by animating the card out of whatever the last session left. */
+    if (cardHeight_ <= 0.0f || !visible()) {
+        cardHeight_ = height;
+    } else {
+        cardHeight_ = approach(cardHeight_, height, kCardSpeed, deltaTime);
+    }
+
+    card_ = Rect{x, cardY, width, cardHeight_};
     body_ = Rect{card_.x + s(kCardPadX), card_.y + header + s(4.0f),
                  card_.width - s(kCardPadX) * 2.0f,
                  std::max(s(20.0f), card_.height - header - s(6.0f))};
@@ -1236,8 +1493,12 @@ void ClickGui::layout(modules::Context& context) {
     if (page != nullptr) {
         layoutSubpage(*page, deltaTime);
     } else {
-        layoutList(tabs_[tab_], deltaTime);
+        layoutList(tabs_[shownTab_], deltaTime);
     }
+
+    /* Last, because the reveal confines the paint to a fraction of the geometry
+     * the rest of this function has just finished producing. */
+    advanceReveal(deltaTime);
 
     if (activeSlider_ != nullptr && mouseDown_ && activeSlider_->control.width > 0.0f) {
         const Rect& track = activeSlider_->control;
@@ -1273,9 +1534,19 @@ void ClickGui::layout(modules::Context& context) {
 
 void ClickGui::layoutList(Tab& tab, float deltaTime) {
     float top = body_.y + s(kRowGap) - scroll_;
+    std::size_t ordinal = 0;
     for (std::size_t index : tab.rows) {
         Row& row = rows_[index];
-        row.bounds = Rect{body_.x, top, body_.width, s(kRowHeight)};
+
+        /* Each row drops the last few pixels into its slot, on a delay that grows
+         * down the list, so picking a category unrolls it downward. The offset goes
+         * on the row's own rectangle - which is the hit target too, so the pointer
+         * never lands somewhere the row is not - but never on `top`, because layout
+         * has to stay put or the whole list would visibly resettle as the cascade
+         * finishes. */
+        row.enter = entranceAt(ordinal++);
+        const float drop = (1.0f - row.enter) * s(kRowRise);
+        row.bounds = Rect{body_.x, top - drop, body_.width, s(kRowHeight)};
 
         const bool hasPill = row.kind == RowKind::Module || row.kind == RowKind::Flag;
         const float chevronCentre =
@@ -1286,7 +1557,7 @@ void ClickGui::layoutList(Tab& tab, float deltaTime) {
                           : Rect{chevronCentre - s(14.0f), row.bounds.y, s(28.0f),
                                  row.bounds.height};
 
-        const bool hovered = interactive() && body_.contains(mouseX_, mouseY_) &&
+        const bool hovered = pointable() && body_.contains(mouseX_, mouseY_) &&
                              row.bounds.contains(mouseX_, mouseY_);
         row.hover = approach(row.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
         top += s(kRowHeight) + s(kRowGap);
@@ -1302,12 +1573,14 @@ void ClickGui::layoutSubpage(Row& row, float deltaTime) {
         return;
     }
 
+    std::size_t ordinal = 0;
     for (SettingRow& setting : row.settings) {
         if (setting.setting != nullptr && !setting.setting->visible()) {
             setting.bounds = Rect{};
             setting.control = Rect{};
             continue;
         }
+        setting.enter = entranceAt(ordinal++);
         setting.expand = approach(setting.expand, setting.expanded ? 1.0f : 0.0f, kExpandSpeed,
                                   deltaTime);
         setting.picker =
@@ -1318,9 +1591,10 @@ void ClickGui::layoutSubpage(Row& row, float deltaTime) {
         }
 
         const float height = settingHeight(setting);
-        setting.bounds = Rect{body_.x + slide, top, body_.width - slide, height};
+        const float drop = (1.0f - setting.enter) * s(kRowRise);
+        setting.bounds = Rect{body_.x + slide, top - drop, body_.width - slide, height};
 
-        const bool hovered = interactive() && body_.contains(mouseX_, mouseY_) &&
+        const bool hovered = pointable() && body_.contains(mouseX_, mouseY_) &&
                              setting.bounds.contains(mouseX_, mouseY_);
         setting.hover = approach(setting.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
 
@@ -1345,8 +1619,8 @@ void ClickGui::layoutConfigs(Row& row, float top, float deltaTime) {
 
     nameField_ = Rect{left, top, width - buttonWidth - s(kRowGap), s(kSettingHeight)};
     saveButton_ = Rect{nameField_.right() + s(kRowGap), top, buttonWidth, s(kSettingHeight)};
-    const bool nameHovered = interactive() && nameField_.contains(mouseX_, mouseY_);
-    const bool saveHovered = interactive() && saveButton_.contains(mouseX_, mouseY_);
+    const bool nameHovered = pointable() && nameField_.contains(mouseX_, mouseY_);
+    const bool saveHovered = pointable() && saveButton_.contains(mouseX_, mouseY_);
     nameHover_ = approach(nameHover_, nameHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
     saveHover_ = approach(saveHover_, saveHovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
     top += s(kSettingHeight) + s(kRowGap);
@@ -1355,7 +1629,7 @@ void ClickGui::layoutConfigs(Row& row, float top, float deltaTime) {
         entry.bounds = Rect{left, top, width, s(kSettingHeight)};
         entry.remove = Rect{entry.bounds.right() - s(kSettingPadX) - s(62.0f),
                             entry.bounds.y + s(7.0f), s(62.0f), s(kSettingHeight) - s(14.0f)};
-        const bool hovered = interactive() && body_.contains(mouseX_, mouseY_) &&
+        const bool hovered = pointable() && body_.contains(mouseX_, mouseY_) &&
                              entry.bounds.contains(mouseX_, mouseY_);
         const bool removeHovered = hovered && entry.remove.contains(mouseX_, mouseY_);
         entry.hover = approach(entry.hover, hovered ? 1.0f : 0.0f, kHoverSpeed, deltaTime);
@@ -1372,7 +1646,11 @@ void ClickGui::layoutConfigs(Row& row, float top, float deltaTime) {
 void ClickGui::render(modules::Context& context) {
     build();
     layout(context);
-    if (slide_ <= 0.004f || tabs_.empty()) {
+    /* bar_ is zero-width when layout bailed out - no tabs yet, or a window too
+     * narrow to hold the card. The reveal rectangles are only refreshed on the
+     * paths that produce real geometry, so drawing past this point would paint last
+     * frame's shapes at a size that no longer exists. */
+    if (slide_ <= 0.004f || tabs_.empty() || bar_.width <= 0.0f) {
         return;
     }
 
@@ -1396,8 +1674,29 @@ void ClickGui::render(modules::Context& context) {
 void ClickGui::drawTabBar() {
     render::Renderer& gfx = render::renderer();
 
-    gfx.rect(bar_, fade(kTabBarBg), s(kTabBarRadius));
-    gfx.outline(bar_, fade(kCardBorder), std::max(1.0f, s(1.0f)), s(kTabBarRadius));
+    /* The bar is drawn at the reveal's rectangle and radius, which are its own
+     * once nothing is being revealed. During the reveal this is the capsule: same
+     * fill, same hairline, just narrower and rounder. */
+    const Rect frame = reveal_.bar;
+    const float radius = reveal_.barRadius;
+
+    if (reveal_.glow > 0.002f) {
+        /* Accent halo blooming out of the capsule as it lands, so the pop displaces
+         * something instead of merely becoming visible. */
+        gfx.glow(frame, theme().accent.withAlpha(0.30f * reveal_.glow), s(22.0f) * reveal_.glow,
+                 radius);
+    }
+
+    gfx.rect(frame, fade(kTabBarBg), radius);
+    gfx.outline(frame, fade(kCardBorder), std::max(1.0f, s(1.0f)), radius);
+
+    if (reveal_.label > 0.002f) {
+        drawRevealLabel();
+    }
+
+    if (reveal_.barContent <= 0.002f) {
+        return;  // still a capsule; it has no tabs yet
+    }
 
     std::size_t named = 0;
     for (const Tab& tab : tabs_) {
@@ -1406,6 +1705,10 @@ void ClickGui::drawTabBar() {
     if (named == 0) {
         return;
     }
+
+    /* Everything below is bar content, so it arrives together once the bar has
+     * reached its width. */
+    const AlphaScope barAlpha{alpha_, reveal_.barContent};
     const float inset = s(4.0f);
     const float gearWidth = s(kGearSlotWidth);
     const float slotWidth = (bar_.width - inset * 2.0f - gearWidth) / static_cast<float>(named);
@@ -1445,37 +1748,82 @@ void ClickGui::drawTabBar() {
     }
 }
 
+/* The client's name, in the same voice the card header uses for a category:
+ * uppercase, tracked, accent. Reusing that treatment rather than inventing a
+ * splash style is what keeps the reveal looking like this menu introducing
+ * itself instead of a loading screen bolted on in front of it. */
+void ClickGui::drawRevealLabel() {
+    const std::string brand = upperCase(kClientName);
+    const float box = s(kHeadingBox);
+    const float tracking = s(kTracking);
+    const float width = trackedWidth(kHeadingFont, brand, box, tracking);
+    const Rect frame = reveal_.bar;
+    drawTracked(kHeadingFont, brand, frame.centerX() - width * 0.5f, frame.centerY() - box * 0.5f,
+                box, theme().accent.withAlpha(alpha_ * reveal_.label), tracking);
+}
+
 void ClickGui::drawCard() {
+    if (!reveal_.cardVisible) {
+        return;  // the capsule has not finished becoming the bar yet
+    }
     render::Renderer& gfx = render::renderer();
 
-    gfx.rect(card_, fade(kCardBg), s(kCardRadius));
-    gfx.outline(card_, fade(kCardBorder), std::max(1.0f, s(1.0f)), s(kCardRadius));
+    /* Body drawn at the reveal's rectangle, so while it unfolds the card is a
+     * genuinely shorter card - rounded bottom corners and all - rather than a
+     * full-height one with its lower half clipped off square. */
+    const Rect frame = reveal_.card;
+    /* Capped against the frame's own height so the corners cannot exceed the shape
+     * they are rounding while it is still short. */
+    const float cardRadius = std::min(s(kCardRadius), frame.height * 0.5f);
+    gfx.rect(frame, fade(kCardBg), cardRadius);
+    gfx.outline(frame, fade(kCardBorder), std::max(1.0f, s(1.0f)), cardRadius);
 
-    Row* page = subpage();
-    if (page != nullptr) {
-        drawSubpageHeader(*page);
-    } else {
-        drawCardHeader(tabs_[tab_]);
+    /* Contents stay at the settled geometry and are confined to the frame, which
+     * is what turns the unfold into a reveal: the header and the rows are already
+     * exactly where they belong and the growing card uncovers them top to bottom. */
+    const bool unfolding = frame.height < card_.height - 0.5f;
+    if (unfolding) {
+        gfx.pushClip(frame);
     }
 
-    gfx.pushClip(body_);
-    if (page != nullptr) {
-        if (page->kind == RowKind::Configs) {
-            drawConfigs(*page);
+    {
+        const AlphaScope cardAlpha{alpha_, reveal_.cardContent};
+
+        Row* page = subpage();
+        if (page != nullptr) {
+            drawSubpageHeader(*page);
         } else {
-            for (SettingRow& setting : page->settings) {
-                if (setting.bounds.width <= 0.0f) {
-                    continue;
+            drawCardHeader(tabs_[shownTab_]);
+        }
+
+        /* The page fade is the handover between two categories, so it applies to the
+         * list and to the header's own naming of it - not to the separator, which is
+         * the card's structure and is the same line whichever page is showing. */
+        const AlphaScope listAlpha{alpha_, pageFade_};
+
+        gfx.pushClip(body_);
+        if (page != nullptr) {
+            if (page->kind == RowKind::Configs) {
+                drawConfigs(*page);
+            } else {
+                for (SettingRow& setting : page->settings) {
+                    if (setting.bounds.width <= 0.0f) {
+                        continue;
+                    }
+                    drawSetting(*page, setting);
                 }
-                drawSetting(*page, setting);
+            }
+        } else {
+            for (std::size_t index : tabs_[shownTab_].rows) {
+                drawRow(rows_[index]);
             }
         }
-    } else {
-        for (std::size_t index : tabs_[tab_].rows) {
-            drawRow(rows_[index]);
-        }
+        gfx.popClip();
     }
-    gfx.popClip();
+
+    if (unfolding) {
+        gfx.popClip();
+    }
 }
 
 void ClickGui::drawCardHeader(const Tab& tab) {
@@ -1484,25 +1832,31 @@ void ClickGui::drawCardHeader(const Tab& tab) {
     const float centreY = card_.y + height * 0.5f;
     float cursorX = card_.x + s(16.0f);
 
-    const float iconBox = s(16.0f);
-    gfx.icon(tab.icon, Rect{cursorX, centreY - iconBox * 0.5f, iconBox, iconBox}, accent());
-    cursorX += iconBox + s(10.0f);
+    /* Icon, title and count name the category, so they cross-fade with the list
+     * they belong to. The separator below them does not. */
+    {
+        const AlphaScope titleAlpha{alpha_, pageFade_};
 
-    const std::string title = upperCase(tab.label);
-    const float tracking = s(kTracking);
-    drawTracked(kHeadingFont, title, cursorX, centreY - s(kHeadingBox) * 0.5f, s(kHeadingBox),
-                accent(), tracking);
-    cursorX += trackedWidth(kHeadingFont, title, s(kHeadingBox), tracking) + s(14.0f);
+        const float iconBox = s(16.0f);
+        gfx.icon(tab.icon, Rect{cursorX, centreY - iconBox * 0.5f, iconBox, iconBox}, accent());
+        cursorX += iconBox + s(10.0f);
 
-    gfx.line(cursorX, centreY - s(7.0f), cursorX, centreY + s(7.0f), std::max(1.0f, s(1.0f)),
-             fade(kSeparator));
-    cursorX += s(14.0f);
+        const std::string title = upperCase(tab.label);
+        const float tracking = s(kTracking);
+        drawTracked(kHeadingFont, title, cursorX, centreY - s(kHeadingBox) * 0.5f, s(kHeadingBox),
+                    accent(), tracking);
+        cursorX += trackedWidth(kHeadingFont, title, s(kHeadingBox), tracking) + s(14.0f);
 
-    char count[64];
-    std::snprintf(count, sizeof(count), "%d %s", static_cast<int>(tab.rows.size()),
-                  tab.countNoun != nullptr ? tab.countNoun : "MODULES");
-    drawText(kMicroFont, count, cursorX, centreY - s(kMicroBox) * 0.5f, s(kMicroBox),
-             fade(kTextFaint));
+        gfx.line(cursorX, centreY - s(7.0f), cursorX, centreY + s(7.0f), std::max(1.0f, s(1.0f)),
+                 fade(kSeparator));
+        cursorX += s(14.0f);
+
+        char count[64];
+        std::snprintf(count, sizeof(count), "%d %s", static_cast<int>(tab.rows.size()),
+                      tab.countNoun != nullptr ? tab.countNoun : "MODULES");
+        drawText(kMicroFont, count, cursorX, centreY - s(kMicroBox) * 0.5f, s(kMicroBox),
+                 fade(kTextFaint));
+    }
 
     gfx.line(card_.x, card_.y + height, card_.right(), card_.y + height, std::max(1.0f, s(1.0f)),
              fade(kSeparator));
@@ -1561,9 +1915,12 @@ void ClickGui::drawChip(float x, float centreY, std::string_view text, const Col
 
 void ClickGui::drawRow(Row& row) {
     render::Renderer& gfx = render::renderer();
-    if (row.bounds.width <= 0.0f) {
+    if (row.bounds.width <= 0.0f || row.enter <= 0.002f) {
         return;
     }
+    /* Fades with its own arrival, on top of whatever the page is doing. */
+    const AlphaScope rowAlpha{alpha_, row.enter};
+
     const Rect bounds = row.bounds;
     const float height = bounds.height;
     const bool hasPill = row.kind == RowKind::Module || row.kind == RowKind::Flag;
@@ -1624,6 +1981,11 @@ void ClickGui::drawRow(Row& row) {
 
 void ClickGui::drawSetting(Row& owner, SettingRow& setting) {
     render::Renderer& gfx = render::renderer();
+    if (setting.enter <= 0.002f) {
+        return;
+    }
+    const AlphaScope settingAlpha{alpha_, setting.enter};
+
     const Rect bounds = setting.bounds;
     const Rect line{bounds.x, bounds.y, bounds.width, s(kSettingHeight)};
 
@@ -1735,7 +2097,7 @@ void ClickGui::drawChoiceItems(SettingRow& setting) {
     gfx.pushClip(area);
     for (std::size_t i = 0; i < value.choices().size(); ++i) {
         const float itemY = area.y + static_cast<float>(i) * itemHeight;
-        const bool hovered = interactive() && mouseX_ >= area.x && mouseX_ <= area.right() &&
+        const bool hovered = pointable() && mouseX_ >= area.x && mouseX_ <= area.right() &&
                              mouseY_ >= itemY && mouseY_ <= itemY + itemHeight;
         const bool selected = static_cast<int>(i) == value.choice();
         if (hovered) {

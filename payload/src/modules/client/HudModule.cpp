@@ -1,5 +1,7 @@
 #include "modules/client/HudModule.hpp"
 
+#include <iterator>
+
 #include "ui/Client.hpp"
 #include "ui/Hud.hpp"
 
@@ -22,6 +24,22 @@ HudModule::HudModule() : Module("HUD", "Watermark and module list", Category::Cl
 
 void HudModule::onRender(Context&) {
     ui::Hud& hud = ui::client().hud();
+
+    /* Drain the editor's requests before pushing state down, so a dot clicked in the
+     * pause screen lands on the setting that is persisted and shown in the menu. The
+     * HUD cannot flip its own copy: the push below would overwrite it on the very
+     * next frame. Ordered by ui::HudElement. */
+    Setting* const visibility[] = {watermark_, arrayList_, playerInfo_, targetInfo_, speed_};
+    int element = 0;
+    while (hud.takeToggle(element)) {
+        if (element >= 0 && element < static_cast<int>(std::size(visibility))) {
+            Setting* setting = visibility[element];
+            if (setting != nullptr) {
+                setting->setBoolean(!setting->booleanValue());
+            }
+        }
+    }
+
     hud.setScale(scale_->number());
     hud.setShowWatermark(watermark_->booleanValue());
     hud.setShowArrayList(arrayList_->booleanValue());

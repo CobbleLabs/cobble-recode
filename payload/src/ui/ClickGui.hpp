@@ -81,7 +81,8 @@ private:
         Rect bounds;   // whole line, the click target
         Rect control;  // slider track, pill, chip or swatch
         float hover = 0.0f;
-        float knob = 0.0f;  // smoothed slider position
+        float knob = 0.0f;   // smoothed slider position
+        float enter = 1.0f;  // 0..1 arrival, staggered by position in the page
         bool expanded = false;
         float expand = 0.0f;  // choice list open animation
         bool draggingSlider = false;
@@ -115,6 +116,7 @@ private:
         Rect chevron;  // the strip that opens the subpage instead of toggling
         float hover = 0.0f;
         float on = 0.0f;
+        float enter = 1.0f;  // 0..1 arrival, staggered by position in the list
         bool binding = false;
     };
 
@@ -138,6 +140,39 @@ private:
         float hover = 0.0f;
         float removeHover = 0.0f;
     };
+
+    /* Where the reveal has got to on the frame being drawn.
+     *
+     * The layout always runs at the menu's final geometry, so rows sit exactly
+     * where they belong from the first frame; these are the rectangles the
+     * *paint* is confined to while the menu is still assembling itself. Growing
+     * the real card instead would reflow the list inside a box a few pixels
+     * tall, and the rows would visibly settle afterwards. */
+    struct Reveal {
+        Rect bar;                 // capsule stretching into the tab bar
+        Rect card;                // card unfolding downward
+        float barRadius = 0.0f;   // capsule radius easing to the bar's own
+        float glow = 0.0f;        // accent halo, on arrival only
+        float label = 0.0f;       // brand label opacity
+        float barContent = 1.0f;  // tab chip, labels and gear opacity
+        float cardContent = 1.0f; // header and rows opacity
+        bool cardVisible = true;  // false until the card starts unfolding
+    };
+
+    void advanceReveal(float deltaTime);
+    void drawRevealLabel();
+    /* 0..1 arrival for the row at `ordinal` of a page that has just changed. */
+    float entranceAt(std::size_t ordinal) const;
+
+    /* Whether the menu will answer the pointer. Narrower than interactive(): while
+     * the menu is still assembling itself there is nothing under the cursor yet, and
+     * a row that has not finished arriving must not light up or take a click.
+     *
+     * Deliberately not folded into interactive(), which the client also uses to
+     * decide who owns the keyboard and whether the HUD should step aside. Excluding
+     * the reveal there would hand module binds back to the game for the couple of
+     * seconds the menu is opening. */
+    bool pointable() const { return open_ && !closing_ && !revealing_; }
 
     void layout(modules::Context& context);
     float listHeight(const Tab& tab) const;
@@ -196,7 +231,23 @@ private:
     std::vector<Tab> tabs_;
     std::vector<ConfigFile> configs_;
 
+    /* tab_ is what the user picked; shownTab_ is what the card is currently
+     * displaying. They differ only for the length of a handover: the chip and the
+     * bar follow the click immediately (anything else feels unresponsive) while
+     * the list below finishes fading the old category out. */
     std::size_t tab_ = 0;
+    std::size_t shownTab_ = 0;
+    float pageFade_ = 1.0f;      // 1 settled, 0 the instant the swap happens
+    float pageEnter_ = 1.0f;     // 0..1 cascade clock for the page that arrived
+    bool pageLeaving_ = false;   // the outgoing page is on its way out
+    float cardHeight_ = 0.0f;    // smoothed, so a taller category grows into place
+
+    /* Once per injection, not once per open. */
+    bool revealSpent_ = false;
+    bool revealing_ = false;
+    float revealClock_ = 0.0f;
+    Reveal reveal_;
+
     std::size_t subpageRow_ = kNoRow;
     float subpageAnim_ = 0.0f;
     float indicator_ = 0.0f;       // interpolated slot of the tab chip

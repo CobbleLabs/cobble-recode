@@ -48,6 +48,15 @@ constexpr float kNoticeFade = 0.28f;
 
 constexpr long long kHurtDuration = 400;
 
+/* Editor chrome, in GUI units. The grip and the dot deliberately do not scale with
+ * the element they belong to: a element shrunk to half size still needs a handle
+ * big enough to hit. */
+constexpr float kGripSize = 6.0f;
+constexpr float kDotSize = 6.0f;
+constexpr float kEditLabel = 7.0f;
+constexpr float kMinSize = 0.5f;
+constexpr float kMaxSize = 2.5f;
+
 const Color kWatermarkBg = Color::rgb(0x000000, 100.0f / 255.0f);
 const Color kLabelBg = Color::rgb(0x000000, 150.0f / 255.0f);
 const Color kBodyBg = Color::rgb(0x000000, 120.0f / 255.0f);
@@ -148,6 +157,12 @@ void Hud::loadLayout(config::Document& config) {
     speedX_ = config.getNumber("hud.layout", "speedX", speedX_);
     speedY_ = config.getNumber("hud.layout", "speedY", speedY_);
     speedPlaced_ = config.getBool("hud.layout", "speedPlaced", speedPlaced_);
+    static const char* const kSizeKeys[kElements] = {"markSize", "listSize", "playerSize",
+                                                     "targetSize", "speedSize"};
+    for (int i = 0; i < kElements; ++i) {
+        sizes_[i] = clamp(config.getNumber("hud.layout", kSizeKeys[i], sizes_[i]), kMinSize,
+                          kMaxSize);
+    }
 }
 
 void Hud::saveLayout(config::Document& config) const {
@@ -164,6 +179,132 @@ void Hud::saveLayout(config::Document& config) const {
     config.setNumber("hud.layout", "speedX", speedX_, 1);
     config.setNumber("hud.layout", "speedY", speedY_, 1);
     config.setBool("hud.layout", "speedPlaced", speedPlaced_);
+    static const char* const kSizeKeys[kElements] = {"markSize", "listSize", "playerSize",
+                                                     "targetSize", "speedSize"};
+    for (int i = 0; i < kElements; ++i) {
+        config.setNumber("hud.layout", kSizeKeys[i], sizes_[i], 2);
+    }
+}
+
+/* ------------------------------------------------------------------------- *
+ * Editor
+ * ------------------------------------------------------------------------- */
+
+bool Hud::takeToggle(int& element) {
+    if (pendingToggle_ < 0) {
+        return false;
+    }
+    element = pendingToggle_;
+    pendingToggle_ = -1;
+    return true;
+}
+
+const char* Hud::labelOf(HudElement id) const {
+    switch (id) {
+        case HudElement::Watermark: return "Watermark";
+        case HudElement::ArrayList: return "Module list";
+        case HudElement::PlayerInfo: return "Player info";
+        case HudElement::TargetInfo: return "Target info";
+        case HudElement::Speed: return "Speed / XYZ";
+        default: return "";
+    }
+}
+
+bool Hud::shownOf(HudElement id) const {
+    switch (id) {
+        case HudElement::Watermark: return watermark_;
+        case HudElement::ArrayList: return arrayList_;
+        case HudElement::PlayerInfo: return playerInfo_;
+        case HudElement::TargetInfo: return targetInfo_;
+        case HudElement::Speed: return speed_;
+        default: return false;
+    }
+}
+
+float& Hud::sizeOf(HudElement id) {
+    return sizes_[clamp(index(id), 0, kElements - 1)];
+}
+
+float Hud::sizeOf(HudElement id) const {
+    return sizes_[clamp(index(id), 0, kElements - 1)];
+}
+
+Rect Hud::rectOf(HudElement id) const {
+    switch (id) {
+        case HudElement::Watermark: return markRect_;
+        case HudElement::ArrayList: return listRect_;
+        case HudElement::PlayerInfo: return playerRect_;
+        case HudElement::TargetInfo: return targetRect_;
+        case HudElement::Speed: return speedRect_;
+        default: return Rect{};
+    }
+}
+
+/* Whether the element put a rectangle on screen this frame and can therefore be
+ * picked up. The list, target and speed readouts each have their own reason to
+ * produce nothing, so they say so explicitly; the other two are known by their
+ * rectangle alone. */
+bool Hud::liveOf(HudElement id) const {
+    switch (id) {
+        case HudElement::ArrayList: return listDrawn_ && listRect_.width > 0.0f;
+        case HudElement::TargetInfo: return targetDrawn_ && targetRect_.width > 0.0f;
+        case HudElement::Speed: return speedDrawn_ && speedRect_.width > 0.0f;
+        default: return rectOf(id).width > 0.0f;
+    }
+}
+
+/* The grip sits on the bottom-right corner, half in and half out, the way a
+ * resize handle does everywhere else. Kept a fixed size in GUI units rather than
+ * scaling with the element, so a shrunk element does not end up with a grip bigger
+ * than itself. */
+Rect Hud::gripOf(const Rect& bounds) const {
+    const float side = pos(kGripSize);
+    return Rect{bounds.right() - side * 0.5f, bounds.bottom() - side * 0.5f, side, side};
+}
+
+/* The dot sits just above the top-left corner, outside the body, so it neither
+ * covers content nor competes with a drag on the element itself.
+ *
+ * Unless there is no room above it, which is the common case and not the corner
+ * case: the watermark and the module list both default to two units from the top, so
+ * placing the dot outside would put it off screen and leave those two impossible to
+ * switch off. It then tucks inside the element instead. */
+Rect Hud::dotOf(const Rect& bounds) const {
+    const float side = pos(kDotSize);
+    const float gap = pos(1.5f);
+    const float above = bounds.y - side - gap;
+    return above >= 0.0f ? Rect{bounds.x, above, side, side}
+                         : Rect{bounds.x + gap, bounds.y + gap, side, side};
+}
+
+Hud::Grab Hud::pick(HudElement& id) const {
+    /* Front to back, and controls before bodies: the grip and the dot are small and
+     * overlap their own element, so testing the body first would make them
+     * unreachable. */
+    for (int i = kElements - 1; i >= 0; --i) {
+        const HudElement candidate = static_cast<HudElement>(i);
+        if (!liveOf(candidate)) {
+            continue;
+        }
+        const Rect bounds = rectOf(candidate);
+        if (dotOf(bounds).contains(mouseX_, mouseY_)) {
+            id = candidate;
+            return Grab::Toggle;
+        }
+        if (gripOf(bounds).contains(mouseX_, mouseY_)) {
+            id = candidate;
+            return Grab::Resize;
+        }
+    }
+    for (int i = kElements - 1; i >= 0; --i) {
+        const HudElement candidate = static_cast<HudElement>(i);
+        if (liveOf(candidate) && rectOf(candidate).contains(mouseX_, mouseY_)) {
+            id = candidate;
+            return Grab::Move;
+        }
+    }
+    id = HudElement::Count;
+    return Grab::None;
 }
 
 void Hud::handleEvent(const hooks::InputEvent& event, const modules::Context& context) {
@@ -185,25 +326,28 @@ void Hud::handleEvent(const hooks::InputEvent& event, const modules::Context& co
         case hooks::InputEvent::Kind::MouseMove:
             mouseX_ = static_cast<float>(event.x) * scaleX;
             mouseY_ = static_cast<float>(event.y) * scaleY;
-            if (drag_ != Drag::None && editMode(state)) {
+            if (!editMode(state)) {
+                break;
+            }
+            if (grab_ == Grab::Move) {
                 const float x = clamp(mouseX_ / unit_ - dragOffX_, 0.0f, scaledW);
                 const float y = clamp(mouseY_ / unit_ - dragOffY_, 0.0f, scaledH);
-                switch (drag_) {
-                    case Drag::Watermark:
+                switch (grabbed_) {
+                    case HudElement::Watermark:
                         markX_ = x;
                         markY_ = y;
                         break;
-                    case Drag::Player:
+                    case HudElement::PlayerInfo:
                         playerX_ = x;
                         playerY_ = y;
                         playerPlaced_ = true;
                         break;
-                    case Drag::Target:
+                    case HudElement::TargetInfo:
                         targetX_ = x;
                         targetY_ = y;
                         targetPlaced_ = true;
                         break;
-                    case Drag::List:
+                    case HudElement::ArrayList:
                         /* Anchored to the right edge, like the list itself. */
                         listR_ = clamp((static_cast<float>(state.windowWidth) - mouseX_) /
                                            unit_ -
@@ -211,30 +355,32 @@ void Hud::handleEvent(const hooks::InputEvent& event, const modules::Context& co
                                        -20.0f, scaledW);
                         listY_ = y;
                         break;
-                    case Drag::Speed:
+                    case HudElement::Speed:
                         speedX_ = x;
                         speedY_ = y;
                         speedPlaced_ = true;
                         break;
-                    case Drag::None:
+                    default:
                         break;
                 }
-            } else if (editMode(state)) {
-                if (targetDrawn_ && targetRect_.contains(mouseX_, mouseY_)) {
-                    hot_ = Drag::Target;
-                } else if (playerRect_.width > 0.0f &&
-                           playerRect_.contains(mouseX_, mouseY_)) {
-                    hot_ = Drag::Player;
-                } else if (listDrawn_ && listRect_.contains(mouseX_, mouseY_)) {
-                    hot_ = Drag::List;
-                } else if (speedDrawn_ && speedRect_.contains(mouseX_, mouseY_)) {
-                    hot_ = Drag::Speed;
-                } else if (markRect_.width > 0.0f &&
-                           markRect_.contains(mouseX_, mouseY_)) {
-                    hot_ = Drag::Watermark;
-                } else {
-                    hot_ = Drag::None;
+            } else if (grab_ == Grab::Resize && grabbed_ != HudElement::Count) {
+                /* Project the drag onto the element's own diagonal.
+                 *
+                 * Taking the width ratio alone would ignore vertical movement, and
+                 * taking whichever axis moved more would jump between them mid-drag.
+                 * The least-squares projection onto the diagonal is what "drag the
+                 * corner, keep the aspect" means, and it behaves the same whether the
+                 * element is a wide bar or a squat card. */
+                const Rect bounds = rectOf(grabbed_);
+                const float wantW = mouseX_ - bounds.x;
+                const float wantH = mouseY_ - bounds.y;
+                const float denom = grabBaseW_ * grabBaseW_ + grabBaseH_ * grabBaseH_;
+                if (denom > 1.0f) {
+                    const float factor = (wantW * grabBaseW_ + wantH * grabBaseH_) / denom;
+                    sizeOf(grabbed_) = clamp(factor, kMinSize, kMaxSize);
                 }
+            } else {
+                hotKind_ = pick(hot_);
             }
             break;
 
@@ -242,28 +388,45 @@ void Hud::handleEvent(const hooks::InputEvent& event, const modules::Context& co
             mouseX_ = static_cast<float>(event.x) * scaleX;
             mouseY_ = static_cast<float>(event.y) * scaleY;
             if (event.action == hooks::kPress) {
-                if (event.code == hooks::kMouseLeft && editMode(state) &&
-                    hot_ != Drag::None) {
-                    drag_ = hot_;
-                    if (drag_ == Drag::List) {
-                        dragOffX_ = (static_cast<float>(state.windowWidth) - mouseX_) /
-                                        unit_ -
-                                    listR_;
-                        dragOffY_ = mouseY_ / unit_ - listY_;
-                    } else {
-                        const Rect* bounds = nullptr;
-                        if (drag_ == Drag::Watermark) bounds = &markRect_;
-                        if (drag_ == Drag::Player) bounds = &playerRect_;
-                        if (drag_ == Drag::Target) bounds = &targetRect_;
-                        if (drag_ == Drag::Speed) bounds = &speedRect_;
-                        dragOffX_ = bounds != nullptr ? mouseX_ / unit_ - bounds->x / unit_
-                                                      : 0.0f;
-                        dragOffY_ = bounds != nullptr ? mouseY_ / unit_ - bounds->y / unit_
-                                                      : 0.0f;
-                    }
+                if (event.code != hooks::kMouseLeft || !editMode(state)) {
+                    break;
+                }
+                /* Picked fresh on the press rather than trusting the last move: a click
+                 * without a preceding move over the control - the pointer parked where
+                 * an element has just appeared - would otherwise do nothing. */
+                HudElement id = HudElement::Count;
+                const Grab kind = pick(id);
+                hot_ = id;
+                hotKind_ = kind;
+                if (kind == Grab::Toggle) {
+                    /* Handed to HudModule, which owns the setting that persists. */
+                    pendingToggle_ = index(id);
+                    break;
+                }
+                if (kind == Grab::None) {
+                    break;
+                }
+                grab_ = kind;
+                grabbed_ = id;
+                const Rect bounds = rectOf(id);
+                if (kind == Grab::Resize) {
+                    /* Unscaled pixel size, so the projection above is measured against
+                     * a fixed reference instead of one that moves as it is edited. */
+                    grabScale_ = sizeOf(id);
+                    const float safe = grabScale_ > 0.01f ? grabScale_ : 1.0f;
+                    grabBaseW_ = bounds.width / safe;
+                    grabBaseH_ = bounds.height / safe;
+                } else if (id == HudElement::ArrayList) {
+                    dragOffX_ =
+                        (static_cast<float>(state.windowWidth) - mouseX_) / unit_ - listR_;
+                    dragOffY_ = mouseY_ / unit_ - listY_;
+                } else {
+                    dragOffX_ = (mouseX_ - bounds.x) / unit_;
+                    dragOffY_ = (mouseY_ - bounds.y) / unit_;
                 }
             } else {
-                drag_ = Drag::None;
+                grab_ = Grab::None;
+                grabbed_ = HudElement::Count;
             }
             break;
 
@@ -300,8 +463,9 @@ void Hud::drawWatermark(modules::Context& context, bool edit) {
     const float size = px(kMarkText);
     const float textWidth = gfx.measure(render::FontRole::Medium, text, size);
     const float width = px(kMargin + kLogoWidth + kMargin + 2.0f) + textWidth;
-    const float x = px(markX_);
-    const float y = px(markY_);
+    /* pos(), not px(): the corner it is pinned to must not move when it is resized. */
+    const float x = pos(markX_);
+    const float y = pos(markY_);
     const float height = px(kMarkHeight);
     markRect_ = Rect{x, y, width, height};
 
@@ -316,10 +480,7 @@ void Hud::drawWatermark(modules::Context& context, bool edit) {
     const float capTop = y + (height - size * 0.727f) * 0.5f - px(1.0f);
     shadowed(render::FontRole::Medium, text, x + px(kMargin + kLogoWidth + kMargin + 2.0f),
              capTop, size, palette.textBright);
-
-    if (edit) {
-        drawEditOutline(markRect_, hot_ == Drag::Watermark || drag_ == Drag::Watermark);
-    }
+    (void)edit;  // the editor's chrome is drawn from render(), on top of everything
 }
 
 void Hud::drawFace(modules::Context& context, jobject handle, const Rect& bounds, float alpha,
@@ -423,10 +584,10 @@ void Hud::drawSpeedReadout(modules::Context& context, bool edit) {
     const float rowHeight = px(kRowHeight);
     const float width =
         gfx.measure(render::FontRole::Medium, line, size) + px(kRowPad * 2.0f);
-    const float x = speedPlaced_ ? px(speedX_) : px(6.0f);
+    const float x = speedPlaced_ ? pos(speedX_) : pos(6.0f);
     const float y = speedPlaced_
-                        ? px(speedY_)
-                        : static_cast<float>(state.windowHeight) - px(6.0f) - rowHeight;
+                        ? pos(speedY_)
+                        : static_cast<float>(state.windowHeight) - pos(6.0f) - rowHeight;
     speedRect_ = Rect{x, y, width, rowHeight};
     speedDrawn_ = true;
 
@@ -435,18 +596,90 @@ void Hud::drawSpeedReadout(modules::Context& context, bool edit) {
     const float capTop = y + (rowHeight - size * 0.727f) * 0.5f;
     shadowed(render::FontRole::Medium, line, x + px(kRowPad), capTop, size,
              palette.textBright);
-
-    if (edit) {
-        drawEditOutline(speedRect_, hot_ == Drag::Speed || drag_ == Drag::Speed);
-    }
+    (void)edit;
 }
 
-void Hud::drawEditOutline(const Rect& bounds, bool hot) {
-    if (bounds.width <= 0.0f) {
+/* Frame, name, state dot and corner grip for one element.
+ *
+ * Drawn from render() once every element has laid itself out, rather than by each
+ * element at the end of its own draw, for two reasons: the chrome then sits on top
+ * of everything instead of under whatever draws next, and it is drawn with the
+ * global unit while drawScale_ is reset, so a grip on an element shrunk to half
+ * size is still a grip you can hit. */
+void Hud::drawEditChrome(HudElement id, const Rect& bounds, bool shown) {
+    if (bounds.width <= 0.0f || bounds.height <= 0.0f) {
         return;
     }
     render::Renderer& gfx = render::renderer();
-    gfx.outline(bounds, theme().accent.withAlpha(hot ? 1.0f : 0.35f), 1.0f, 0.0f);
+    const Palette& palette = theme();
+    const bool held = grabbed_ == id && grab_ != Grab::None;
+    const bool hot = hot_ == id || held;
+
+    /* Switched off: the body still draws, because an invisible element cannot be
+     * switched back on, but it is veiled so there is no reading the screen as though
+     * this were live. */
+    if (!shown) {
+        gfx.rect(bounds, Color::rgb(0x05070A, 0.62f), 0.0f);
+    }
+
+    gfx.outline(bounds, palette.accent.withAlpha(hot ? 1.0f : 0.32f), 1.0f, 0.0f);
+
+    const Rect dot = dotOf(bounds);
+    const float labelSize = pos(kEditLabel);
+    /* On a backing plate, because when the dot has had to tuck inside the element the
+     * name lands on top of live content. */
+    const char* label = labelOf(id);
+    const float labelX = dot.right() + pos(2.0f);
+    const float labelW = gfx.measure(render::FontRole::Medium, label, labelSize);
+    gfx.rect(Rect{labelX - pos(1.0f), dot.y, labelW + pos(2.0f), dot.height},
+             Color::rgb(0x05070A, 0.66f), pos(1.0f));
+    shadowed(render::FontRole::Medium, label, labelX,
+             dot.y + (dot.height - labelSize * 0.727f) * 0.5f, labelSize,
+             Color::rgb(0xFFFFFF, shown ? (hot ? 0.95f : 0.72f) : 0.42f));
+
+    /* Filled while the element is on, a ring while it is off. */
+    const bool dotHot = hot_ == id && hotKind_ == Grab::Toggle;
+    gfx.rect(dot, Color::rgb(0x05070A, 0.80f), pos(1.0f));
+    if (shown) {
+        gfx.rect(dot.inset(pos(1.3f)), palette.accent.withAlpha(dotHot ? 1.0f : 0.85f),
+                 pos(1.0f));
+    } else {
+        gfx.outline(dot.inset(pos(1.3f)), Color::rgb(0xFFFFFF, dotHot ? 0.95f : 0.45f), 1.0f,
+                    pos(1.0f));
+    }
+
+    const Rect grip = gripOf(bounds);
+    const bool gripHot = (hot_ == id && hotKind_ == Grab::Resize) ||
+                         (held && grab_ == Grab::Resize);
+    gfx.rect(grip, Color::rgb(0x05070A, 0.80f), pos(1.0f));
+    gfx.rect(grip.inset(pos(1.1f)), palette.accent.withAlpha(gripHot ? 1.0f : 0.70f),
+             pos(0.8f));
+
+    /* The one number in the editor, and only while the gesture is in progress. It is
+     * feedback on a drag, not a way to set the value - which is the difference
+     * between this and the X/Y fields it replaces. */
+    if (held && grab_ == Grab::Resize) {
+        char text[16];
+        std::snprintf(text, sizeof(text), "%.0f%%",
+                      static_cast<double>(sizeOf(id) * 100.0f));
+        shadowed(render::FontRole::Bold, text, grip.x - pos(2.5f),
+                 grip.y - pos(kEditLabel + 1.5f), labelSize, Color::rgb(0xFFFFFF),
+                 render::Align::Right);
+    }
+}
+
+void Hud::drawEditHint(const game::FrameState& state) {
+    render::Renderer& gfx = render::renderer();
+    const char* line = "HUD editor    drag to move    corner to resize    dot to toggle";
+    const float size = pos(kEditLabel + 1.0f);
+    const float height = pos(12.0f);
+    const float width = gfx.measure(render::FontRole::Medium, line, size) + pos(10.0f);
+    const float x = (static_cast<float>(state.windowWidth) - width) * 0.5f;
+    const float y = static_cast<float>(state.windowHeight) - height - pos(5.0f);
+    gfx.rect(Rect{x, y, width, height}, Color::rgb(0x05070A, 0.74f), pos(2.0f));
+    gfx.rect(Rect{x, y, pos(1.5f), height}, theme().accent, 0.0f);
+    shadowed(render::FontRole::Medium, line, x + pos(6.0f),
+             y + (height - size * 0.727f) * 0.5f, size, Color::rgb(0xFFFFFF, 0.92f));
 }
 
 void Hud::drawPlayerInfo(modules::Context& context, bool edit, float& below) {
@@ -475,12 +708,15 @@ void Hud::drawPlayerInfo(modules::Context& context, bool edit, float& below) {
     const std::string playTime = formatPlayTime(nowSeconds() - sessionStart_);
     const float nameSize = px(kNameSize);
     const float playWidth = gfx.measure(render::FontRole::Medium, playTime, px(kSubSize));
-    const float hudUnits = std::max(kCardWidth, kBarLeft + playWidth / unit_ + 5.0f);
+    /* playWidth is already in pixels at this element's scale, so dividing it back out
+     * has to use the same scale px() multiplied it by, not the bare unit. */
+    const float drawUnit = unit_ * drawScale_;
+    const float hudUnits = std::max(kCardWidth, kBarLeft + playWidth / drawUnit + 5.0f);
     const float width = px(hudUnits);
-    const float scaledW = static_cast<float>(state.windowWidth) / unit_;
     const float scaledH = static_cast<float>(state.windowHeight) / unit_;
-    const float x = playerPlaced_ ? px(playerX_) : (scaledW - hudUnits) * 0.5f * unit_;
-    const float y = playerPlaced_ ? px(playerY_) : scaledH / 10.0f * unit_;
+    const float x = playerPlaced_ ? pos(playerX_)
+                                  : (static_cast<float>(state.windowWidth) - width) * 0.5f;
+    const float y = playerPlaced_ ? pos(playerY_) : scaledH / 10.0f * unit_;
     playerRect_ = Rect{x, y, width, px(kLabelHeight + kBodyHeight)};
 
     gfx.rect(Rect{x, y, width, px(kLabelHeight)}, kLabelBg, 0.0f);
@@ -519,9 +755,7 @@ void Hud::drawPlayerInfo(modules::Context& context, bool edit, float& below) {
     }
 
     below = bodyY + px(kBodyHeight);
-    if (edit) {
-        drawEditOutline(playerRect_, hot_ == Drag::Player || drag_ == Drag::Player);
-    }
+    (void)edit;
 }
 
 void Hud::drawTargetInfo(modules::Context& context, bool edit, float top) {
@@ -560,58 +794,69 @@ void Hud::drawTargetInfo(modules::Context& context, bool edit, float top) {
         }
     }
 
-    /* Edit mode with nothing targeted: your own stats stand in, so the card
-     * can still be seen and moved. */
-    const bool placeholder = target == nullptr && edit && state.player.valid;
-    const float alpha = target != nullptr ? targetAlpha_ : (placeholder ? 1.0f : 0.0f);
-    if (alpha < 0.01f) {
+    /* Edit mode with nothing targeted draws an empty frame, not a copy of your own
+     * stats. Standing in with the player's data put two cards on screen carrying the
+     * same name and a "+0.0" health difference against yourself, which read as a
+     * duplicate player card rather than as a target card waiting for a target. The
+     * frame alone is still something to move and resize, which was the only reason
+     * the stand-in existed. */
+    const bool ghost = target == nullptr;
+    const float alpha = target != nullptr ? targetAlpha_ : 0.0f;
+    if (ghost && !edit) {
         targetDrawn_ = false;
         return;
     }
-
-    float health = 0.0f;
-    float maxHealth = 20.0f;
-    jobject handle = nullptr;
-    bool isPlayer = false;
-    std::string name;
-    if (target != nullptr) {
-        health = target->health + target->absorption;
-        maxHealth = target->maxHealth > 0.0f ? target->maxHealth : 20.0f;
-        handle = target->handle;
-        isPlayer = target->isPlayer;
-        name = game::Game::instance().entityName(context.env, handle);
-        if (name.empty()) {
-            name = isPlayer ? "player" : "entity";
-        }
-        if (targetHealth_ < 0.0f) {
-            targetHealth_ = health;
-            targetActual_ = health;
-        }
-        if (health < targetActual_ - 0.01f) {
-            targetHurtAt_ = nowMillis();
-            targetActual_ = health;
-        } else if (health > targetActual_ + 0.01f) {
-            targetActual_ = health;
-        }
-        targetHealth_ += (health - targetHealth_) *
-                         std::min(1.0f, context.deltaTime * 10.0f);
-    } else {
-        handle = state.player.handle;
-        isPlayer = true;
-        name = game::Game::instance().entityName(context.env, handle);
-        if (name.empty()) {
-            name = "player";
-        }
-        health = state.player.health;
-        maxHealth = state.player.maxHealth > 0.0f ? state.player.maxHealth : 20.0f;
-        targetHealth_ = health;
+    if (!ghost && alpha < 0.01f) {
+        targetDrawn_ = false;
+        return;
     }
-    const float display = target != nullptr && targetHealth_ >= 0.0f ? targetHealth_ : health;
+    if (ghost) {
+        /* Nominal size, so the frame is where the card will be. */
+        const float ghostW = px(kCardWidth);
+        const float ghostH = px(kBodyHeight);
+        const float ghostX = targetPlaced_
+                                 ? pos(targetX_)
+                                 : (static_cast<float>(state.windowWidth) - ghostW) * 0.5f;
+        const float ghostY = targetPlaced_ ? pos(targetY_) : top + px(4.0f);
+        targetRect_ = Rect{ghostX, ghostY, ghostW, ghostH};
+        targetDrawn_ = true;
+        gfx.rect(targetRect_, kBodyBg.withAlpha(0.45f), 0.0f);
+        const float hint = px(kSubSize);
+        const std::string waiting = "No target";
+        const float hintWidth = gfx.measure(render::FontRole::Medium, waiting, hint);
+        shadowed(render::FontRole::Medium, waiting,
+                 ghostX + (ghostW - hintWidth) * 0.5f,
+                 ghostY + (ghostH - hint * 0.727f) * 0.5f, hint,
+                 Color::rgb(0xFFFFFF, 0.45f));
+        return;
+    }
+
+    /* Past the ghost branch there is always a target. */
+    const float health = target->health + target->absorption;
+    const float maxHealth = target->maxHealth > 0.0f ? target->maxHealth : 20.0f;
+    jobject handle = target->handle;
+    const bool isPlayer = target->isPlayer;
+    std::string name = game::Game::instance().entityName(context.env, handle);
+    if (name.empty()) {
+        name = isPlayer ? "player" : "entity";
+    }
+    if (targetHealth_ < 0.0f) {
+        targetHealth_ = health;
+        targetActual_ = health;
+    }
+    if (health < targetActual_ - 0.01f) {
+        targetHurtAt_ = nowMillis();
+        targetActual_ = health;
+    } else if (health > targetActual_ + 0.01f) {
+        targetActual_ = health;
+    }
+    targetHealth_ += (health - targetHealth_) * std::min(1.0f, context.deltaTime * 10.0f);
+    const float display = targetHealth_ >= 0.0f ? targetHealth_ : health;
 
     const float width = px(kCardWidth);
-    const float scaledW = static_cast<float>(state.windowWidth) / unit_;
-    const float x = targetPlaced_ ? px(targetX_) : (scaledW - kCardWidth) * 0.5f * unit_;
-    const float y = targetPlaced_ ? px(targetY_) : top + px(4.0f);
+    const float x = targetPlaced_ ? pos(targetX_)
+                                  : (static_cast<float>(state.windowWidth) - width) * 0.5f;
+    const float y = targetPlaced_ ? pos(targetY_) : top + px(4.0f);
     targetRect_ = Rect{x, y, width, px(kBodyHeight)};
     targetDrawn_ = true;
 
@@ -636,9 +881,7 @@ void Hud::drawTargetInfo(modules::Context& context, bool edit, float top) {
              Color::rgb(0xFFFFFF, alpha));
 
     char diffText[24];
-    if (placeholder) {
-        std::snprintf(diffText, sizeof(diffText), "+0.0");
-    } else {
+    {
         const float ownHealth = state.player.health;
         std::snprintf(diffText, sizeof(diffText), "%s%.1f", display > ownHealth ? "-" : "+",
                       static_cast<double>(std::fabs(display - ownHealth)));
@@ -663,10 +906,6 @@ void Hud::drawTargetInfo(modules::Context& context, bool edit, float top) {
         gfx.rect(Rect{bar.x, bar.y, bar.width * fraction, bar.height},
                  kHurtRed.withAlpha(tint * 0.35f * alpha), 0.0f);
     }
-
-    if (edit) {
-        drawEditOutline(targetRect_, hot_ == Drag::Target || drag_ == Drag::Target);
-    }
 }
 
 void Hud::drawArrayList(modules::Context& context, bool edit) {
@@ -676,7 +915,9 @@ void Hud::drawArrayList(modules::Context& context, bool edit) {
     const float size = px(kRowText);
     const float rowHeight = px(kRowHeight);
     const float screenW = static_cast<float>(context.state->windowWidth);
-    const float rightEdge = screenW - px(listR_);
+    /* pos(): the margin from the right edge is a position, so resizing the list must
+     * not walk it across the screen. */
+    const float rightEdge = screenW - pos(listR_);
     const float blend = 1.0f - std::exp(-14.0f * context.deltaTime);
 
     struct Visible {
@@ -729,7 +970,7 @@ void Hud::drawArrayList(modules::Context& context, bool edit) {
         float alpha;
     };
     std::vector<Placed> placed;
-    float y = px(listY_);
+    float y = pos(listY_);
     for (const Visible& item : visible) {
         ListEntry& entry = entries_[item.module];
         const float targetAlpha = item.module->enabled() ? 1.0f : 0.0f;
@@ -825,10 +1066,6 @@ void Hud::drawArrayList(modules::Context& context, bool edit) {
         }
     }
 
-    if (edit && listDrawn_) {
-        drawEditOutline(listRect_, hot_ == Drag::List || drag_ == Drag::List);
-    }
-
     for (auto iterator = entries_.begin(); iterator != entries_.end();) {
         if (!iterator->second.seen && iterator->second.alpha < 0.004f) {
             iterator = entries_.erase(iterator);
@@ -910,13 +1147,15 @@ std::string Hud::debugLine(const game::FrameState& state) const {
         buffer, sizeof(buffer),
         "show=%d%d%d%d edit=%d valid=%d unit=%.2f mark=(%.1f,%.1f,%.0fx%.0f) "
         "player=(%.1f,%.1f,placed=%d,%.0fx%.0f) target=(%.1f,%.1f,placed=%d,drawn=%d) "
-        "list=(r=%.1f,y=%.1f,drawn=%d) drag=%d hot=%d",
+        "list=(r=%.1f,y=%.1f,drawn=%d) sizes=%.2f/%.2f/%.2f/%.2f/%.2f grab=%d,%d hot=%d,%d",
         watermark_ ? 1 : 0, arrayList_ ? 1 : 0, playerInfo_ ? 1 : 0,
         targetInfo_ ? 1 : 0, editMode(state) ? 1 : 0, state.player.valid ? 1 : 0, unit_,
         markX_, markY_, markRect_.width, markRect_.height, playerX_, playerY_,
         playerPlaced_ ? 1 : 0, playerRect_.width, playerRect_.height, targetX_, targetY_,
         targetPlaced_ ? 1 : 0, targetDrawn_ ? 1 : 0, listR_, listY_,
-        listDrawn_ ? 1 : 0, static_cast<int>(drag_), static_cast<int>(hot_));
+        listDrawn_ ? 1 : 0, sizes_[0], sizes_[1], sizes_[2], sizes_[3], sizes_[4],
+        static_cast<int>(grab_), static_cast<int>(grabbed_), static_cast<int>(hotKind_),
+        static_cast<int>(hot_));
     return buffer;
 }
 
@@ -932,41 +1171,69 @@ void Hud::render(modules::Context& context) {
             sessionStart_ = nowSeconds();
         }
         const bool edit = editMode(state);
+
+        /* Each element draws under its own size factor. drawScale_ is what px()
+         * multiplies by, so setting it here is all it takes for every offset and
+         * dimension inside the element to follow its resize handle. */
+        auto scoped = [this](HudElement id) { drawScale_ = sizeOf(id); };
+
         if (watermark_ || edit) {
+            scoped(HudElement::Watermark);
             drawWatermark(context, edit);
         } else {
             markRect_ = Rect{};
         }
         if (arrayList_ || edit) {
+            scoped(HudElement::ArrayList);
             drawArrayList(context, edit);
         } else {
             listDrawn_ = false;
         }
         float below = 0.0f;
         if (playerInfo_ || edit) {
+            scoped(HudElement::PlayerInfo);
             drawPlayerInfo(context, edit, below);
         } else {
             playerRect_ = Rect{};
         }
         if (targetInfo_ || edit) {
+            scoped(HudElement::TargetInfo);
             drawTargetInfo(context, edit, below);
         } else {
             targetDrawn_ = false;
         }
         if (speed_ || edit) {
+            scoped(HudElement::Speed);
             drawSpeedReadout(context, edit);
         } else {
             speedDrawn_ = false;
         }
-        if (!edit) {
-            hot_ = Drag::None;
+        drawScale_ = 1.0f;
+
+        /* Chrome last and unscaled: on top of every element, and with handles sized
+         * in screen units so an element shrunk to half size still has a grip you can
+         * hit. */
+        if (edit) {
+            for (int i = 0; i < kElements; ++i) {
+                const HudElement id = static_cast<HudElement>(i);
+                if (liveOf(id)) {
+                    drawEditChrome(id, rectOf(id), shownOf(id));
+                }
+            }
+            drawEditHint(state);
+        } else {
+            hot_ = HudElement::Count;
+            hotKind_ = Grab::None;
         }
     } else {
         entries_.clear();
         targetAlpha_ = 0.0f;
         targetId_ = -1;
-        drag_ = Drag::None;
-        hot_ = Drag::None;
+        drawScale_ = 1.0f;
+        grab_ = Grab::None;
+        grabbed_ = HudElement::Count;
+        hot_ = HudElement::Count;
+        hotKind_ = Grab::None;
     }
     if (notifications_) {
         drawNotifications(context);

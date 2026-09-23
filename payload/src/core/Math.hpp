@@ -238,6 +238,42 @@ inline float outBack(float t, float overshoot = 1.70158f) {
     return 1.0f + c * inverted * inverted * inverted + overshoot * inverted * inverted;
 }
 
+/* Under-damped spring, normalised to leave 0 and settle at 1. It overshoots once
+ * by roughly eight percent and rings down; outBack overshoots too, but as a
+ * polynomial fudge rather than as a decaying oscillation, so it reads as a curve
+ * with a bump where this reads as something with mass arriving. */
+inline float springIn(float t) {
+    if (t <= 0.0f) return 0.0f;
+    if (t >= 1.0f) return 1.0f;
+    const float frequency = 9.4f;
+    const float damping = 0.62f;
+    const float ringing = frequency * std::sqrt(1.0f - damping * damping);
+    const float decay = std::exp(-damping * frequency * t);
+    return 1.0f - decay * (std::cos(ringing * t) +
+                           (damping * frequency / ringing) * std::sin(ringing * t));
+}
+
+/* Smooth at both ends with a long tail, for morphing one shape into another.
+ *
+ * Built on smootherstep, which is C2-continuous: a shape driven by this leaves
+ * rest and arrives at rest with zero velocity AND zero acceleration, so two of
+ * these chained back to back have no detectable seam between them. inOutQuint
+ * is C1 only, which shows up as a faint tick at the handover. The bias then
+ * moves most of the travel early, so the last stretch settles rather than
+ * stops. */
+inline float morph(float t) {
+    t = clamp(t, 0.0f, 1.0f);
+    const float smoother = t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+    return 1.0f - std::pow(1.0f - smoother, 1.30f);
+}
+
+/* Progress through [from, to] of a shared clock, clamped. Phase windows off one
+ * wall clock are what let animations overlap on purpose instead of being chained
+ * "start this when that finishes". */
+inline float window(float clock, float from, float to) {
+    return clamp((clock - from) / std::max(0.0001f, to - from), 0.0f, 1.0f);
+}
+
 }  // namespace ease
 
 }  // namespace cold
