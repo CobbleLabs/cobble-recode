@@ -3,7 +3,6 @@
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Config Release
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -JavaHome "C:\Path\To\JDK"
-#   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -SkipGenerators
 #   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -NoAutoInstall
 #
 # CMake is autodetected (PATH plus the usual install locations plus any
@@ -19,10 +18,11 @@
 # is downloaded automatically unless -NoAutoInstall is given.
 #
 # Steps:
-#   1. node tools/genmappings.mjs
-#   2. node tools/packassets.mjs
-#   3. cmake -S . -B <BuildDir> -A x64 -DCOLD_JAVA_HOME=<jdk>
-#   4. cmake --build <BuildDir> --config <Config>
+#   1. cmake -S . -B <BuildDir> -A x64 -DCOLD_JAVA_HOME=<jdk>
+#   2. cmake --build <BuildDir> --config <Config>
+#
+# Configuring fetches the client's public jars into client/lib. The MCP-named
+# minecraft-1.8.9-mcp.jar has no public source and must already be there.
 param(
     [ValidateSet("Release", "Debug", "RelWithDebInfo", "MinSizeRel")]
     [string]$Config = "Release",
@@ -30,7 +30,6 @@ param(
     [string]$JavaHome = "",
     [string]$CmakeVersion = "3.30.5",
     [string]$JdkVersion = "21",
-    [switch]$SkipGenerators,
     [switch]$NoAutoInstall
 )
 
@@ -182,10 +181,23 @@ function Invoke-Step {
     }
 }
 
+# The client compiles with javac --release 17.
+$MinJdkMajor = 17
+
+function Get-JdkMajor {
+    param([string]$JdkHome)
+    $release = Join-Path $JdkHome "release"
+    if (-not (Test-Path -LiteralPath $release)) { return 0 }
+    $m = Select-String -LiteralPath $release -Pattern '^JAVA_VERSION="(?:1\.)?(\d+)' | Select-Object -First 1
+    if ($m) { return [int]$m.Matches[0].Groups[1].Value }
+    return 0
+}
+
 function Test-JdkHome {
     param([string]$Candidate)
     if (-not $Candidate) { return $false }
-    return (Test-Path -LiteralPath (Join-Path $Candidate "include\jni.h"))
+    if (-not (Test-Path -LiteralPath (Join-Path $Candidate "include\jni.h"))) { return $false }
+    return ((Get-JdkMajor $Candidate) -ge $MinJdkMajor)
 }
 
 function Find-JdkFromCommand {
@@ -195,15 +207,6 @@ function Find-JdkFromCommand {
     $jdkHome = Split-Path -Parent (Split-Path -Parent $cmd.Source)
     if (Test-JdkHome $jdkHome) { return $jdkHome }
     return $null
-}
-
-function Get-JdkMajor {
-    param([string]$Path)
-    $leaf = Split-Path -Leaf $Path
-    $m = [regex]::Match($leaf, '(?i)jdk[-_ ]?(\d+)')
-    if (-not $m.Success) { $m = [regex]::Match($leaf, '(\d+)') }
-    if ($m.Success) { return [int]$m.Groups[1].Value }
-    return 0
 }
 
 function Select-BestJdk {
@@ -259,7 +262,8 @@ function Find-Jdk {
         foreach ($h in $hits) { $found += $h.FullName }
     }
     foreach ($f in $found) {
-        $candidates += (Split-Path -Parent (Split-Path -Parent $f))
+        $jdkHome = Split-Path -Parent (Split-Path -Parent $f)
+        if (Test-JdkHome $jdkHome) { $candidates += $jdkHome }
     }
     return (Select-BestJdk $candidates)
 }
@@ -303,7 +307,7 @@ function Ensure-Jdk {
     param([string]$Explicit, [string]$Version, [switch]$NoInstall)
     if ($Explicit) {
         if (Test-JdkHome $Explicit) { return $Explicit }
-        Write-Error "-JavaHome does not contain include/jni.h: $Explicit"
+        Write-Error "-JavaHome is not a JDK $MinJdkMajor+ (include/jni.h and release file): $Explicit"
         exit 1
     }
     foreach ($e in @($env:COLD_JAVA_HOME, $env:JAVA_HOME, $env:JDK_HOME)) {
@@ -312,7 +316,7 @@ function Ensure-Jdk {
     $jdkHome = Find-Jdk
     if ($jdkHome) { return $jdkHome }
     if ($NoInstall) {
-        Write-Error "No JDK found. Install Temurin 21+ from https://adoptium.net, or pass -JavaHome <path> / set JAVA_HOME. Rerun without -NoAutoInstall to download one automatically."
+        Write-Error "No JDK $MinJdkMajor+ found. Install Temurin $JdkVersion from https://adoptium.net, or pass -JavaHome <path> / set JAVA_HOME. Rerun without -NoAutoInstall to download one automatically."
         exit 1
     }
     Write-Host "No JDK found. Installing Temurin JDK $Version automatically ..." -ForegroundColor Yellow
@@ -339,12 +343,6 @@ function Ensure-Jdk {
 }
 
 # ------------------------------------------------------------ prerequisites ---
-$NodeExe = Find-CommandPath "node"
-if (-not $NodeExe) {
-    Write-Error "node was not found in PATH. Install Node 18+ and retry."
-    exit 1
-}
-
 $CmakeExe = Ensure-CMake -Version $CmakeVersion -NoInstall:$NoAutoInstall
 
 # ------------------------------------------------------------- JDK location ---
@@ -352,35 +350,26 @@ $CmakeExe = Ensure-CMake -Version $CmakeVersion -NoInstall:$NoAutoInstall
 # portable installs, java/javac on PATH, then the usual install locations.
 # When nothing is found a portable Temurin JDK is downloaded automatically
 # (use -NoAutoInstall to disable).
-$JavaHome = Ensure-Jdk -Explicit $JavaHome -Version $JdkVersion -NoInstall:$NoAutoInstall
+# A trailing backslash would escape the closing quote PowerShell puts around
+# the -DCOLD_JAVA_HOME argument.
+$JavaHome = (Ensure-Jdk -Explicit $JavaHome -Version $JdkVersion -NoInstall:$NoAutoInstall).TrimEnd('\')
 
 Write-Host "Repo:      $RepoRoot"
 Write-Host "Config:    $Config"
 Write-Host "BuildDir:  $BuildDir"
 Write-Host "JDK:       $JavaHome"
-Write-Host "Node:      $NodeExe"
 Write-Host "CMake:     $CmakeExe"
 & $CmakeExe --version | Select-Object -First 1
 
-# ---------------------------------------------------------------- generators --
-if (-not $SkipGenerators) {
-    Invoke-Step "[1/4] Generating JNI mapping tables" $NodeExe @("tools/genmappings.mjs")
-    Invoke-Step "[2/4] Packing fonts and icons" $NodeExe @("tools/packassets.mjs")
-} else {
-    Write-Host ""
-    Write-Host "==> [1/4] Skipped generators (-SkipGenerators)" -ForegroundColor DarkYellow
-    Write-Host "==> [2/4] Skipped generators (-SkipGenerators)" -ForegroundColor DarkYellow
-}
-
 # ------------------------------------------------------------------- cmake ----
-Invoke-Step "[3/4] Configuring ($Config|x64)" $CmakeExe @(
+Invoke-Step "[1/2] Configuring ($Config|x64)" $CmakeExe @(
     "-S", ".",
     "-B", $BuildDir,
     "-A", "x64",
     "-DCOLD_JAVA_HOME=$JavaHome"
 )
 
-Invoke-Step "[4/4] Building ($Config)" $CmakeExe @(
+Invoke-Step "[2/2] Building ($Config)" $CmakeExe @(
     "--build", $BuildDir,
     "--config", $Config
 )

@@ -1,0 +1,189 @@
+package cobble.module;
+
+import cobble.module.client.ClickGuiModule;
+import cobble.module.client.HudModule;
+import cobble.module.client.RadarModule;
+import cobble.module.combat.AimAssist;
+import cobble.module.combat.AttributeSwap;
+import cobble.module.combat.AutoAim;
+import cobble.module.combat.AutoBlock;
+import cobble.module.combat.AutoClicker;
+import cobble.module.combat.AutoFeed;
+import cobble.module.combat.Backtrack;
+import cobble.module.combat.Displace;
+import cobble.module.combat.Fisherman;
+import cobble.module.combat.HitSelect;
+import cobble.module.combat.JumpReset;
+import cobble.module.combat.KeepSprint;
+import cobble.module.combat.LagRange;
+import cobble.module.combat.Piercing;
+import cobble.module.combat.Reduce;
+import cobble.module.combat.TriggerBot;
+import cobble.module.combat.Velocity;
+import cobble.module.combat.WTap;
+import cobble.module.minigames.ArmedAimbot;
+import cobble.module.minigames.AutoChest;
+import cobble.module.minigames.AutoWho;
+import cobble.module.minigames.BedDefender;
+import cobble.module.minigames.BedwarsUtils;
+import cobble.module.minigames.Deposit;
+import cobble.module.minigames.MurderMystery;
+import cobble.module.minigames.NukeDefend;
+import cobble.module.minigames.Opsec;
+import cobble.module.minigames.PartyDodger;
+import cobble.module.minigames.Quickbuy;
+import cobble.module.minigames.SkywarsUtils;
+import cobble.module.movement.InvMove;
+import cobble.module.movement.NoSlow;
+import cobble.module.movement.NullMove;
+import cobble.module.movement.Sprint;
+import cobble.module.movement.Stasis;
+import cobble.module.movement.Timer;
+import cobble.module.other.AntiBot;
+import cobble.module.other.Anticheat;
+import cobble.module.other.LagDetect;
+import cobble.module.other.NickBot;
+import cobble.module.player.AutoDeflect;
+import cobble.module.player.AutoSwap;
+import cobble.module.player.AutoTool;
+import cobble.module.player.BedNuker;
+import cobble.module.player.Blink;
+import cobble.module.player.BlockIn;
+import cobble.module.player.BridgeAssist;
+import cobble.module.player.BridgeNuker;
+import cobble.module.player.Buffer;
+import cobble.module.player.Clutch;
+import cobble.module.player.DelayRemover;
+import cobble.module.player.FakeLag;
+import cobble.module.player.FastMine;
+import cobble.module.player.FastPlace;
+import cobble.module.player.FireballBoost;
+import cobble.module.player.FireballPearl;
+import cobble.module.player.Freecam;
+import cobble.module.player.GhostHand;
+import cobble.module.player.HeadHitter;
+import cobble.module.player.HideWindow;
+import cobble.module.player.InventoryManager;
+import cobble.module.player.MLG;
+import cobble.module.player.Scaffold;
+import cobble.module.player.Stealer;
+import cobble.module.render.AntiDebuff;
+import cobble.module.render.AntiInvis;
+import cobble.module.render.BedPlates;
+import cobble.module.render.BlockESP;
+import cobble.module.render.Cape;
+import cobble.module.render.Chams;
+import cobble.module.render.CuteVisuals;
+import cobble.module.render.Esp;
+import cobble.module.render.FreeLook;
+import cobble.module.render.Indicators;
+import cobble.module.render.ItemESP;
+import cobble.module.render.Nametags;
+import cobble.module.render.NoCameraClip;
+import cobble.module.render.Pointers;
+import cobble.module.render.TargetESP;
+import cobble.module.render.TargetHud;
+import cobble.module.render.Tracers;
+import cobble.module.render.Trajectories;
+import java.util.List;
+
+final class ModuleList {
+    private ModuleList() {}
+
+    /* 1.8.9 set. The 1.21-only combat modules (crystals, anchors, mace,
+     * inventory totems) have no target-version concept and stay out. */
+    static List<Module> create() {
+        return List.of(
+                new AimAssist(),
+                new AttributeSwap(),
+                new AutoAim(),
+                new AutoBlock(),
+                new AutoClicker(),
+                new AutoFeed(),
+                new Backtrack(),
+                new Displace(),
+                new Fisherman(),
+                new HitSelect(),
+                new JumpReset(),
+                new KeepSprint(),
+                new LagRange(),
+                new Piercing(),
+                new Reduce(),
+                new TriggerBot(),
+                new Velocity(),
+                new WTap(),
+
+                new InvMove(),
+                new NoSlow(),
+                new NullMove(),
+                new Sprint(),
+                new Stasis(),
+                new Timer(),
+
+                new AutoDeflect(),
+                new AutoSwap(),
+                new AutoTool(),
+                new BedNuker(),
+                new Blink(),
+                new BlockIn(),
+                new BridgeAssist(),
+                new BridgeNuker(),
+                new Buffer(),
+                new Clutch(),
+                new DelayRemover(),
+                new FakeLag(),
+                new FastMine(),
+                new FastPlace(),
+                new FireballBoost(),
+                new FireballPearl(),
+                new Freecam(),
+                new GhostHand(),
+                new HeadHitter(),
+                new HideWindow(),
+                new InventoryManager(),
+                new MLG(),
+                new Scaffold(),
+                new Stealer(),
+
+                new AntiDebuff(),
+                new AntiInvis(),
+                new BedPlates(),
+                new BlockESP(),
+                new Cape(),
+                new Chams(),
+                new CuteVisuals(),
+                new Esp(),
+                new FreeLook(),
+                new Indicators(),
+                new ItemESP(),
+                new Nametags(),
+                new NoCameraClip(),
+                new Pointers(),
+                new TargetESP(),
+                new TargetHud(),
+                new Tracers(),
+                new Trajectories(),
+
+                new ArmedAimbot(),
+                new AutoChest(),
+                new AutoWho(),
+                new BedDefender(),
+                new BedwarsUtils(),
+                new Deposit(),
+                new MurderMystery(),
+                new NukeDefend(),
+                new Opsec(),
+                new PartyDodger(),
+                new Quickbuy(),
+                new SkywarsUtils(),
+
+                new AntiBot(),
+                new Anticheat(),
+                new LagDetect(),
+                new NickBot(),
+
+                new ClickGuiModule(),
+                new HudModule(),
+                new RadarModule());
+    }
+}

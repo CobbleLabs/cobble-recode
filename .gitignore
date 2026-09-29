@@ -24,3 +24,6 @@ dist/*.lib
 dist/*.exp
 # The build copies scripts/ next to the payload; the folder itself is the source.
 dist/scripts/
+
+# Third-party jars the client compiles against; configuring fetches all but the MCP one
+client/lib/
