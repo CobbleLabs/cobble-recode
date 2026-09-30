@@ -3,6 +3,7 @@ package cobble.module;
 import cobble.core.Color;
 import cobble.core.Log;
 import cobble.render.Icon;
+import cobble.ui.Client;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +62,15 @@ public abstract class Module {
         Log.debug("module", "%s %s", name, value ? "enabled" : "disabled");
         if (context != null) {
             run(value, context);
+            if (announcesToggle()) {
+                Client.hud().moduleToggled(this);
+            }
         }
+    }
+
+    /** A held bind switches on every press, which is too often for a notice. */
+    protected boolean announcesToggle() {
+        return !holdsKey();
     }
 
     void sync(Context context) {

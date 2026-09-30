@@ -96,10 +96,18 @@ public final class Hud {
     private static final float ROW_TEXT = 9.0f;
     private static final float ROW_PAD = 3.0f;
 
-    private static final float NOTICE_HEIGHT = 12.0f;
-    private static final float NOTICE_TEXT_SIZE = 8.0f;
-    private static final float NOTICE_PAD = 4.0f;
-    private static final float NOTICE_FADE = 0.28f;
+    private static final float NOTICE_MARGIN = 8.0f;
+    private static final float NOTICE_SPACING = 4.0f;
+    private static final float NOTICE_WIDTH = 115.0f;
+    private static final float NOTICE_HEIGHT = 30.0f;
+    private static final float NOTICE_ROUNDING = 3.0f;
+    private static final float NOTICE_PADDING = 6.0f;
+    private static final float NOTICE_TITLE_SIZE = 7.0f;
+    private static final float NOTICE_MESSAGE_SIZE = 6.0f;
+    private static final float NOTICE_ENTER = 0.45f;
+    private static final float NOTICE_EXIT = 0.3f;
+    private static final float NOTICE_GLIDE = 16.0f;
+    private static final float TOGGLE_SECONDS = 2.8f;
     private static final int MAX_NOTICES = 5;
 
     private static final long HURT_DURATION = 400;
@@ -119,6 +127,13 @@ public final class Hud {
     private static final Color TRACK_BG = Color.rgb(0x000000, 180.0f / 255.0f);
     private static final Color LIST_BG = Color.rgb(0x000000, 130.0f / 255.0f);
     private static final Color HURT_RED = Color.rgb(0xFF3C3C);
+    private static final Color NOTICE_BG = Color.rgb(0x121316, 244 / 255.0f);
+    private static final Color NOTICE_BORDER = Color.rgb(0xFFFFFF, 20 / 255.0f);
+    private static final Color NOTICE_SHADOW = Color.rgb(0x000000, 90 / 255.0f);
+    private static final Color NOTICE_TITLE = Color.rgb(0xF5F6F8);
+    private static final Color NOTICE_MESSAGE = Color.rgb(0xA6AAB2);
+    private static final Color NOTICE_ENABLED = new Color(0.25f, 0.82f, 0.55f, 1.0f);
+    private static final Color NOTICE_DISABLED = new Color(0.96f, 0.42f, 0.37f, 1.0f);
 
     /* The off hand does not exist on 1.8.9, so it is not asked for. */
     private static final Game.Slot[] EQUIPMENT_SLOTS = {
@@ -133,19 +148,23 @@ public final class Hud {
     }
 
     private static final class Notification {
-        final String text;
-        final Color accent;
+        final String title;
+        final String message;
+        final Color colour;
         final float total;
+        /* Set for a module switch, so switching it again replaces the notice. */
+        final Module module;
         float life;
-        float offset = 1.0f;
         float y;
         boolean placed;
 
-        Notification(String text, Color accent, float total) {
-            this.text = text;
-            this.accent = accent;
+        Notification(String title, String message, Color colour, float total, Module module) {
+            this.title = title;
+            this.message = message;
+            this.colour = colour;
             this.total = total;
             this.life = total;
+            this.module = module;
         }
     }
 
@@ -256,9 +275,14 @@ public final class Hud {
         return element;
     }
 
-    /** While a menu owns the mouse the HUD ignores it. */
+    /** The HUD is only edited from the menu: while it is open, the elements outside it can be dragged. */
     public void setMenuOpen(boolean value) {
         menuOpen = value;
+    }
+
+    /** True while an element is held, so the menu can get out of the way. */
+    public boolean dragging() {
+        return grab != Grab.NONE;
     }
 
     public void setScale(float value) {
@@ -340,17 +364,28 @@ public final class Hud {
     }
 
     /**
-     * One line on the stack in the bottom right. The client uses it to say what
+     * One card on the stack in the bottom right. The client uses it to say what
      * happened to a script; cold.notify is the same call from Lua.
      */
-    public void notify(String text, float seconds, Color accent) {
-        if (text.isEmpty()) {
+    public void notify(String title, String message, Color colour, float seconds) {
+        if (message.isEmpty()) {
             return;
         }
+        push(new Notification(title, message, colour, Maths.clamp(seconds, 0.5f, 30.0f), null));
+    }
+
+    public void moduleToggled(Module module) {
+        notices.removeIf(notice -> notice.module == module);
+        boolean on = module.enabled();
+        push(new Notification("Module updated", module.name + (on ? " enabled" : " disabled"),
+                on ? NOTICE_ENABLED : NOTICE_DISABLED, TOGGLE_SECONDS, module));
+    }
+
+    private void push(Notification notice) {
         if (notices.size() >= MAX_NOTICES) {
             notices.remove(0);
         }
-        notices.add(new Notification(text, accent, Maths.clamp(seconds, 0.5f, 30.0f)));
+        notices.add(notice);
     }
 
     /** Sizes and offsets inside an element, so they follow its own resize handle. */
@@ -371,7 +406,7 @@ public final class Hud {
     }
 
     private boolean editMode(FrameState state) {
-        return state.inWorld && state.screenOpen && !menuOpen && switchedOn();
+        return state.inWorld && menuOpen && switchedOn();
     }
 
     private void shadowed(FontRole role, String value, float x, float capTop, float size, Color colour) {
@@ -576,7 +611,7 @@ public final class Hud {
                     grabbed = null;
                     return;
                 }
-                if (event.code() != Input.MOUSE_LEFT || !editMode(state)) {
+                if (event.code() != Input.MOUSE_LEFT || !editMode(state) || Client.gui().contains(mouseX, mouseY)) {
                     return;
                 }
                 /* Picked fresh on the press rather than trusting the last move: a click
@@ -1112,41 +1147,58 @@ public final class Hud {
         if (notices.isEmpty()) {
             return;
         }
-        float size = px(NOTICE_TEXT_SIZE);
-        float rowHeight = Math.round(px(NOTICE_HEIGHT));
-        float right = context.state.windowWidth - px(MARGIN);
-        float blend = 1.0f - (float) Math.exp(-14.0f * context.deltaTime);
+        float width = px(NOTICE_WIDTH);
+        float height = px(NOTICE_HEIGHT);
+        float rounding = px(NOTICE_ROUNDING);
+        float padding = px(NOTICE_PADDING);
+        /* Sizes are line heights, as the menu's font sizes were in the C++ client. */
+        float titleSize = px(NOTICE_TITLE_SIZE) / gfx.fonts().face(FontRole.BOLD).boxHeight(1.0f);
+        float messageSize = px(NOTICE_MESSAGE_SIZE) / gfx.fonts().face(FontRole.BOLD).boxHeight(1.0f);
 
-        float y = Math.round(context.state.windowHeight - px(MARGIN) - rowHeight);
+        float travel = width + px(NOTICE_MARGIN);
+        int slot = 0;
         for (int index = notices.size() - 1; index >= 0; --index) {
             Notification notice = notices.get(index);
             notice.life -= context.deltaTime;
-
-            float target = notice.life <= NOTICE_FADE ? 1.0f : 0.0f;
-            notice.offset += (target - notice.offset) * blend;
-            notice.y = notice.placed ? notice.y + (y - notice.y) * blend : y;
-            notice.placed = true;
-            if (Math.abs(y - notice.y) < 0.5f) {
-                notice.y = y;
+            if (notice.life <= 0.0f) {
+                continue;
             }
 
-            float width = gfx.measure(FontRole.MEDIUM, notice.text, size) + px(NOTICE_PAD * 2.0f);
-            float slide = Ease.outQuint(Maths.clamp(notice.offset, 0.0f, 1.0f)) * (width + px(6.0f));
-            float alpha = Maths.clamp(1.0f - notice.offset * 0.6f, 0.0f, 1.0f);
-            Rect panel = new Rect(Math.round(right - width + slide), Math.round(notice.y), width, rowHeight);
+            float elapsed = notice.total - notice.life;
+            float slide = Ease.outBack(Ease.window(elapsed, 0.0f, NOTICE_ENTER), 0.6f);
+            float alpha = Ease.outCubic(Ease.window(elapsed, 0.0f, 0.18f));
+            if (notice.life < NOTICE_EXIT) {
+                float leaving = 1.0f - notice.life / NOTICE_EXIT;
+                slide -= leaving * leaving * leaving;
+                alpha *= 1.0f - leaving * leaving;
+            }
 
-            gfx.rect(panel, Color.rgb(0x000000, 0.47f * alpha), px(2.0f));
-            shadowed(FontRole.MEDIUM, notice.text, panel.x() + px(NOTICE_PAD),
-                    Math.round(panel.y() + (rowHeight - size * 0.727f) * 0.5f - px(1.0f)), size,
-                    notice.accent.withAlpha(alpha));
-            float remaining = Maths.clamp(notice.life / notice.total, 0.0f, 1.0f);
-            gfx.rect(new Rect(panel.x(), panel.bottom() - px(1.0f), panel.width() * remaining, px(1.0f)),
-                    notice.accent.withAlpha(0.55f * alpha), 0.0f);
+            float target = context.state.windowHeight - px(NOTICE_MARGIN) - height
+                    - slot * (height + px(NOTICE_SPACING));
+            notice.y = notice.placed ? Maths.approach(notice.y, target, NOTICE_GLIDE, context.deltaTime) : target;
+            notice.placed = true;
 
-            y -= rowHeight + Math.round(px(1.5f));
+            float x = context.state.windowWidth - px(NOTICE_MARGIN) - width + (1.0f - slide) * travel;
+            float y = notice.y;
+            Rect panel = new Rect(x, y, width, height);
+            Color accent = notice.colour.withAlpha(alpha);
+
+            gfx.rect(new Rect(x + px(1.0f), y + px(2.0f), width, height), NOTICE_SHADOW.withAlpha(alpha), rounding);
+            gfx.rect(panel, NOTICE_BG.withAlpha(alpha), rounding);
+            gfx.outline(panel, NOTICE_BORDER.withAlpha(alpha), Math.max(1.0f, px(0.5f)), rounding);
+
+            float textX = x + padding;
+            gfx.text(FontRole.BOLD, notice.title, textX, y + px(5.0f), titleSize, NOTICE_TITLE.withAlpha(alpha));
+            gfx.text(FontRole.BOLD, gfx.elide(FontRole.BOLD, notice.message, messageSize, panel.right() - padding - textX),
+                    textX, y + px(15.5f), messageSize, NOTICE_MESSAGE.withAlpha(alpha));
+
+            float barHeight = px(1.0f);
+            gfx.rect(new Rect(x, panel.bottom() - barHeight, width * (notice.life / notice.total), barHeight), accent,
+                    barHeight * 0.5f);
+            ++slot;
         }
 
-        notices.removeIf(notice -> notice.life <= 0.0f && notice.offset > 0.9f);
+        notices.removeIf(notice -> notice.life <= 0.0f);
     }
 
     public void render(Context context) {

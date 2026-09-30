@@ -24,6 +24,12 @@ public final class ClickGuiModule extends Module {
         accent = addColour("Accent", "Drives the menu, the HUD and the ESP", Color.rgb(0xBDA4BD));
     }
 
+    /* Opening the menu is already its own announcement. */
+    @Override
+    protected boolean announcesToggle() {
+        return false;
+    }
+
     @Override
     public void onEnable(Context context) {
         ClickGui gui = Client.gui();

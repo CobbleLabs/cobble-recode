@@ -261,7 +261,7 @@ final class ApiCore {
         float seconds = Lua.optFloat(args, 2, 4.0f);
         LuaValue kind = args.arg(3);
         if (kind.istable()) {
-            Client.hud().notify(text, seconds, Lua.checkColour(args, 3));
+            Client.hud().notify("Cobble", text, Lua.checkColour(args, 3), seconds);
             return LuaValue.NONE;
         }
         ScriptManager.Notice notice = ScriptManager.Notice.INFO;

@@ -51,6 +51,14 @@ public final class ScriptManager {
                 case INFO -> Theme.accent();
             };
         }
+
+        String title() {
+            return switch (this) {
+                case GOOD -> "Success";
+                case BAD -> "Action failed";
+                case INFO, WARN -> "Cobble";
+            };
+        }
     }
 
     private enum RequestKind { ENABLE, DISABLE, RELOAD, RELOAD_ALL }
@@ -123,7 +131,7 @@ public final class ScriptManager {
     }
 
     static void notify(String text, Notice kind, float seconds) {
-        Client.hud().notify(text, seconds, kind.colour());
+        Client.hud().notify(kind.title(), text, kind.colour(), seconds);
     }
 
     public static void initialise(Path home) {

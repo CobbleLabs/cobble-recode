@@ -223,7 +223,7 @@ public final class ClickGui {
         SECTION   // subcategory heading, not clickable
     }
 
-    private enum Action { RELOAD_SCRIPTS, RELOAD_CONFIGS, OPEN_FOLDER, UNLOAD }
+    private enum Action { RELOAD_SCRIPTS, RELOAD_CONFIGS, OPEN_FOLDER, PANIC, UNLOAD }
 
     private static final Subcategory[] SUBCATEGORIES = Subcategory.values();
     private static final String[] SUBCATEGORY_TITLES = Arrays.stream(SUBCATEGORIES)
@@ -436,6 +436,9 @@ public final class ClickGui {
      * some. */
     private float alpha;
     private boolean blur;
+    /* Drops to 0 while a HUD element is dragged, so the whole screen can be seen;
+     * the menu stays open underneath and comes back on release. */
+    private float presence = 1.0f;
 
     private float scale = 1.0f;
     private float screenW;
@@ -492,7 +495,7 @@ public final class ClickGui {
      * take a click.
      *
      * Deliberately not folded into interactive(), which the client also uses to
-     * decide who owns the keyboard and whether the HUD should step aside.
+     * decide who owns the keyboard and whether the HUD can be edited.
      * Excluding the reveal there would hand module binds back to the game for
      * the couple of seconds the menu is opening. */
     private boolean pointable() {
@@ -817,7 +820,7 @@ public final class ClickGui {
             }
         }
 
-        /* The gear: the client's own settings, the config manager and the four
+        /* The gear: the client's own settings, the config manager and the
          * things the menu can do to the client itself. */
         Tab settings = new Tab("Settings", Icon.SETTINGS, "OPTIONS", true);
         settings.rows.add(new Row(RowKind.CONFIGS, "Configs", "Create, load and delete your configs.", Icon.BOX));
@@ -848,6 +851,7 @@ public final class ClickGui {
         settings.rows.add(actionRow(Action.RELOAD_CONFIGS, "Reload configs", "Rescan the config folder.",
                 Icon.ROTATE_CCW));
         settings.rows.add(actionRow(Action.OPEN_FOLDER, "Open folder", "Show the client's data folder.", Icon.GLOBE));
+        settings.rows.add(actionRow(Action.PANIC, "Panic", "Turn every module off.", Icon.ZAP));
         settings.rows.add(actionRow(Action.UNLOAD, "Unload", "Detach the client from the game.", Icon.X));
         rows.addAll(settings.rows);
         tabs.add(settings);
@@ -1208,6 +1212,15 @@ public final class ClickGui {
                     new ProcessBuilder("explorer", Client.directory().toString()).start();
                 } catch (IOException e) {
                     Log.warn(SCOPE, "could not open %s: %s", Client.directory(), e.getMessage());
+                }
+            }
+            case PANIC -> {
+                /* The menu is a module too; switching it off would close the
+                 * page the button is on. */
+                for (Module module : ModuleManager.all()) {
+                    if (module.enabled() && !(module instanceof ClickGuiModule)) {
+                        module.setEnabled(false, context);
+                    }
                 }
             }
             case UNLOAD -> {
@@ -1611,6 +1624,8 @@ public final class ClickGui {
             slide = 1.0f;
             alpha = 1.0f;
         }
+        presence = Maths.approach(presence, Client.hud().dragging() ? 0.0f : 1.0f, 18.0f, deltaTime);
+        alpha *= presence;
 
         /* Page handover. The old list leaves, the swap happens at zero opacity,
          * then the new one arrives with its rows staggered. Deferring the swap

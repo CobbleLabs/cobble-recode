@@ -319,7 +319,7 @@ public final class Client {
          * you type into, and a module bind that fired mid-search would be a
          * surprise. They are never up together: opening one closes the other. */
         boolean overlayOwnsKeys = gui.interactive() || radar.interactive();
-        hud.setMenuOpen(overlayOwnsKeys);
+        hud.setMenuOpen(gui.interactive());
 
         for (Input.Event event : Input.drain()) {
             int code = event.code();
