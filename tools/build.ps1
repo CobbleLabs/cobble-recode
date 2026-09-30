@@ -21,7 +21,7 @@
 #   1. cmake -S . -B <BuildDir> -A x64 -DCOLD_JAVA_HOME=<jdk>
 #   2. cmake --build <BuildDir> --config <Config>
 #
-# Configuring fetches the client's public jars into client/lib. The MCP-named
+# Configuring fetches the client's public jars into infra/lib. The MCP-named
 # minecraft-1.8.9-mcp.jar has no public source and must already be there.
 param(
     [ValidateSet("Release", "Debug", "RelWithDebInfo", "MinSizeRel")]

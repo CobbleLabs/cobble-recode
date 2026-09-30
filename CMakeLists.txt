@@ -29,7 +29,7 @@ foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
 endforeach()
 
 # ------------------------------------------------------------------- jars ----
-set(COLD_LIB_DIR "${CMAKE_SOURCE_DIR}/client/lib")
+set(COLD_LIB_DIR "${CMAKE_SOURCE_DIR}/infra/lib")
 
 # Mojang never published 1.8.9 under MCP names, so this one cannot be fetched.
 set(COLD_MCP_JAR "${COLD_LIB_DIR}/minecraft-1.8.9-mcp.jar" CACHE FILEPATH
@@ -82,7 +82,7 @@ add_custom_command(
     VERBATIM
 )
 
-set(COLD_MEMORY_LOADER_JAVA "${CMAKE_SOURCE_DIR}/client/loader/cobble/boot/MemoryLoader.java")
+set(COLD_MEMORY_LOADER_JAVA "${CMAKE_SOURCE_DIR}/bootstrap/MemoryLoader.java")
 set(COLD_MEMORY_LOADER_CLASS "${COLD_JAVA_DIR}/loader/cobble/boot/MemoryLoader.class")
 add_custom_command(
     OUTPUT "${COLD_MEMORY_LOADER_CLASS}"
@@ -110,7 +110,7 @@ set(COLD_IMAGE_ZIP "${COLD_JAVA_DIR}/image.zip")
 
 # An argument file keeps the source list clear of cmd.exe's 8191-character
 # limit, and is only rewritten when a source is added or removed.
-file(GLOB_RECURSE COLD_CLIENT_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/client/src/*.java")
+file(GLOB_RECURSE COLD_CLIENT_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.java")
 set(COLD_CLIENT_ARGS_TEXT
     "--release 17\n-encoding UTF-8\n-cp \"${COLD_COMPILE_JARS}\"\n-d \"${COLD_IMAGE_DIR}\"\n")
 foreach(source IN LISTS COLD_CLIENT_SOURCES)
@@ -180,18 +180,18 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}"
         "-DCOLD_DLL=${COLD_PAYLOAD_DLL}"
         "-DCOLD_SCRIPTS_DIR=${CMAKE_SOURCE_DIR}/scripts"
-        "-DCOLD_RC_IN=${CMAKE_SOURCE_DIR}/injector/injector.rc.in"
+        "-DCOLD_RC_IN=${CMAKE_SOURCE_DIR}/loader/injector.rc.in"
         "-DCOLD_RC_OUT=${COLD_LOADER_RC}"
-        "-DCOLD_HPP_IN=${CMAKE_SOURCE_DIR}/injector/src/EmbeddedScripts.generated.hpp.in"
+        "-DCOLD_HPP_IN=${CMAKE_SOURCE_DIR}/loader/src/EmbeddedScripts.generated.hpp.in"
         "-DCOLD_HPP_OUT=${COLD_LOADER_HPP}"
         "-DCOLD_STAMP=${COLD_LOADER_STAMP}"
-        -P "${CMAKE_SOURCE_DIR}/injector/ConfigureLoader.cmake"
+        -P "${CMAKE_SOURCE_DIR}/loader/ConfigureLoader.cmake"
     DEPENDS "${COLD_PAYLOAD_DLL}" ${COLD_SCRIPT_FILES}
     COMMENT "embedding payload + scripts into the loader"
     VERBATIM
 )
 
-set(COLD_IMGUI_DIR "${CMAKE_SOURCE_DIR}/injector/thirdparty/imgui")
+set(COLD_IMGUI_DIR "${CMAKE_SOURCE_DIR}/infra/ext/imgui")
 add_library(imgui STATIC
     "${COLD_IMGUI_DIR}/imgui.cpp"
     "${COLD_IMGUI_DIR}/imgui_draw.cpp"
@@ -204,15 +204,15 @@ target_include_directories(imgui PUBLIC "${COLD_IMGUI_DIR}")
 target_link_libraries(imgui PUBLIC d3d11 d3dcompiler dwmapi)
 
 add_executable(cobble-injector WIN32
-    injector/src/Main.cpp
-    injector/src/LoaderUi.cpp
-    injector/src/Inject.cpp
-    injector/src/ProcessList.cpp
-    injector/src/Embedded.cpp
+    loader/src/Main.cpp
+    loader/src/LoaderUi.cpp
+    loader/src/Inject.cpp
+    loader/src/ProcessList.cpp
+    loader/src/Embedded.cpp
     "${COLD_LOADER_RC}"
 )
 target_include_directories(cobble-injector PRIVATE
-    injector/src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    loader/src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(cobble-injector PRIVATE imgui user32 gdi32)
 target_compile_definitions(cobble-injector PRIVATE
     WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS UNICODE _UNICODE)
