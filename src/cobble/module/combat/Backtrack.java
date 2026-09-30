@@ -11,6 +11,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.Blink;
 import cobble.module.shared.TargetFinder;
 import cobble.ui.Client;
@@ -70,7 +71,7 @@ public class Backtrack extends Module {
     private final Object packetQueueLock = new Object();
 
     public Backtrack() {
-        super("Backtrack", "Distance range", Category.COMBAT);
+        super("Backtrack", "Distance range", Category.COMBAT, Subcategory.EXTREME);
         this.minDistance = addNumber("Min distance", "", 0.0F, 0.0F, 4.0F, 1);
         this.maxDistance = addNumber("Max distance", "", 6.0F, 1.0F, 10.0F, 1);
         this.maximumDelay = addNumber("Maximum delay", "", 200.0F, 50.0F, 600.0F, 0);

@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.rotation.RotationUtils;
@@ -28,7 +29,8 @@ public class FireballPearl extends Module {
     private float startYaw = 0.0F;
 
     public FireballPearl() {
-        super("FireballPearl", "Throws an ender pearl and a fireball straight up", Category.PLAYER);
+        super("FireballPearl", "Throws an ender pearl and a fireball straight up", Category.PLAYER,
+                Subcategory.ADVANCED);
         this.realRotations = addBoolean("Real Rotations", "", false);
     }
 

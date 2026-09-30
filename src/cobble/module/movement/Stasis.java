@@ -15,6 +15,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.shared.ProgressBarSource;
 import cobble.util.ClientUtils;
 import cobble.util.block.BlockUtils;
@@ -111,7 +112,7 @@ public class Stasis extends Module implements ProgressBarSource {
     private boolean motionSaved;
 
     public Stasis() {
-        super("Stasis", "Freezes your position on the server", Category.MOVEMENT);
+        super("Stasis", "Freezes your position on the server", Category.MOVEMENT, Subcategory.EXTREME);
         this.inputLock = new StasisInputLock();
         EventBus.register(this.inputLock);
         this.hypixelMode = addBoolean("Hypixel Mode", "", false);

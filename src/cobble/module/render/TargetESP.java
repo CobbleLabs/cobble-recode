@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
+import cobble.module.Subcategory;
 import cobble.ui.Theme;
 import cobble.module.Setting;
 import cobble.module.combat.AimAssist;
@@ -36,7 +37,7 @@ public class TargetESP extends Module {
     private EntityPlayer entityPlayer;
 
     public TargetESP() {
-        super("TargetESP", "Marks the current combat target", Category.VISUALS);
+        super("TargetESP", "Marks the current combat target", Category.VISUALS, Subcategory.ADVANCED);
         this.colorMode = addChoice("Color mode", "", List.of(COLOR_MODE_LABELS), 0);
         this.color = addColour("Color", "", Color.rgb(0x43E886, 1.0F));
         this.themeOpacity = addNumber("Theme opacity", "", 100.0F, 0.0F, 100.0F, 0);

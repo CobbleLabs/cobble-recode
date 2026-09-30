@@ -13,6 +13,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.minigames.BedwarsSpawnTracker;
 import cobble.module.player.bednuker.BedFinder;
 import cobble.module.player.bednuker.BedFinder$2;
@@ -91,7 +92,7 @@ public class BedNuker extends Module implements ProgressBarSource, PointedObject
     };
 
     public BedNuker() {
-        super("BedNuker", "Breaks beds within reach, through walls", Category.PLAYER);
+        super("BedNuker", "Breaks beds within reach, through walls", Category.PLAYER, Subcategory.EXTREME);
         this.breakSpeed = addNumber("Break speed", "", 1.0F, 1.0F, 2.0F, 2);
         this.ignoreMiningFatigue = addBoolean("Ignore mining fatigue", "", false);
         this.groundSpoof = addBoolean("Ground spoof", "", false);

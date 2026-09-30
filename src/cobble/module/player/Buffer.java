@@ -13,6 +13,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.shared.ProgressBarSource;
 import cobble.ui.Client;
 import cobble.ui.Theme;
@@ -92,7 +93,7 @@ public class Buffer extends Module implements ProgressBarSource {
     private double knockbackMotionZ;
 
     public Buffer() {
-        super("Buffer", "Holds incoming packets and plays them back later", Category.PLAYER);
+        super("Buffer", "Holds incoming packets and plays them back later", Category.PLAYER, Subcategory.EXTREME);
         this.disableOnInteract = addBoolean("Disable on interact", "", false);
         this.showProgressBar = addBoolean("Show progress bar", "", true);
         this.showKnockbackDirection = addBoolean("Show knockback direction", "", true);

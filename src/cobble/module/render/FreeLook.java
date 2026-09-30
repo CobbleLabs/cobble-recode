@@ -11,6 +11,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.Freecam;
 import cobble.module.render.freelook.FreeLookMath;
 import cobble.module.render.freelook.KeyStateEdgeDetector;
@@ -33,7 +34,7 @@ public class FreeLook extends Module {
     private float savedFov;
 
     public FreeLook() {
-        super("FreeLook", "Looks around without turning your player", Category.VISUALS);
+        super("FreeLook", "Looks around without turning your player", Category.VISUALS, Subcategory.BASIC);
         this.key = addKey("Key", "", Input.glfwKey(56));
         this.mode = addChoice("Mode", "", List.of(ElF), 1);
         this.customFov = addBoolean("Custom FOV", "", false);

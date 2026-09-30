@@ -5,6 +5,7 @@ import cobble.event.Subscribe;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.render.blockesp.BedWarsDetector;
 import cobble.module.render.blockesp.BlockEspRenderer;
 import cobble.module.render.blockesp.BlockEspRenderer$0;
@@ -18,7 +19,7 @@ public class BlockESP extends Module {
     private int lastEntryHash;
 
     public BlockESP() {
-        super("BlockESP", "Highlights chosen blocks", Category.VISUALS);
+        super("BlockESP", "Highlights chosen blocks", Category.VISUALS, Subcategory.EXTREME);
     }
 
     @Override

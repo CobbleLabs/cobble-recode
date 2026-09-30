@@ -5,6 +5,7 @@ import cobble.event.Subscribe;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.movement.nullmove.OppositeKeyResolver;
 import cobble.util.ClientUtils;
 
@@ -13,7 +14,8 @@ public class NullMove extends Module {
     private final OppositeKeyResolver strafeInputTracker = new OppositeKeyResolver();
 
     public NullMove() {
-        super("NullMove", "The last key pressed wins when both directions are held", Category.MOVEMENT);
+        super("NullMove", "The last key pressed wins when both directions are held", Category.MOVEMENT,
+                Subcategory.BASIC);
     }
 
     @Override

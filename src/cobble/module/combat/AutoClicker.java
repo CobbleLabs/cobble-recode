@@ -9,6 +9,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.shared.BreakableBlockWhitelist;
 import cobble.module.player.InventoryManager;
 import cobble.util.ClientUtils;
@@ -51,7 +52,7 @@ public class AutoClicker extends Module {
     private Random rrL;
 
     public AutoClicker() {
-        super("AutoClicker", "Best with delay remover", Category.COMBAT);
+        super("AutoClicker", "Best with delay remover", Category.COMBAT, Subcategory.BASIC);
         this.cps = addNumber("CPS", "", 10.0F, 1.0F, 20.0F, 1);
         this.notUsingItem = addBoolean("Not using item", "", false);
         this.breakBlocks = addBoolean("Break blocks", "", false);

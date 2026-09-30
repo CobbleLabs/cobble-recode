@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import cobble.render.Renderer;
 import cobble.ui.Theme;
@@ -77,7 +78,7 @@ public final class Trajectories extends Module {
     private float lastPathAge = 99.0f;
 
     public Trajectories() {
-        super("Trajectories", "Draws where the projectile in your hand lands", Category.VISUALS);
+        super("Trajectories", "Draws where the projectile in your hand lands", Category.VISUALS, Subcategory.BASIC);
         setIcon(Icon.ACTIVITY);
     }
 

@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 
 /**
@@ -38,7 +39,8 @@ public final class JumpReset extends Module {
     private boolean jumpWasTheirs;
 
     public JumpReset() {
-        super("JumpReset", "Jumps on the tick a hit lands so the knockback carries", Category.COMBAT);
+        super("JumpReset", "Jumps on the tick a hit lands so the knockback carries", Category.COMBAT,
+                Subcategory.BASIC);
         setIcon(Icon.ACTIVITY);
     }
 

@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 
 /**
@@ -26,7 +27,7 @@ public final class FastPlace extends Module {
     private boolean wasHeld;
 
     public FastPlace() {
-        super("FastPlace", "Removes the four tick wait between right clicks", Category.PLAYER);
+        super("FastPlace", "Removes the four tick wait between right clicks", Category.PLAYER, Subcategory.BASIC);
         setIcon(Icon.HAMMER);
     }
 

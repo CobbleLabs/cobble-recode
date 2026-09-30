@@ -11,6 +11,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Theme;
 import cobble.util.ClientUtils;
 import cobble.util.block.BlockUtils;
@@ -66,7 +67,8 @@ public class NukeDefend extends Module {
     private final List<NukeDefend$1> EGiVe = new ArrayList<>();
 
     public NukeDefend() {
-        super("NukeDefend", "Replaces the blocks enemies break around your bed", Category.MINIGAMES);
+        super("NukeDefend", "Replaces the blocks enemies break around your bed", Category.MINIGAMES,
+                Subcategory.EXTREME);
         this.throughWalls = addBoolean("Through walls", "", true);
         this.onlyWhitelistedBed = addBoolean("Only Whitelisted Bed", "", true);
         this.highlightPlacedBlocks = addBoolean("Highlight placed blocks", "", true);

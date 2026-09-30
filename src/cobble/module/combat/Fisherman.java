@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.shared.DisabledOrNestedCondition;
 import cobble.module.shared.TargetFinder;
 import cobble.util.ClientUtils;
@@ -49,7 +50,7 @@ public class Fisherman extends Module {
     private PacketListenerRegistration blinkPacketListener;
 
     public Fisherman() {
-        super("Fisherman", "Item conditions", Category.COMBAT);
+        super("Fisherman", "Item conditions", Category.COMBAT, Subcategory.ADVANCED);
         this.delay = addNumber("Delay", "", 0.0F, 0.0F, 500.0F, 0);
         this.blink = addBoolean("Blink", "", false);
         this.hasKnockback = addBoolean("Has knockback", "", false);

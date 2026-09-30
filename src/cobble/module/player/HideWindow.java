@@ -9,6 +9,7 @@ import cobble.event.Subscribe;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.player.hidewindow.FloatingWindowPosition;
 import cobble.module.player.hidewindow.FloatingWindowPosition$1;
 import cobble.module.player.hidewindow.HideWindowSettings;
@@ -25,7 +26,8 @@ public class HideWindow extends Module {
     private final FloatingWindowPosition hiddenWindow = new FloatingWindowPosition(0.5F, 0.05F);
 
     public HideWindow() {
-        super("HideWindow", "Keeps a container open while the screen stays in game", Category.PLAYER);
+        super("HideWindow", "Keeps a container open while the screen stays in game", Category.PLAYER,
+                Subcategory.ADVANCED);
         this.hideWindowSettings = new HideWindowSettings(this);
     }
 

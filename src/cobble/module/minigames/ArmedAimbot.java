@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
 import cobble.util.ClientUtils;
 import cobble.util.rotation.RotationHandler;
@@ -68,7 +69,7 @@ public class ArmedAimbot extends Module {
     private final FloatBuffer screenCoordsBuffer = BufferUtils.createFloatBuffer(3);
 
     public ArmedAimbot() {
-        super("ArmedAimbot", "Aims the gun in BedWars Armed mode", Category.MINIGAMES);
+        super("ArmedAimbot", "Aims the gun in BedWars Armed mode", Category.MINIGAMES, Subcategory.EXTREME);
         this.speed = addNumber("Speed", "", 10.0F, 1.0F, 30.0F, 0);
         this.multipoint = addNumber("Multipoint", "", 0.0F, 0.0F, 100.0F, 0);
         this.randomization = addNumber("Randomization", "", 50.0F, 0.0F, 100.0F, 0);

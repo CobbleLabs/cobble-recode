@@ -20,6 +20,7 @@ tags = cold.module {
     name = "ScriptNametags",
     description = "Name, health and a box over every player",
     category = "render",
+    subcategory = "advanced",
     icon = "user-round",
     settings = {
         { name = "Range", type = "number", value = 64, min = 8, max = 128, decimals = 0 },

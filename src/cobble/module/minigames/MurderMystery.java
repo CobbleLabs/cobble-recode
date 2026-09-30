@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.minigames.murdermystery.MurderMysteryUtils;
 import cobble.module.minigames.murdermystery.MurderWeapons;
 import cobble.module.other.AntiBot;
@@ -41,7 +42,8 @@ public class MurderMystery extends Module {
     private boolean inMurderMystery;
 
     public MurderMystery() {
-        super("MurderMystery", "Finds the murderer and the bow in Murder Mystery", Category.MINIGAMES);
+        super("MurderMystery", "Finds the murderer and the bow in Murder Mystery", Category.MINIGAMES,
+                Subcategory.ADVANCED);
         this.murderWeapons = new ItemList();
 
         for (Item var4 : MurderWeapons.getDefaultWeapons()) {

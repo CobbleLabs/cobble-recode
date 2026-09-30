@@ -6,6 +6,7 @@ import cobble.event.TickEndEvent;
 import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import net.minecraft.client.entity.EntityPlayerSP;
 
@@ -14,7 +15,7 @@ public class DelayRemover extends Module {
     public Setting removeJumpTicks;
 
     public DelayRemover() {
-        super("DelayRemover", "Removes the hit and jump delays", Category.PLAYER);
+        super("DelayRemover", "Removes the hit and jump delays", Category.PLAYER, Subcategory.BASIC);
         this.legacyHitreg = addBoolean("1.7 hitreg", "", true);
         this.removeJumpTicks = addBoolean("Remove jump ticks", "", false);
     }

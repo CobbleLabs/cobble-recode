@@ -9,6 +9,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.mlg.MlgState;
 import cobble.module.player.mlg.MlgUtils;
 import cobble.util.ClientUtils;
@@ -24,7 +25,7 @@ public class MLG extends Module {
     private final MlgState mlgState = new MlgState();
 
     public MLG() {
-        super("MLG", "Places water under you to cancel fall damage", Category.PLAYER);
+        super("MLG", "Places water under you to cancel fall damage", Category.PLAYER, Subcategory.ADVANCED);
         this.pickUp = addBoolean("Pick Up", "", true);
         this.swapSlot = addBoolean("Swap Slot", "", true);
     }

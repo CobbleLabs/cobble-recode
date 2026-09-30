@@ -7,6 +7,7 @@ import cobble.event.Subscribe;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
 import net.minecraft.entity.player.EntityPlayer;
 import org.lwjgl.opengl.GL11;
@@ -18,7 +19,7 @@ public class Chams extends Module {
     private float IGauQ1;
 
     public Chams() {
-        super("Chams", "Draws players through walls", Category.VISUALS);
+        super("Chams", "Draws players through walls", Category.VISUALS, Subcategory.EXTREME);
     }
 
     private void applyPolygonOffset() {

@@ -6,6 +6,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.hook.Input;
 import cobble.util.ClientUtils;
 import java.util.ArrayList;
@@ -100,7 +101,7 @@ public class Quickbuy extends Module {
     }
 
     public Quickbuy() {
-        super("Quickbuy", "Buys BedWars shop items with keybinds", Category.MINIGAMES);
+        super("Quickbuy", "Buys BedWars shop items with keybinds", Category.MINIGAMES, Subcategory.BASIC);
         this.purchaseDelay = addNumber("Purchase Delay", "", 100.0F, 50.0F, 500.0F, 0);
         int var1 = QUICKBUY_ENTRIES.length;
         this.quickslotSettings = new Setting[var1];

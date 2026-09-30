@@ -13,6 +13,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -204,7 +205,7 @@ public final class Clutch extends Module {
     }
 
     public Clutch() {
-        super("Clutch", "Turns to a face within reach and blocks the fall", Category.PLAYER);
+        super("Clutch", "Turns to a face within reach and blocks the fall", Category.PLAYER, Subcategory.ADVANCED);
         setIcon(Icon.BOX);
     }
 

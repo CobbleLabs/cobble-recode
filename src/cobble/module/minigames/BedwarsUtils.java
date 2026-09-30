@@ -13,6 +13,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.minigames.bedwarsutils.BedwarsGameTracker;
 import cobble.module.minigames.bedwarsutils.BuildLimitRenderer;
 import cobble.module.minigames.bedwarsutils.BuildLimits;
@@ -155,7 +156,7 @@ public class BedwarsUtils extends Module implements ModuleToggleListener {
     private long lastQuickMathsTime;
 
     public BedwarsUtils() {
-        super("BedwarsUtils", "BedWars alerts and utilities", Category.MINIGAMES);
+        super("BedwarsUtils", "BedWars alerts and utilities", Category.MINIGAMES, Subcategory.BASIC);
         this.quickShop = addBoolean("Quick Shop", "", false);
         this.autoQuickMathsChallenge = addBoolean("Auto Quick Maths Challenge", "", false);
         this.bowUtils = addBoolean("Bow Utils", "", false);

@@ -8,6 +8,7 @@ import cobble.event.TickEndEvent;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.render.indicators.ApproachDetector;
 import cobble.module.render.indicators.IndicatorSettings;
 import cobble.module.render.indicators.IndicatorUtils;
@@ -41,7 +42,7 @@ public class Indicators extends Module {
     private final double[] projectedCoords = new double[3];
 
     public Indicators() {
-        super("Indicators", "Points at incoming arrows, pearls and fireballs", Category.VISUALS);
+        super("Indicators", "Points at incoming arrows, pearls and fireballs", Category.VISUALS, Subcategory.ADVANCED);
         this.indicatorSettings = new IndicatorSettings(this);
     }
 

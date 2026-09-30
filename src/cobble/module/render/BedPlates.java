@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.render.bedplates.BedLocator;
 import cobble.module.render.bedplates.BedPlateCache;
 import cobble.module.render.bedplates.BedPlateEntry;
@@ -52,7 +53,7 @@ public class BedPlates extends Module {
     private final BedPlateTracker bedPlateTracker = new BedPlateTracker();
 
     public BedPlates() {
-        super("BedPlates", "Shows the blocks defending each bed", Category.VISUALS);
+        super("BedPlates", "Shows the blocks defending each bed", Category.VISUALS, Subcategory.ADVANCED);
         this.range = addNumber("Range", "", 10.0F, 2.0F, 200.0F, 0);
         this.rounding = addNumber("Rounding", "", 4.0F, 0.0F, 10.0F, 1);
         this.opacity = addNumber("Opacity", "", 55.0F, 5.0F, 100.0F, 0);

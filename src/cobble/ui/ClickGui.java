@@ -14,6 +14,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.client.ClickGuiModule;
 import cobble.render.Align;
 import cobble.render.Backdrop;
@@ -26,6 +27,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -64,6 +66,16 @@ public final class ClickGui {
     private static final float SECTION_HEIGHT = 28.0f;
     private static final float GEAR_SLOT_WIDTH = 52.0f;
 
+    /* The subcategory selector: the tab bar's pill and chip at header size,
+     * tucked into the card's top right corner. Margin plus radius is the
+     * card's own radius, so the two corners stay concentric. */
+    private static final float SELECTOR_SLOT = 70.0f;
+    private static final float SELECTOR_INSET = 3.0f;
+    private static final float SELECTOR_MARGIN = 5.0f;
+    private static final float SELECTOR_RADIUS = 9.0f;
+    private static final float SELECTOR_LABEL_BOX = 13.0f;
+    private static final String PATH_ARROW = ">>";
+
     private static final float ROW_ICON_CENTRE = 27.0f;
     private static final float ROW_TEXT_X = 56.0f;
     private static final float ROW_NAME_TOP = 9.0f;
@@ -101,6 +113,11 @@ public final class ClickGui {
     private static final float HOVER_SPEED = 16.0f;
     private static final float ON_SPEED = 18.0f;
     private static final float TAB_SPEED = 20.0f;
+    /* The selector chip's leading edge runs ahead of its trailing one, so it
+     * stretches toward the pick and then gathers itself into the slot - the
+     * reveal's capsule widening into the bar, at the size of one chip. */
+    private static final float CHIP_LEAD_SPEED = 30.0f;
+    private static final float CHIP_TRAIL_SPEED = 13.0f;
     private static final float SUBPAGE_SPEED = 22.0f;
     private static final float EXPAND_SPEED = 14.0f;
     /* The card resizes when a category with a different number of rows takes
@@ -208,6 +225,10 @@ public final class ClickGui {
 
     private enum Action { RELOAD_SCRIPTS, RELOAD_CONFIGS, OPEN_FOLDER, UNLOAD }
 
+    private static final Subcategory[] SUBCATEGORIES = Subcategory.values();
+    private static final String[] SUBCATEGORY_TITLES = Arrays.stream(SUBCATEGORIES)
+            .map(subcategory -> upperCase(subcategory.displayName)).toArray(String[]::new);
+
     private static final class SettingRow {
         /* null is the module's own keybind, which is a row in the subpage as
          * well as a chip in the list. */
@@ -277,7 +298,6 @@ public final class ClickGui {
         /* The settings tab is only the gear at the end of the bar. */
         final boolean iconOnly;
         final List<Row> rows = new ArrayList<>();
-        int sections;  // rows that are subcategory headings, left out of the count
         Rect bounds = Rect.EMPTY;
         float hover;
 
@@ -287,7 +307,7 @@ public final class ClickGui {
         final String title;
         float titleWidth;
         float titleScale;
-        /* "8 MODULES", rebuilt only when the row count changes. */
+        /* "8 MODULES", rebuilt only when the shown row count changes. */
         String count = "";
         int countFor = -1;
 
@@ -346,7 +366,29 @@ public final class ClickGui {
     private float pageFade = 1.0f;    // 1 settled, 0 the instant the swap happens
     private float pageEnter = 1.0f;   // 0..1 cascade clock for the page that arrived
     private boolean pageLeaving;      // the outgoing page is on its way out
+    /* The handover in flight only changes the subcategory, so the section's
+     * own name stays lit while the tier beside it and the list are swapped. */
+    private boolean sectionHeld;
     private float cardHeight;         // smoothed, so a taller category grows into place
+
+    /* Same split as tab and shownTab: the chip follows the click, the list
+     * filters by shownSubcategory once the old one has faded out. Entering a
+     * tab always starts at General. */
+    private Subcategory subcategory = Subcategory.GENERAL;
+    private Subcategory shownSubcategory = Subcategory.GENERAL;
+    /* The shown tab's rows under the shown subcategory: the modules it lets
+     * through, each heading only if something under it survived. */
+    private final List<Row> shownRows = new ArrayList<>();
+    private int shownEntries;
+    private Rect selector = Rect.EMPTY;
+    private float selectorAlpha = 1.0f;   // fades out when the gear is selected
+    private float chipLeft;               // chip edges, in slots
+    private float chipRight = 1.0f;
+    private final float[] subcategoryHover = new float[SUBCATEGORIES.length];
+    /* Tracked widths of the header path, resolved once per scale. */
+    private final float[] subcategoryTitleWidths = new float[SUBCATEGORIES.length];
+    private float arrowWidth;
+    private float pathScale;
 
     /* The brand label and its measured width. Both animations need them every
      * frame they run, and the measure is a lookup per glyph, so they are
@@ -753,7 +795,6 @@ public final class ClickGui {
                 }
                 if (category != tabCategory) {
                     categoryTab.rows.add(new Row(RowKind.SECTION, category.displayName, "", category.icon));
-                    categoryTab.sections++;
                 }
                 for (Module module : inCategory) {
                     Row row = new Row(RowKind.MODULE, module.name, module.description, module.icon());
@@ -829,10 +870,13 @@ public final class ClickGui {
         subpage = null;
         subpageAnim = 0.0f;
         shownTab = tab;
+        shownSubcategory = subcategory;
+        refreshShown();
         pageLeaving = false;
         pageFade = 1.0f;
         indicator = tab;
         indicatorAlpha = tabs.get(tab).iconOnly ? 0.0f : 1.0f;
+        selectorAlpha = indicatorAlpha;
 
         refreshConfigs();
         built = true;
@@ -860,6 +904,7 @@ public final class ClickGui {
         built = false;
         rows.clear();
         tabs.clear();
+        shownRows.clear();
     }
 
     public void open() {
@@ -967,8 +1012,42 @@ public final class ClickGui {
          * start leaving. The swap itself happens in layout() once the old page
          * has faded out. */
         tab = index;
+        subcategory = Subcategory.GENERAL;
+        sectionHeld = false;
         closeSubpage();
         pageLeaving = true;
+    }
+
+    private void selectSubcategory(Subcategory value) {
+        if (value == subcategory) {
+            return;
+        }
+        /* Only a settled page can hold its section name. One still arriving
+         * from a tab change is fading that name in, and the new handover
+         * carries on fading it with the rest. */
+        if (!pageLeaving && pageFade >= 1.0f) {
+            sectionHeld = true;
+        }
+        subcategory = value;
+        pageLeaving = true;
+    }
+
+    private void refreshShown() {
+        shownRows.clear();
+        shownEntries = 0;
+        Row heading = null;
+        for (Row row : tabs.get(shownTab).rows) {
+            if (row.kind == RowKind.SECTION) {
+                heading = row;
+            } else if (row.module == null || shownSubcategory.shows(row.module)) {
+                if (heading != null) {
+                    shownRows.add(heading);
+                    heading = null;
+                }
+                shownRows.add(row);
+                shownEntries++;
+            }
+        }
     }
 
     private void openSubpage(Row row) {
@@ -1011,6 +1090,11 @@ public final class ClickGui {
                 /* Restoring a saved selection, not navigating to it: no handover. */
                 tab = index;
                 shownTab = index;
+                subcategory = Subcategory.GENERAL;
+                shownSubcategory = subcategory;
+                refreshShown();
+                chipLeft = 0.0f;
+                chipRight = 1.0f;
                 pageLeaving = false;
                 pageFade = 1.0f;
                 indicator = index;
@@ -1260,6 +1344,15 @@ public final class ClickGui {
             return;
         }
 
+        /* tabs is empty between a reset and the next frame's rebuild. */
+        if (subpage == null && tab < tabs.size() && !tabs.get(tab).iconOnly && selector.contains(x, y)) {
+            if (button == Input.MOUSE_LEFT) {
+                int slot = (int) ((x - selector.x() - s(SELECTOR_INSET)) / s(SELECTOR_SLOT));
+                selectSubcategory(SUBCATEGORIES[Maths.clamp(slot, 0, SUBCATEGORIES.length - 1)]);
+            }
+            return;
+        }
+
         if (!body.contains(x, y)) {
             editingName = false;
             return;
@@ -1279,13 +1372,10 @@ public final class ClickGui {
             return;
         }
 
-        /* The displayed tab, not the selected one: these are the rows the last
+        /* The displayed rows, not the selected ones: these are what the last
          * layout actually placed, and the rectangles being tested belong to
          * them. */
-        if (shownTab >= tabs.size()) {
-            return;
-        }
-        for (Row row : tabs.get(shownTab).rows) {
+        for (Row row : shownRows) {
             if (row.bounds.width() > 0.0f && row.bounds.contains(x, y)) {
                 pressRow(row, x, y, button, context);
                 return;
@@ -1446,9 +1536,9 @@ public final class ClickGui {
         return s(row.kind == RowKind.SECTION ? SECTION_HEIGHT : ROW_HEIGHT);
     }
 
-    private float listHeight(Tab page) {
+    private float listHeight() {
         float height = s(ROW_GAP);
-        for (Row row : page.rows) {
+        for (Row row : shownRows) {
             height += rowHeight(row) + s(ROW_GAP);
         }
         return height;
@@ -1535,6 +1625,8 @@ public final class ClickGui {
             pageFade = Math.max(0.0f, pageFade - deltaTime / PAGE_OUT_SECONDS);
             if (pageFade <= 0.0f) {
                 shownTab = tab;
+                shownSubcategory = subcategory;
+                refreshShown();
                 pageLeaving = false;
                 pageEnter = 0.0f;
                 scroll = 0.0f;
@@ -1562,6 +1654,7 @@ public final class ClickGui {
         }
         if (shownTab >= tabs.size()) {
             shownTab = tab;
+            refreshShown();
         }
 
         float width = Math.min(s(MENU_WIDTH), screenW - s(32.0f));
@@ -1610,6 +1703,13 @@ public final class ClickGui {
             current.hover = Maths.approach(current.hover, hovered ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
         }
         indicatorAlpha = Maths.approach(indicatorAlpha, tabs.get(tab).iconOnly ? 0.0f : 1.0f, 18.0f, deltaTime);
+        selectorAlpha = Maths.approach(selectorAlpha, tabs.get(tab).iconOnly ? 0.0f : 1.0f, 18.0f, deltaTime);
+
+        float chipTarget = subcategory.ordinal();
+        boolean rightward = chipTarget >= chipLeft;
+        chipLeft = Maths.approach(chipLeft, chipTarget, rightward ? CHIP_TRAIL_SPEED : CHIP_LEAD_SPEED, deltaTime);
+        chipRight = Maths.approach(chipRight, chipTarget + 1.0f, rightward ? CHIP_LEAD_SPEED : CHIP_TRAIL_SPEED,
+                deltaTime);
 
         subpageAnim = Maths.approach(subpageAnim, subpage != null ? 1.0f : 0.0f, SUBPAGE_SPEED, deltaTime);
         boolean backHovered = pointable() && subpage != null && backButton().contains(mouseX, mouseY);
@@ -1628,7 +1728,7 @@ public final class ClickGui {
             row.on = Maths.approach(row.on, target, ON_SPEED, deltaTime);
         }
 
-        content = subpage != null ? subpageHeight(subpage) : listHeight(tabs.get(shownTab));
+        content = subpage != null ? subpageHeight(subpage) : listHeight();
 
         float cardY = bar.bottom() + s(PANEL_GAP);
         float header = s(HEADER_HEIGHT);
@@ -1653,10 +1753,22 @@ public final class ClickGui {
 
         scroll = Maths.clamp(scroll, 0.0f, Math.max(0.0f, content - body.height()));
 
+        float selectorWidth = s(SELECTOR_SLOT) * SUBCATEGORIES.length + s(SELECTOR_INSET) * 2.0f;
+        selector = new Rect(card.right() - s(SELECTOR_MARGIN) - selectorWidth, card.y() + s(SELECTOR_MARGIN),
+                selectorWidth, header - s(SELECTOR_MARGIN) * 2.0f);
+        boolean selectorLive = pointable() && subpage == null && !tabs.get(tab).iconOnly;
+        for (int index = 0; index < SUBCATEGORIES.length; index++) {
+            float slotX = selector.x() + s(SELECTOR_INSET) + index * s(SELECTOR_SLOT);
+            boolean hovered = selectorLive && selector.contains(mouseX, mouseY) && mouseX >= slotX
+                    && mouseX < slotX + s(SELECTOR_SLOT);
+            subcategoryHover[index] = Maths.approach(subcategoryHover[index], hovered ? 1.0f : 0.0f, HOVER_SPEED,
+                    deltaTime);
+        }
+
         if (subpage != null) {
             layoutSubpage(subpage, deltaTime);
         } else {
-            layoutList(tabs.get(shownTab), deltaTime);
+            layoutList(deltaTime);
         }
 
         /* Last, because the reveal confines the paint to a fraction of the
@@ -1697,10 +1809,10 @@ public final class ClickGui {
         return named;
     }
 
-    private void layoutList(Tab page, float deltaTime) {
+    private void layoutList(float deltaTime) {
         float top = body.y() + s(ROW_GAP) - scroll;
         int ordinal = 0;
-        for (Row row : page.rows) {
+        for (Row row : shownRows) {
             /* Each row drops the last few pixels into its slot, on a delay that
              * grows down the list, so picking a category unrolls it downward.
              * The offset goes on the row's own rectangle - which is the hit
@@ -1971,7 +2083,7 @@ public final class ClickGui {
             gfx.pushClip(body);
         }
         if (subpage == null) {
-            for (Row row : tabs.get(shownTab).rows) {
+            for (Row row : shownRows) {
                 drawRow(row);
             }
         } else if (subpage.kind == RowKind.CONFIGS) {
@@ -1999,9 +2111,10 @@ public final class ClickGui {
         float cursorX = card.x() + s(16.0f);
 
         /* Icon, title and count name the category, so they cross-fade with the
-         * list they belong to. The separator below them does not. */
+         * list they belong to. The separator below them does not, and neither
+         * does the section's name when only the subcategory is changing. */
         float saved = alpha;
-        alpha *= pageFade;
+        alpha = saved * (sectionHeld ? 1.0f : pageFade);
 
         float iconBox = s(16.0f);
         gfx.icon(page.icon, new Rect(cursorX, centreY - iconBox * 0.5f, iconBox, iconBox), accent());
@@ -2012,23 +2125,93 @@ public final class ClickGui {
             page.titleScale = scale;
             page.titleWidth = trackedWidth(HEADING_FONT, page.title, s(HEADING_BOX), tracking);
         }
-        drawTracked(HEADING_FONT, page.title, cursorX, centreY - s(HEADING_BOX) * 0.5f, s(HEADING_BOX), accent(),
-                tracking);
-        cursorX += page.titleWidth + s(14.0f);
+        float textTop = centreY - s(HEADING_BOX) * 0.5f;
+        drawTracked(HEADING_FONT, page.title, cursorX, textTop, s(HEADING_BOX), accent(), tracking);
+        cursorX += page.titleWidth;
+
+        if (!page.iconOnly) {
+            refreshPath();
+            cursorX += s(10.0f);
+            drawTracked(HEADING_FONT, PATH_ARROW, cursorX, textTop, s(HEADING_BOX), fade(TEXT_FAINT), tracking);
+            cursorX += arrowWidth + s(10.0f);
+            alpha = saved * pageFade;
+            int shown = shownSubcategory.ordinal();
+            drawTracked(HEADING_FONT, SUBCATEGORY_TITLES[shown], cursorX, textTop, s(HEADING_BOX),
+                    fade(TEXT_PRIMARY), tracking);
+            cursorX += subcategoryTitleWidths[shown];
+        }
+        alpha = saved * pageFade;
+        cursorX += s(14.0f);
 
         gfx.line(cursorX, centreY - s(7.0f), cursorX, centreY + s(7.0f), Math.max(1.0f, s(1.0f)), fade(SEPARATOR));
         cursorX += s(14.0f);
 
-        int entries = page.rows.size() - page.sections;
-        if (page.countFor != entries) {
-            page.countFor = entries;
-            page.count = entries + " " + page.countNoun;
+        if (page.countFor != shownEntries) {
+            page.countFor = shownEntries;
+            page.count = shownEntries + " " + page.countNoun;
         }
         drawText(MICRO_FONT, page.count, cursorX, centreY - s(MICRO_BOX) * 0.5f, s(MICRO_BOX), fade(TEXT_FAINT));
         alpha = saved;
 
+        if (selectorAlpha > 0.002f) {
+            drawSelector();
+        }
+
         gfx.line(card.x(), card.y() + height, card.right(), card.y() + height, Math.max(1.0f, s(1.0f)),
                 fade(SEPARATOR));
+    }
+
+    private void refreshPath() {
+        if (pathScale == scale) {
+            return;
+        }
+        pathScale = scale;
+        float tracking = s(TRACKING);
+        arrowWidth = trackedWidth(HEADING_FONT, PATH_ARROW, s(HEADING_BOX), tracking);
+        for (int index = 0; index < SUBCATEGORIES.length; index++) {
+            subcategoryTitleWidths[index] = trackedWidth(HEADING_FONT, SUBCATEGORY_TITLES[index], s(HEADING_BOX),
+                    tracking);
+        }
+    }
+
+    /* The same structure whichever tab is showing, so it does not take part in
+     * the page fade: the chip slides back to General instead. */
+    private void drawSelector() {
+        float saved = alpha;
+        alpha *= selectorAlpha;
+
+        float radius = s(SELECTOR_RADIUS);
+        gfx.rect(selector, fade(TAB_BAR_BG), radius);
+        gfx.outline(selector, fade(CARD_BORDER), Math.max(1.0f, s(1.0f)), radius);
+
+        float inset = s(SELECTOR_INSET);
+        float slot = s(SELECTOR_SLOT);
+        float left = selector.x() + inset;
+        Rect chip = new Rect(left + chipLeft * slot, selector.y() + inset, (chipRight - chipLeft) * slot,
+                selector.height() - inset * 2.0f);
+        gfx.rect(chip, fade(TAB_CHIP_BG), radius - inset);
+
+        /* Dividers only between two unselected slots: one the chip is over or
+         * against fades out, so the chip never has a line running into it. */
+        float dividerHalf = s(6.0f);
+        for (int index = 1; index < SUBCATEGORIES.length; index++) {
+            float clearance = Math.max(chipLeft - index, index - chipRight);
+            float visibility = Maths.clamp(clearance * 2.0f, 0.0f, 1.0f);
+            if (visibility > 0.002f) {
+                float x = left + index * slot;
+                gfx.line(x, selector.centerY() - dividerHalf, x, selector.centerY() + dividerHalf,
+                        Math.max(1.0f, s(1.0f)), fade(SEPARATOR, visibility));
+            }
+        }
+
+        float box = s(SELECTOR_LABEL_BOX);
+        for (int index = 0; index < SUBCATEGORIES.length; index++) {
+            Color colour = index == subcategory.ordinal() ? TEXT_PRIMARY
+                    : Color.mix(TEXT_MUTED, TEXT_PRIMARY, subcategoryHover[index] * 0.7f);
+            drawText(LABEL_FONT, SUBCATEGORIES[index].displayName, left + (index + 0.5f) * slot,
+                    selector.centerY() - box * 0.5f, box, fade(colour), Align.CENTER);
+        }
+        alpha = saved;
     }
 
     private void drawSubpageHeader(Row row) {

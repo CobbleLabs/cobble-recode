@@ -17,6 +17,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import cobble.render.Renderer;
 import cobble.ui.Theme;
@@ -104,7 +105,8 @@ public final class Displace extends Module {
     private float arrowFade;
 
     public Displace() {
-        super("Displace", "Turns on the hit so the knockback throws them sideways", Category.COMBAT);
+        super("Displace", "Turns on the hit so the knockback throws them sideways", Category.COMBAT,
+                Subcategory.EXTREME);
         setIcon(Icon.MOVE_3D);
     }
 

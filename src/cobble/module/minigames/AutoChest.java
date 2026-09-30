@@ -6,6 +6,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,7 +40,7 @@ public class AutoChest extends Module {
     private long nextClickAtMillis;
 
     public AutoChest() {
-        super("AutoChest", "Scroll up to deposit and down to steal", Category.MINIGAMES);
+        super("AutoChest", "Scroll up to deposit and down to steal", Category.MINIGAMES, Subcategory.ADVANCED);
         this.speed = addNumber("Speed", "", 100.0F, 0.0F, 500.0F, 0);
         this.closeWhenDone = addBoolean("Close When Done", "", false);
         this.blocks = addBoolean("Blocks", "", true);

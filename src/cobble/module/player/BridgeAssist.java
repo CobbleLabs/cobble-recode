@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import java.util.List;
 import java.util.Locale;
@@ -73,7 +74,8 @@ public final class BridgeAssist extends Module {
     private boolean overEdge;
 
     public BridgeAssist() {
-        super("BridgeAssist", "Sneaks at the edge and aims at the face you are bridging off", Category.PLAYER);
+        super("BridgeAssist", "Sneaks at the edge and aims at the face you are bridging off", Category.PLAYER,
+                Subcategory.BASIC);
         setIcon(Icon.LAYERS);
     }
 

@@ -15,6 +15,7 @@ public abstract class Module {
     public final String name;
     public final String description;
     public final Category category;
+    public final Subcategory subcategory;
     private Icon icon;
     private int key;
     private boolean enabled;
@@ -22,14 +23,15 @@ public abstract class Module {
     private float animation;
     private final List<Setting> settings = new ArrayList<>();
 
-    protected Module(String name, String description, Category category) {
-        this(name, description, category, 0);
+    protected Module(String name, String description, Category category, Subcategory subcategory) {
+        this(name, description, category, subcategory, 0);
     }
 
-    protected Module(String name, String description, Category category, int defaultKey) {
+    protected Module(String name, String description, Category category, Subcategory subcategory, int defaultKey) {
         this.name = name;
         this.description = description;
         this.category = category;
+        this.subcategory = subcategory;
         this.icon = category.icon;
         this.key = defaultKey;
     }

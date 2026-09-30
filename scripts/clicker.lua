@@ -23,6 +23,7 @@ clicker = cold.module {
     name = "ScriptClicker",
     description = "Extra clicks while the attack button is held",
     category = "combat",
+    subcategory = "basic",
     icon = "activity",
     settings = {
         { name = "Min CPS", type = "number", value = 8, min = 1, max = 20, decimals = 0 },

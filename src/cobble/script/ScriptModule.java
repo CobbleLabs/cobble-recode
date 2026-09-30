@@ -5,6 +5,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import java.util.List;
 import org.luaj.vm2.LuaTable;
@@ -23,8 +24,9 @@ final class ScriptModule extends Module {
     private LuaTable table;
     private boolean started;
 
-    ScriptModule(Script owner, String name, String description, Category category, int key) {
-        super(name, description, category, key);
+    ScriptModule(Script owner, String name, String description, Category category, Subcategory subcategory,
+            int key) {
+        super(name, description, category, subcategory, key);
         this.owner = owner;
     }
 

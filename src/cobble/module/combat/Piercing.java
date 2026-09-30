@@ -2,6 +2,7 @@ package cobble.module.combat;
 
 import cobble.module.Category;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.combat.piercing.PiercingCandidateFilter;
 import cobble.module.combat.piercing.PiercingSettings;
 import cobble.module.combat.piercing.ReachRaytrace;
@@ -13,7 +14,8 @@ public class Piercing extends Module implements PointedObjectOverrider {
     private final PiercingSettings piercingSettings = new PiercingSettings(this);
 
     public Piercing() {
-        super("Piercing", "Hits the target through blocks and other entities in reach", Category.COMBAT);
+        super("Piercing", "Hits the target through blocks and other entities in reach", Category.COMBAT,
+                Subcategory.EXTREME);
     }
 
     @Override

@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.block.BlockUtils;
@@ -50,7 +51,7 @@ public class HeadHitter extends Module {
     private HeadHitter$2 EUnHs = HeadHitter$2.IDLE;
 
     public HeadHitter() {
-        super("HeadHitter", "Places a block overhead so jumps hit the ceiling", Category.PLAYER);
+        super("HeadHitter", "Places a block overhead so jumps hit the ceiling", Category.PLAYER, Subcategory.ADVANCED);
         this.key = addKey("Key", "", 0);
         this.extend = addBoolean("Extend", "", false);
         this.speed = addNumber("Speed", "", 15.0F, 1.0F, 30.0F, 0);

@@ -10,6 +10,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 
 /**
  * W-tap, from Argon's AutoWTap. Every hit TriggerBot lands releases W for a
@@ -29,7 +30,7 @@ public final class WTap extends Module {
     private long tapEnd;
 
     public WTap() {
-        super("WTap", "W-taps every landed hit", Category.COMBAT);
+        super("WTap", "W-taps every landed hit", Category.COMBAT, Subcategory.BASIC);
     }
 
     // The binding is ours while tapping, so only the physical key says whether W is still held.

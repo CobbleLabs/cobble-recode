@@ -4,6 +4,7 @@ import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.AutoBlock;
 import cobble.module.movement.noslow.NoSlowMode;
 import cobble.util.ClientUtils;
@@ -21,7 +22,7 @@ public class NoSlow extends Module {
     public static Setting slow;
 
     public NoSlow() {
-        super("NoSlow", "Walks at full speed while using items", Category.MOVEMENT);
+        super("NoSlow", "Walks at full speed while using items", Category.MOVEMENT, Subcategory.ADVANCED);
         swordMode = addChoice("Sword Mode", "", List.of(NoSlowMode.labels()), NoSlowMode.NONE.ordinal());
         foodMode = addChoice("Food Mode", "", List.of(NoSlowMode.labels()), NoSlowMode.NONE.ordinal());
         bowMode = addChoice("Bow Mode", "", List.of(NoSlowMode.labels()), NoSlowMode.NONE.ordinal());

@@ -15,6 +15,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import java.util.List;
 
@@ -60,7 +61,7 @@ public final class TriggerBot extends Module {
     private int hits;
 
     public TriggerBot() {
-        super("TriggerBot", "Attacks whatever the crosshair is already on", Category.COMBAT);
+        super("TriggerBot", "Attacks whatever the crosshair is already on", Category.COMBAT, Subcategory.ADVANCED);
         setIcon(Icon.CROSSHAIR);
     }
 

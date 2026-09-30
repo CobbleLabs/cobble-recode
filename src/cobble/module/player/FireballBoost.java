@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import net.minecraft.item.ItemFireball;
@@ -29,7 +30,7 @@ public class FireballBoost extends Module {
     private int pitchRestoreTicks = 0;
 
     public FireballBoost() {
-        super("FireballBoost", "Throws a fireball at your feet to launch you", Category.PLAYER);
+        super("FireballBoost", "Throws a fireball at your feet to launch you", Category.PLAYER, Subcategory.ADVANCED);
         this.boostDelay = addNumber("Boost Delay", "", 550.0F, 450.0F, 650.0F, 0);
     }
 

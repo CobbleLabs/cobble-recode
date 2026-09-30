@@ -11,6 +11,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
@@ -53,7 +54,7 @@ public class Freecam extends Module {
     private long ygd;
 
     public Freecam() {
-        super("Freecam", "Moves the camera away from your body", Category.PLAYER);
+        super("Freecam", "Moves the camera away from your body", Category.PLAYER, Subcategory.ADVANCED);
         this.disableOnDamage = addBoolean("Disable on damage", "", true);
     }
 

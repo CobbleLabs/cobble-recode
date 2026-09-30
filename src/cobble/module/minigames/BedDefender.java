@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.shared.ProgressBarSource;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
@@ -72,7 +73,7 @@ public class BedDefender extends Module implements ProgressBarSource {
     private final Map<String, Integer> materialSlotCache = new HashMap<>();
 
     public BedDefender() {
-        super("BedDefender", "Covers your bed with blocks", Category.MINIGAMES);
+        super("BedDefender", "Covers your bed with blocks", Category.MINIGAMES, Subcategory.EXTREME);
         this.onlyWhitelistedBed = addBoolean("Only Whitelisted Bed", "", false);
         this.swapSpeed = addNumber("Swap Speed", "", 100.0F, 0.0F, 100.0F, 0);
         this.aimSpeed = addNumber("Aim Speed", "", 100.0F, 0.0F, 100.0F, 0);

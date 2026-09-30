@@ -7,6 +7,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import cobble.ui.ClickGui;
 import cobble.ui.Client;
@@ -17,7 +18,7 @@ public final class ClickGuiModule extends Module {
     private final Setting accent;
 
     public ClickGuiModule() {
-        super("ClickGUI", "Opens the Cobble Recode menu", Category.CLIENT, Input.KEY_INSERT);
+        super("ClickGUI", "Opens the Cobble Recode menu", Category.CLIENT, Subcategory.BASIC, Input.KEY_INSERT);
         setIcon(Icon.SLIDERS_HORIZONTAL);
         blur = addBoolean("Backdrop blur", "Frost the scene behind the panels", false);
         accent = addColour("Accent", "Drives the menu, the HUD and the ESP", Color.rgb(0xBDA4BD));

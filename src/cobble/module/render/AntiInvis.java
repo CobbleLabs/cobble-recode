@@ -5,6 +5,7 @@ import cobble.event.Subscribe;
 import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
+import cobble.module.Subcategory;
 import cobble.util.render.RenderUtils;
 import cobble.util.render.RenderUtils$1;
 import net.minecraft.client.gui.Gui;
@@ -21,7 +22,7 @@ public class AntiInvis extends Module {
     );
 
     public AntiInvis() {
-        super("AntiInvis", "Shows invisible players", Category.VISUALS);
+        super("AntiInvis", "Shows invisible players", Category.VISUALS, Subcategory.EXTREME);
     }
 
     public boolean isForceVisibleTarget(EntityLivingBase var1) {

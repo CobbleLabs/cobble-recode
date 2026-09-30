@@ -8,6 +8,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.AutoBlock;
 import cobble.module.combat.Backtrack;
 import cobble.module.combat.LagRange;
@@ -81,7 +82,7 @@ public class Anticheat extends Module {
     private long suppressUntil;
 
     public Anticheat() {
-        super("Anticheat", "Tries to detect cheaters", Category.OTHER);
+        super("Anticheat", "Tries to detect cheaters", Category.OTHER, Subcategory.ADVANCED);
         this.flagInterval = addNumber("Flag interval", "", 20.0F, 0.0F, 60.0F, 0);
         this.addCheatersAsEnemy = addBoolean("Add cheaters as enemy", "", false);
         this.ignoreTeammates = addBoolean("Ignore teammates", "", false);

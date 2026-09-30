@@ -194,7 +194,7 @@ menu cards, same `cobble.cfg`, same array list.
 cold.script { name = "Aura", version = "1.0", author = "you" }
 
 local aura = cold.module {
-    name = "ScriptAura", category = "combat", icon = "swords",
+    name = "ScriptAura", subcategory = "extreme", icon = "swords",
     settings = { { name = "Range", type = "number", value = 3.0, min = 1, max = 6, decimals = 2 } },
 }
 

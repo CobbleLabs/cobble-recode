@@ -9,6 +9,7 @@ import cobble.event.TickEndEvent;
 import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
 import cobble.util.ClientUtils;
 import cobble.util.render.RenderUtils;
@@ -39,7 +40,7 @@ public class Pointers extends Module {
     private long ylbzsu = System.nanoTime();
 
     public Pointers() {
-        super("Pointers", "Arrows around the crosshair toward nearby players", Category.VISUALS);
+        super("Pointers", "Arrows around the crosshair toward nearby players", Category.VISUALS, Subcategory.ADVANCED);
         this.color = addColour("Color", "", Color.rgb(0xFFFFFF));
         this.teamColour = addBoolean("Team Colour", "", true);
         this.hideTeammates = addBoolean("Hide Teammates", "", true);

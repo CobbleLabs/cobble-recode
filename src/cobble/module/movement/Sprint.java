@@ -5,10 +5,11 @@ import cobble.game.Game;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 
 public final class Sprint extends Module {
     public Sprint() {
-        super("Sprint", "Keeps sprinting while moving", Category.MOVEMENT);
+        super("Sprint", "Keeps sprinting while moving", Category.MOVEMENT, Subcategory.BASIC);
     }
 
     @Override

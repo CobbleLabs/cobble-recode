@@ -13,6 +13,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import cobble.util.SkywarsGameState;
 import cobble.util.render.RenderUtils;
@@ -52,7 +53,7 @@ public class SkywarsUtils extends Module {
     private int previousSlot = -1;
 
     public SkywarsUtils() {
-        super("SkywarsUtils", "Strength alerts and auto echo for SkyWars", Category.MINIGAMES);
+        super("SkywarsUtils", "Strength alerts and auto echo for SkyWars", Category.MINIGAMES, Subcategory.BASIC);
         this.strengthEsp = addBoolean("Strength ESP", "", false);
         this.strengthEspColor = addColour("Strength ESP Color", "", Color.rgb(0xFF0000));
         this.autoEcho = addBoolean("Auto Echo", "", false);

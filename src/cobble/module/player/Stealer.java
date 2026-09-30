@@ -7,6 +7,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import cobble.util.SkywarsGameState;
 import net.minecraft.client.gui.inventory.GuiChest;
@@ -28,7 +29,7 @@ public class Stealer extends Module {
     private boolean stealSessionStarted;
 
     public Stealer() {
-        super("Stealer", "Takes items out of chests", Category.PLAYER);
+        super("Stealer", "Takes items out of chests", Category.PLAYER, Subcategory.BASIC);
         this.nameCheck = addBoolean("Name Check", "", true);
         this.delayTicks = addNumber("Delay Ticks", "", 2.0F, 0.0F, 20.0F, 0);
         this.randomize = addBoolean("Randomize", "", false);

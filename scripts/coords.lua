@@ -20,6 +20,7 @@ coords = cold.module {
     name = "ScriptCoords",
     description = "Position, facing and speed in the corner",
     category = "render",
+    subcategory = "basic",
     icon = "move-3d",
     settings = {
         { name = "X", type = "number", value = 3, min = 0, max = 100, decimals = 0,

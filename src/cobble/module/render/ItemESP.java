@@ -9,6 +9,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.minigames.BedwarsUtils;
 import cobble.module.player.Freecam;
 import cobble.module.render.itemesp.ItemEspMode;
@@ -45,7 +46,7 @@ public class ItemESP extends Module {
     private int activeEntryCount = 0;
 
     public ItemESP() {
-        super("ItemESP", "Highlights dropped items", Category.VISUALS);
+        super("ItemESP", "Highlights dropped items", Category.VISUALS, Subcategory.ADVANCED);
         this.mode = addChoice("Mode", "", List.of(ItemEspMode.labels()), ItemEspMode.BOX.ordinal());
         this.items = new ItemColorList();
         this.outline = addBoolean("Outline", "", true);

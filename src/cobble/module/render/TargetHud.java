@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Align;
 import cobble.render.FontRole;
 import cobble.render.Icon;
@@ -70,7 +71,7 @@ public final class TargetHud extends Module {
     private int targetId = -1;
 
     public TargetHud() {
-        super("TargetHud", "Panel for whoever the combat modules are hitting", Category.VISUALS);
+        super("TargetHud", "Panel for whoever the combat modules are hitting", Category.VISUALS, Subcategory.BASIC);
         setIcon(Icon.TARGET);
     }
 

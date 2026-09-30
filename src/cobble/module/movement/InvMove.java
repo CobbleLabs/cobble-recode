@@ -5,6 +5,7 @@ import cobble.game.Game;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 
 /**
  * A screen swallows key presses, so the physical state of the movement keys is
@@ -17,7 +18,7 @@ public final class InvMove extends Module {
     private boolean active;
 
     public InvMove() {
-        super("InvMove", "Walks while the inventory is open", Category.MOVEMENT);
+        super("InvMove", "Walks while the inventory is open", Category.MOVEMENT, Subcategory.BASIC);
     }
 
     private void releaseAll() {

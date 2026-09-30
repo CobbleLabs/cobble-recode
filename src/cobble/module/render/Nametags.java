@@ -12,6 +12,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
 import cobble.module.other.Anticheat;
 import cobble.module.render.nametags.MinecraftFont;
@@ -70,7 +71,7 @@ public class Nametags extends Module {
     private int ysuU = 0;
 
     public Nametags() {
-        super("Nametags", "Custom nametags with health, distance and armor", Category.VISUALS);
+        super("Nametags", "Custom nametags with health, distance and armor", Category.VISUALS, Subcategory.ADVANCED);
         this.scale = addNumber("Scale", "", 1.0F, 0.1F, 2.0F, 1);
         this.autoScale = addBoolean("Auto Scale", "", false);
         this.background = addBoolean("Background", "", true);

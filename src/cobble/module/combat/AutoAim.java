@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.autoaim.AimResult;
 import cobble.module.combat.autoaim.AimResult$0;
 import cobble.module.combat.autoaim.AimSolver;
@@ -102,7 +103,7 @@ public final class AutoAim extends Module {
     private float LjSl;
 
     public AutoAim() {
-        super("AutoAim", "Aims bows and rods where the target will be", Category.COMBAT);
+        super("AutoAim", "Aims bows and rods where the target will be", Category.COMBAT, Subcategory.ADVANCED);
         this.bow = addBoolean("Bow", "", true);
         this.rod = addBoolean("Rod", "", true);
         this.fov = addNumber("FOV", "", 8.0F, 1.0F, 360.0F, 0);

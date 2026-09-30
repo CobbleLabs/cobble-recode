@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 
 public class Timer extends Module {
@@ -19,7 +20,7 @@ public class Timer extends Module {
     private int berb;
 
     public Timer() {
-        super("Timer", "Speeds up or slows down the game tick", Category.MOVEMENT);
+        super("Timer", "Speeds up or slows down the game tick", Category.MOVEMENT, Subcategory.EXTREME);
         this.speedSetting = addNumber("Speed", "", 1.0F, 0.0F, 10.0F, 2);
         this.hypixel = addBoolean("Hypixel", "", false);
         this.hypixelTimerSpeed = addNumber("Hypixel Timer Speed", "", 0.013F, 0.01F, 0.035F, 3);

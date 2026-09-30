@@ -17,6 +17,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.autoblock.AutoBlockMode;
 import cobble.module.combat.autoblock.IncomingHitPredictor;
 import cobble.module.combat.autoblock.IncomingHitPredictor$3;
@@ -92,7 +93,7 @@ public class AutoBlock extends Module {
     private AutoBlockMode autoBlockMode = AutoBlockMode.CUSTOM;
 
     public AutoBlock() {
-        super("AutoBlock", "3/3/2 ticks at 7.5 APS", Category.COMBAT);
+        super("AutoBlock", "3/3/2 ticks at 7.5 APS", Category.COMBAT, Subcategory.ADVANCED);
         this.mode = addChoice("Mode", "", List.of(AutoBlockMode.labels()), AutoBlockMode.CUSTOM.ordinal());
         this.range = addNumber("Range", "", 4.0F, 2.0F, 6.0F, 1);
         this.swapAps = addNumber("Swap APS", "", 7.5F, 1.0F, 10.0F, 1);

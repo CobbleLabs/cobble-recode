@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.blink.BlinkMode;
 import cobble.module.player.blink.ElapsedTimer;
 import cobble.module.shared.DisabledOrNestedCondition;
@@ -33,7 +34,7 @@ public class Blink extends Module implements ProgressBarSource {
     private final ElapsedTimer WPA = new ElapsedTimer();
 
     public Blink() {
-        super("Blink", "Disable on", Category.PLAYER);
+        super("Blink", "Disable on", Category.PLAYER, Subcategory.EXTREME);
         this.mode = addChoice("Mode", "", List.of(MODE_NAMES), 1);
         this.disableLagrange = addBoolean("Disable Lagrange", "", false);
         this.maxDuration = addBoolean("Max duration", "", false);

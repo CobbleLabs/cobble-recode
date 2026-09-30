@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import java.util.Locale;
 
@@ -26,7 +27,8 @@ public final class FastMine extends Module {
     private float accumulator;
 
     public FastMine() {
-        super("FastMine", "Shortens the wait between blocks and speeds up the break", Category.PLAYER);
+        super("FastMine", "Shortens the wait between blocks and speeds up the break", Category.PLAYER,
+                Subcategory.ADVANCED);
         setIcon(Icon.ZAP);
     }
 

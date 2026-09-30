@@ -5,12 +5,13 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import cobble.ui.Client;
 
 public final class RadarModule extends Module {
     public RadarModule() {
-        super("Radar", "Everybody in a loaded chunk, and what they are carrying", Category.HUD,
+        super("Radar", "Everybody in a loaded chunk, and what they are carrying", Category.HUD, Subcategory.ADVANCED,
                 Input.KEY_RIGHT_CONTROL);
         setIcon(Icon.RADIO);
     }

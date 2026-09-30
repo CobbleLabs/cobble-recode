@@ -5,6 +5,7 @@ import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +17,7 @@ import org.luaj.vm2.Varargs;
 /** cold.module, which declares a module from Lua, and cold.modules, which reaches any module by name. */
 final class ApiModule {
     private static final String MODULE_FIELD = "__module";
-    private static final String[] STALE_FIELDS = {"bind", "key", "enabled", "category"};
+    private static final String[] STALE_FIELDS = {"bind", "key", "enabled", "category", "subcategory"};
     private static final Color DEFAULT_COLOUR = Color.rgb(0x58C6FF);
 
     private ApiModule() {}
@@ -34,6 +35,19 @@ final class ApiModule {
 
     private static String lowercase(String value) {
         return value.toLowerCase(Locale.ROOT);
+    }
+
+    private static Subcategory subcategoryOf(LuaTable definition) {
+        String wanted = Lua.fieldString(definition, "subcategory", "");
+        if (wanted.isEmpty()) {
+            return Subcategory.GENERAL;
+        }
+        for (Subcategory subcategory : Subcategory.values()) {
+            if (subcategory.displayName.equalsIgnoreCase(wanted)) {
+                return subcategory;
+            }
+        }
+        throw Lua.error("unknown subcategory '%s'", wanted);
     }
 
     private static Module ownerOf(LuaValue table) {
@@ -194,6 +208,7 @@ final class ApiModule {
                 case "name" -> LuaValue.valueOf(module.name);
                 case "description" -> LuaValue.valueOf(module.description);
                 case "category" -> LuaValue.valueOf(module.category.displayName);
+                case "subcategory" -> LuaValue.valueOf(module.subcategory.displayName);
                 case "animation" -> LuaValue.valueOf(module.animation());
                 default -> LuaValue.NIL;
             };
@@ -313,7 +328,8 @@ final class ApiModule {
             if (bind == 0) {
                 bind = Lua.fieldInt(definition, "key", 0);
             }
-            ScriptModule module = new ScriptModule(script, name, description, Category.SCRIPTS, bind);
+            ScriptModule module = new ScriptModule(script, name, description, Category.SCRIPTS,
+                    subcategoryOf(definition), bind);
             module.defineIcon(Icon.byName(Lua.fieldString(definition, "icon", ""), Category.SCRIPTS.icon));
 
             LuaValue settings = definition.get("settings");

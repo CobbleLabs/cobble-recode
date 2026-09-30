@@ -7,6 +7,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.autoswap.SwapStateTracker;
 import cobble.util.ClientUtils;
 import cobble.util.block.BlockList;
@@ -27,7 +28,7 @@ public class AutoSwap extends Module {
     private final SwapStateTracker Sxek = new SwapStateTracker();
 
     public AutoSwap() {
-        super("AutoSwap", "Moves to the next block stack when one runs out", Category.PLAYER);
+        super("AutoSwap", "Moves to the next block stack when one runs out", Category.PLAYER, Subcategory.BASIC);
         this.swapAt = addNumber("Swap at", "", 1.0F, 1.0F, 64.0F, 0);
         this.useBlockWhitelist = addBoolean("Use block whitelist", "", false);
         this.whitelistedBlocks = new BlockList();

@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.attributeswap.ItemScorer;
 import cobble.util.ClientUtils;
 import net.minecraft.enchantment.Enchantment;
@@ -28,7 +29,7 @@ public class AttributeSwap extends Module {
     private boolean attackPending;
 
     public AttributeSwap() {
-        super("AttributeSwap", "Swaps to your best sword for the hit, then back", Category.COMBAT);
+        super("AttributeSwap", "Swaps to your best sword for the hit, then back", Category.COMBAT, Subcategory.BASIC);
         this.rightMouseHeld = addBoolean("Right mouse held", "", false);
         this.swapDelay = addNumber("Swap delay", "", 50.0F, 0.0F, 250.0F, 0);
     }

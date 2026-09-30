@@ -11,6 +11,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.shared.TargetFinder;
 import cobble.util.ClientUtils;
 import net.minecraft.entity.Entity;
@@ -50,7 +51,7 @@ public class Reduce extends Module {
     private Setting whilstHoldingLeft;
 
     public Reduce() {
-        super("Reduce", "Attacks back when hit to cut the knockback", Category.COMBAT);
+        super("Reduce", "Attacks back when hit to cut the knockback", Category.COMBAT, Subcategory.ADVANCED);
         this.onlyWhilstAgainstKbStick = addBoolean("Only whilst against KB Stick", "", false);
         this.notWhilstBlocking = addBoolean("Not whilst blocking", "", false);
         this.onlyWhilstHoldingWeapon = addBoolean("Only whilst holding weapon", "", false);

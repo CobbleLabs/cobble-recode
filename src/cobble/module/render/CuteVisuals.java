@@ -17,6 +17,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import cobble.render.Renderer;
 import cobble.ui.Theme;
@@ -152,7 +153,7 @@ public final class CuteVisuals extends Module {
     private int bedZ;
 
     public CuteVisuals() {
-        super("CuteVisuals", "Heart and dot trail, and a burst when a bed goes", Category.VISUALS);
+        super("CuteVisuals", "Heart and dot trail, and a burst when a bed goes", Category.VISUALS, Subcategory.BASIC);
         setIcon(Icon.FLAME);
     }
 

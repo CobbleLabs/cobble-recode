@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import cobble.util.font.FontManager;
 import cobble.util.font.IFont;
@@ -41,7 +42,7 @@ public class LagDetect extends Module {
     private long lastDurationRefreshMillis = 0L;
 
     public LagDetect() {
-        super("LagDetect", "Detects packet loss", Category.OTHER);
+        super("LagDetect", "Detects packet loss", Category.OTHER, Subcategory.BASIC);
         this.highLatency = addNumber("High latency", "", 0.5F, 0.1F, 5.0F, 1);
         this.fontScale = addNumber("Font scale", "", 1.0F, 0.5F, 2.0F, 1);
         this.fontScale.setVisible(false);

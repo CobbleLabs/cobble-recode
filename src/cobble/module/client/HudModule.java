@@ -4,6 +4,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 import cobble.ui.Client;
 import cobble.ui.Hud;
@@ -18,7 +19,7 @@ public final class HudModule extends Module {
     private final Setting speed;
 
     public HudModule() {
-        super("HUD", "Watermark and module list", Category.HUD);
+        super("HUD", "Watermark and module list", Category.HUD, Subcategory.BASIC);
         setIcon(Icon.MONITOR);
         scale = addNumber("Scale", "Size of the HUD elements", 1.0f, 0.6f, 2.5f, 2);
         watermark = addBoolean("Watermark", "cobble.vip bar in the corner", true);

@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Align;
 import cobble.render.FontRole;
 import cobble.render.Icon;
@@ -122,7 +123,7 @@ public final class Esp extends Module {
     private final Map<Integer, Entry> entries = new HashMap<>();
 
     public Esp() {
-        super("ESP", "Outlines, tracers and off-screen arrows for entities", Category.VISUALS);
+        super("ESP", "Outlines, tracers and off-screen arrows for entities", Category.VISUALS, Subcategory.ADVANCED);
         setIcon(Icon.EYE);
     }
 

@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.render.Icon;
 
 /**
@@ -37,7 +38,8 @@ public final class AutoTool extends Module {
     private int previousSlot = -1;
 
     public AutoTool() {
-        super("AutoTool", "Swaps to the fastest tool for whatever you are breaking", Category.PLAYER);
+        super("AutoTool", "Swaps to the fastest tool for whatever you are breaking", Category.PLAYER,
+                Subcategory.BASIC);
         setIcon(Icon.WRENCH);
     }
 

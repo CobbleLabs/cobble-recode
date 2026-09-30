@@ -9,6 +9,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
+import cobble.module.Subcategory;
 import cobble.module.player.autodeflect.AutoDeflectSettings;
 import cobble.module.player.autodeflect.ClickScheduler;
 import cobble.module.player.autodeflect.DeflectConditions;
@@ -33,7 +34,7 @@ public class AutoDeflect extends Module {
     private final Random random = new Random();
 
     public AutoDeflect() {
-        super("AutoDeflect", "Hits incoming fireballs back", Category.PLAYER);
+        super("AutoDeflect", "Hits incoming fireballs back", Category.PLAYER, Subcategory.ADVANCED);
         this.autoDeflectSettings = new AutoDeflectSettings(this);
     }
 

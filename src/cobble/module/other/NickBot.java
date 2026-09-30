@@ -7,6 +7,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import com.google.gson.GsonBuilder;
@@ -72,7 +73,7 @@ public class NickBot extends Module {
     private String xm8 = "";
 
     public NickBot() {
-        super("NickBot", "Claims matching random nicknames from JSON rules", Category.OTHER);
+        super("NickBot", "Claims matching random nicknames from JSON rules", Category.OTHER, Subcategory.EXTREME);
         this.nickInterval = addNumber("Nick Interval", "", 20.0F, 1.0F, 50.0F, 0);
         this.resetInterval = addNumber("Reset Interval", "", 0.0F, 0.0F, 100.0F, 0);
         this.autoClaim = addBoolean("Auto Claim", "", true);

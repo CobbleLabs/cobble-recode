@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.inventorymanager.ArmorScorer;
 import cobble.module.player.inventorymanager.CursorRecoveryPlan;
 import cobble.module.player.inventorymanager.InventorySnapshot;
@@ -59,7 +60,8 @@ public class InventoryManager extends Module {
     private static final InventoryManager$9 VTnIh = InventoryManager::noOpAfterAction;
 
     public InventoryManager() {
-        super("InventoryManager", "Sorts the inventory, equips armor and drops junk", Category.PLAYER);
+        super("InventoryManager", "Sorts the inventory, equips armor and drops junk", Category.PLAYER,
+                Subcategory.BASIC);
         this.delayTicks = addNumber("Delay Ticks", "", 2.0F, 0.0F, 20.0F, 0);
         this.randomize = addBoolean("Randomize", "", false);
         this.disableWhenDone = addBoolean("Disable when done", "", false);

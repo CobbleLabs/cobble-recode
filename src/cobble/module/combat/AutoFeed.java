@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.autofeed.DamageCalculator;
 import cobble.util.ClientUtils;
 import java.util.HashMap;
@@ -37,7 +38,7 @@ public class AutoFeed extends Module {
     private final Map<Integer, AutoFeed$1> rrGx = new HashMap<>();
 
     public AutoFeed() {
-        super("AutoFeed", "Stops attacks that would finish an enemy", Category.COMBAT);
+        super("AutoFeed", "Stops attacks that would finish an enemy", Category.COMBAT, Subcategory.ADVANCED);
         this.minimumHealth = addNumber("Minimum health", "", 1.0F, 0.5F, 10.0F, 1);
         this.safetyMargin = addNumber("Safety margin", "", 0.5F, 0.0F, 3.0F, 1);
         this.onlyInBedwars = addBoolean("Only in Bedwars", "", true);

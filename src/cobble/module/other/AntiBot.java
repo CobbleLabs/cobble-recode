@@ -8,6 +8,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.Freecam;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +25,7 @@ public class AntiBot extends Module {
     private static final Set<Integer> DHoht = ConcurrentHashMap.newKeySet();
 
     public AntiBot() {
-        super("AntiBot", "Filters out the server's fake players", Category.OTHER);
+        super("AntiBot", "Filters out the server's fake players", Category.OTHER, Subcategory.BASIC);
         tabList = addBoolean("Tab list", "", false);
         moveCheck = addBoolean("Move Check", "", true);
         setEnabled(true, null);

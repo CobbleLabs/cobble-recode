@@ -8,6 +8,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.keepsprint.KeepSprintState;
 import cobble.module.combat.keepsprint.KeepSprintState$0;
 import cobble.module.movement.NoSlow;
@@ -20,7 +21,7 @@ public class KeepSprint extends Module {
     private final Setting slowdown;
 
     public KeepSprint() {
-        super("KeepSprint", "Keeps sprinting through your own hits", Category.COMBAT);
+        super("KeepSprint", "Keeps sprinting through your own hits", Category.COMBAT, Subcategory.ADVANCED);
         this.slowdown = addNumber("Slowdown", "", 0.0F, 0.0F, 100.0F, 0);
     }
 

@@ -2,6 +2,7 @@ package cobble.module.player;
 
 import cobble.module.Category;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
 import cobble.module.player.ghosthand.GhostHandFilters;
 import cobble.module.player.ghosthand.GhostHandFilters$2;
@@ -24,7 +25,7 @@ public class GhostHand extends Module implements PointedObjectOverrider {
     private final GhostHandSettings ghostHandSettings = new GhostHandSettings(this);
 
     public GhostHand() {
-        super("GhostHand", "Interacts with blocks behind entities and walls", Category.PLAYER);
+        super("GhostHand", "Interacts with blocks behind entities and walls", Category.PLAYER, Subcategory.ADVANCED);
     }
 
     @Override

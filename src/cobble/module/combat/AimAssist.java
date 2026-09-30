@@ -7,6 +7,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.combat.aimassist.AimAssistMode;
 import cobble.module.combat.shared.BreakableBlockWhitelist;
 import cobble.module.other.AntiBot;
@@ -47,7 +48,7 @@ public class AimAssist extends Module {
     private static final String[] uGubL = new String[]{"Health", "FOV", "Hurttime", "Distance"};
 
     public AimAssist() {
-        super("AimAssist", "Pulls your aim toward the nearest target", Category.COMBAT);
+        super("AimAssist", "Pulls your aim toward the nearest target", Category.COMBAT, Subcategory.BASIC);
         this.mode = addChoice("Mode", "", List.of(AimAssistMode.labels()), AimAssistMode.NORMAL.ordinal());
         this.speed = addNumber("Speed", "", 10.0F, 1.0F, 30.0F, 0);
         this.multipoint = addNumber("Multipoint", "", 0.0F, 0.0F, 100.0F, 0);

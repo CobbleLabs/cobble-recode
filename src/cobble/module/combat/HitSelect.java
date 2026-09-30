@@ -6,6 +6,7 @@ import cobble.event.Subscribe;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Subcategory;
 import cobble.module.combat.hitselect.HitSelectMode;
 import cobble.module.combat.hitselect.HitSelectSettings;
 import cobble.module.combat.hitselect.HitSelectTracker;
@@ -24,7 +25,7 @@ public class HitSelect extends Module {
     private int tickCounter;
 
     public HitSelect() {
-        super("HitSelect", "Holds hits back until they land for more", Category.COMBAT);
+        super("HitSelect", "Holds hits back until they land for more", Category.COMBAT, Subcategory.BASIC);
         this.hitSelectSettings = new HitSelectSettings(this);
     }
 

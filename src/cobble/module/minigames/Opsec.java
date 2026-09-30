@@ -7,6 +7,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import cobble.util.packet.PacketDirection;
 import cobble.util.packet.PacketListenerRegistration;
@@ -22,7 +23,8 @@ public final class Opsec extends Module {
     private boolean inBedwarsLobby;
 
     public Opsec() {
-        super("Opsec", "Adds ping in the Bed Wars lobby so it can't identify you", Category.MINIGAMES);
+        super("Opsec", "Adds ping in the Bed Wars lobby so it can't identify you", Category.MINIGAMES,
+                Subcategory.ADVANCED);
         this.pingBoost = addNumber("Ping Boost", "", 100.0F, 50.0F, 1000.0F, 0);
     }
 

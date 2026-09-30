@@ -11,6 +11,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.shared.DisabledOrNestedCondition;
 import cobble.module.shared.ProgressBarSource;
 import cobble.ui.Client;
@@ -39,7 +40,7 @@ public class FakeLag extends Module implements ProgressBarSource {
     private final FakePlayerRenderer$1 serverPositionTracker = new FakePlayerRenderer$1();
 
     public FakeLag() {
-        super("FakeLag", "Disable on", Category.PLAYER);
+        super("FakeLag", "Disable on", Category.PLAYER, Subcategory.EXTREME);
         this.mode = addChoice("Mode", "", List.of(wagB), 1);
         this.packetDelay = addNumber("Packet delay", "", 0.0F, 0.0F, 1500.0F, 0);
         this.disableLagrange = addBoolean("Disable Lagrange", "", false);

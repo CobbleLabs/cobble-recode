@@ -7,6 +7,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.minigames.autowho.DelayedStateTrigger;
 import cobble.util.ClientUtils;
 
@@ -16,7 +17,7 @@ public class AutoWho extends Module {
     private final Setting delay;
 
     public AutoWho() {
-        super("AutoWho", "Automatically execute /who", Category.MINIGAMES);
+        super("AutoWho", "Automatically execute /who", Category.MINIGAMES, Subcategory.BASIC);
         this.delay = addNumber("Delay", "", 0.0F, 0.0F, 5000.0F, 0);
         this.hideResponse = addBoolean("Hide response", "", false);
     }

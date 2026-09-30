@@ -4,6 +4,7 @@ import cobble.core.Assets;
 import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Theme;
 import java.awt.Graphics;
 import java.awt.image.BufferedImage;
@@ -30,7 +31,7 @@ public class Cape extends Module {
     private long lastAnimationMillis = -1L;
 
     public Cape() {
-        super("Cape", "Gives you a cape", Category.VISUALS);
+        super("Cape", "Gives you a cape", Category.VISUALS, Subcategory.BASIC);
         instance = this;
         this.KBIxnC();
         cape = addChoice("Cape", "", List.of(this.capeModes), 0);

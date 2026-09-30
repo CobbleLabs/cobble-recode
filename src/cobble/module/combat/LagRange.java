@@ -11,6 +11,7 @@ import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.module.player.BedNuker;
 import cobble.module.player.Blink;
 import cobble.module.player.FakeLag;
@@ -60,7 +61,7 @@ public class LagRange extends Module {
     private final FakePlayerRenderer$1 snapshotHistory = new FakePlayerRenderer$1();
 
     public LagRange() {
-        super("LagRange", "Flush conditions", Category.COMBAT);
+        super("LagRange", "Flush conditions", Category.COMBAT, Subcategory.EXTREME);
         this.mode = addChoice("Mode", "", List.of(ThT), 0);
         this.range = addNumber("Range", "", 6.0F, 3.0F, 10.0F, 1);
         this.maximumDelay = addNumber("Maximum delay", "", 200.0F, 50.0F, 1000.0F, 0);

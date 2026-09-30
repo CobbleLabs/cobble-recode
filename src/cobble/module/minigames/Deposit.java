@@ -12,6 +12,7 @@ import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
+import cobble.module.Subcategory;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.block.BlockUtils;
@@ -119,7 +120,7 @@ public class Deposit extends Module {
     };
 
     public Deposit() {
-        super("Deposit", "Puts resources and items into nearby chests", Category.MINIGAMES);
+        super("Deposit", "Puts resources and items into nearby chests", Category.MINIGAMES, Subcategory.ADVANCED);
         EventBus.register(this.gameModeTracker);
         this.smartMode = addBoolean("Smart mode", "", true);
         this.chests = addBoolean("Chests", "", true);
