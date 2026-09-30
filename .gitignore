@@ -4,10 +4,10 @@ usefulinfo/
 
 # Build output
 build/
-testenv/build/
-testenv/.gradle/
-testenv/run/
-testenv/run-server/
+legacy/testenv/build/
+legacy/testenv/.gradle/
+legacy/testenv/run/
+legacy/testenv/run-server/
 
 # Runtime artefacts next to the payload
 dist/*.log
@@ -22,8 +22,9 @@ dist/*.exe
 dist/*.pdb
 dist/*.lib
 dist/*.exp
+legacy/dist-old/
 # The build copies scripts/ next to the payload; the folder itself is the source.
 dist/scripts/
 
 # Third-party jars the client compiles against; configuring fetches all but the MCP one
-client/lib/
+infra/lib/

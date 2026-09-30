@@ -6,7 +6,7 @@
     player is checked on the spot; the drawing calls are made every frame, so a
     binding that raises lands in the log rather than going unnoticed.
 
-    This is the file to run after touching payload/src/script.
+    This is the file to run after touching src/cobble/script.
 ]]
 
 cold.script {

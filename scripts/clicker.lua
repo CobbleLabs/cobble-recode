@@ -4,7 +4,7 @@
     The click is queued on Minecraft's own binding rather than sent as a packet,
     which is what cold.action.click does: an interaction the payload sends
     itself arrives after that tick's movement packet, and the ordering is the
-    first thing an anticheat looks at. See knowledgebase/grim-rotation-ordering.
+    first thing an anticheat looks at. See docs/grim-rotation-ordering.
 
     It also demonstrates a timer, which measures seconds off the same clock the
     animations run on.

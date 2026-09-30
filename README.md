@@ -14,7 +14,7 @@ The client was originally built for 1.21.11 Fabric and was ported to Lunar's
 1.8.9 runtime: Lunar ships deobfuscated **MCP names**, renders through LWJGL 2
 on a legacy compatibility GL context, and presents with `wglSwapBuffers` rather
 than GLFW. See the *Lunar 1.8.9 port* section below and
-`knowledgebase/lunar-1-8-9-port.md` for what that changed.
+`docs/lunar-1-8-9-port.md` for what that changed.
 
 ```
 dist/
@@ -35,18 +35,37 @@ first run of the new build.
 
 ## Build
 
-Needs Windows x64, the MSVC C++ toolchain, CMake 3.21+, Node 18+ (code
-generation) and a JDK with `jni.h`.
+Needs Windows x64, the MSVC C++ toolchain, CMake 3.21+ and a JDK 17+ with
+`jni.h`. Configuring fetches the public jars into `infra/lib`; the MCP-named
+`minecraft-1.8.9-mcp.jar` has to be copied there by hand.
 
 ```bash
-node tools/genmappings.mjs     # 1.8.9 MCP-name table -> resolver tables
-node tools/packassets.mjs      # fonts + icons -> one embedded blob
 cmake -S . -B build/native -A x64 -DCOLD_JAVA_HOME="<path to JDK>"
 cmake --build build/native --config Release
 ```
 
-Both generators are checked in as inputs, so a clean clone builds after those
-two commands. `tools/dev.sh build` wraps the last step.
+`tools/build.ps1` wraps both steps and finds or installs CMake.
+
+```
+src/cobble/      the Java client
+  boot/            entry points the DLL calls by name, class patcher
+  core/ event/     config, maths, logging; the event bus
+  game/ hook/      views over Minecraft state; the bytecode hook handlers
+  module/          modules, one package per menu category
+  render/ ui/      SDF renderer; menu, HUD, radar
+  script/          the Lua API
+  util/            block, font, item, packet, raytrace, render, rotation, team
+bootstrap/       cobble.dll: finds the JVM, defines MemoryLoader, starts Boot
+loader/          cobble-injector.exe
+infra/ext/       vendored C++ (Dear ImGui)
+infra/lib/       jars the client compiles against (not in git)
+assets/          fonts, icons, shaders, the Lua prelude
+scripts/         example Lua scripts, copied to dist/scripts
+docs/            notes, most of them from the C++ payload era
+tools/           build.ps1, Widen.java (used by CMake), crop.ps1
+legacy/          the old C++ payload, the 1.21 test env and their tools
+dist/            build output
+```
 
 ## Use
 
@@ -79,9 +98,9 @@ it. It resumes the moment the window is restored.
 
 ## Lunar 1.8.9 port notes
 
-- **Names.** Lunar's 1.8.9 runtime is not obfuscated: `tools/mappings.def.mjs`
+- **Names.** Lunar's 1.8.9 runtime is not obfuscated: `legacy/tools/mappings.def.mjs`
   is written directly in MCP names (`net/minecraft/client/Minecraft`,
-  `theMinecraft`, `posX`, `windowClick`), and `tools/genmappings.mjs` is a
+  `theMinecraft`, `posX`, `windowClick`), and `legacy/tools/genmappings.mjs` is a
   pass-through that lays the tables out and checks id uniqueness.
 - **Frame hook.** `hooks/Hooks.cpp` detours `wglSwapBuffers` in `opengl32.dll`,
   which is what LWJGL 2's `Display` calls to present. The window handle comes
@@ -140,14 +159,14 @@ Everything that touches rotation goes through one engine that quantises to whole
 mouse counts and applies once per client tick. Everything that acts on the world
 does so only after the rotation the server *already holds* covers the target.
 Both properties are what a modern anticheat actually measures; see
-`knowledgebase/grim-rotation-ordering.md` and `knowledgebase/mouse-grid-rotations.md`.
+`docs/grim-rotation-ordering.md` and `docs/mouse-grid-rotations.md`.
 
 **Silent rotations** are the default for Scaffold and available on KillAura. The
 aim goes into the player only on the frame before the client tick, so the
 movement packet carries it, and a second hook takes it back before the world is
 drawn — the server sees the rotation, the camera never does. No mixins and no
 bytecode injection are involved; it falls out of the order Minecraft does things
-in. `knowledgebase/silent-rotations-without-bytecode.md` has the whole thing,
+in. `docs/silent-rotations-without-bytecode.md` has the whole thing,
 including the two ways of getting it wrong that cost the most time.
 
 Scaffold searches **behind** the direction of travel, not straight down: by the
@@ -162,7 +181,7 @@ Rise's `applyNewWatchdogRotations`, aiming half a block off the block centre
 along the player's side axis and subtracting a movement-dependent yaw offset.
 The block about to be placed is outlined as an actual projected cube, faces and
 all, rather than the screen rectangle that contains it.
-`knowledgebase/scaffold-placement-search.md` has the details.
+`docs/scaffold-placement-search.md` has the details.
 
 ## Scripting
 
@@ -213,11 +232,11 @@ callbacks are stopped after 250 ms and states are capped at 64 MB, because all
 of it runs on the render thread. **[`scripts/README.md`](scripts/README.md)** is
 the full reference, `scripts/selftest.lua` exercises every part of it and says
 what failed, and the files beside them are worked examples;
-`knowledgebase/lua-scripting.md` is how it is put together.
+`docs/lua-scripting.md` is how it is put together.
 
 ## Test environment
 
-`testenv/` is a Loom workspace that was built against 1.21.11 Fabric. It is not
+`legacy/testenv/` is a Loom workspace that was built against 1.21.11 Fabric. It is not
 part of the 1.8.9 port — the control-channel smoke suite below has not been
 rewired to Lunar. It is kept for reference and for a future 1.21 build.
 
@@ -229,7 +248,7 @@ Other tools:
 
 | Command | Purpose |
 | --- | --- |
-| `tools/shoot.ps1 -Script "..."` | Send control commands, capture a frame |
+| `legacy/tools/shoot.ps1 -Script "..."` | Send control commands, capture a frame |
 
 ## Measured cost
 
@@ -241,8 +260,8 @@ render path.
 
 ## The Knowledge
 
-`knowledgebase/` is an Obsidian-style vault of everything in this project that
-cost more than one attempt. Start at [`knowledgebase/MAP.md`](knowledgebase/MAP.md).
+`docs/` is an Obsidian-style vault of everything in this project that
+cost more than one attempt. Start at [`docs/MAP.md`](docs/MAP.md).
 
 ## Provenance
 

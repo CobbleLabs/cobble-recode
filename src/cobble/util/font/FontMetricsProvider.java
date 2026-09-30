@@ -1,0 +1,4 @@
+package cobble.util.font;
+
+public interface FontMetricsProvider extends FontWidthProvider, FontHeightProvider, LineHeightFont, TextTopOffsetProvider, TextBottomOffsetProvider {
+}
