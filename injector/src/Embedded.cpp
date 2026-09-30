@@ -101,12 +101,6 @@ std::wstring tempPayloadPath() {
 
 }  // namespace
 
-bool hasEmbeddedPayload() {
-    const std::uint8_t* data = nullptr;
-    std::size_t size = 0;
-    return resourceBytes(kPayloadResourceId, data, size);
-}
-
 bool payloadBytes(const std::uint8_t*& data, std::size_t& size) {
     return resourceBytes(kPayloadResourceId, data, size);
 }

@@ -77,7 +77,7 @@ public final class Trajectories extends Module {
     private float lastPathAge = 99.0f;
 
     public Trajectories() {
-        super("Trajectories", "Draws where the projectile in your hand lands", Category.RENDER);
+        super("Trajectories", "Draws where the projectile in your hand lands", Category.VISUALS);
         setIcon(Icon.ACTIVITY);
     }
 

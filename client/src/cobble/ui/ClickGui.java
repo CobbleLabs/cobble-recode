@@ -61,6 +61,7 @@ public final class ClickGui {
     private static final float ROW_HEIGHT = 50.0f;
     private static final float ROW_GAP = 4.0f;
     private static final float ROW_RADIUS = 8.0f;
+    private static final float SECTION_HEIGHT = 28.0f;
     private static final float GEAR_SLOT_WIDTH = 52.0f;
 
     private static final float ROW_ICON_CENTRE = 27.0f;
@@ -76,11 +77,12 @@ public final class ClickGui {
     private static final float SETTING_PAD_X = 14.0f;
     private static final float CHOICE_ITEM_HEIGHT = 26.0f;
     private static final float SLIDER_TRACK = 4.0f;
-    private static final float EDITOR_HEIGHT = 140.0f;
     private static final float EDITOR_FIELD = 96.0f;
     private static final float EDITOR_STRIP = 10.0f;
     private static final float EDITOR_SWATCH = 18.0f;
     private static final float EDITOR_GAP = 8.0f;
+    /* A gap above, between and below the field, the hue strip and the swatch. */
+    private static final float EDITOR_HEIGHT = EDITOR_GAP * 4.0f + EDITOR_FIELD + EDITOR_STRIP + EDITOR_SWATCH;
 
     /* Type sizes as the design measures them: the height of the line box. */
     private static final float LABEL_BOX = 15.0f;
@@ -200,7 +202,8 @@ public final class ClickGui {
         FLAG,     // one boolean setting, toggle pill only
         COLOUR,   // one colour setting, subpage with the editor
         CONFIGS,  // subpage with the config manager
-        ACTION    // runs something when clicked
+        ACTION,   // runs something when clicked
+        SECTION   // subcategory heading, not clickable
     }
 
     private enum Action { RELOAD_SCRIPTS, RELOAD_CONFIGS, OPEN_FOLDER, UNLOAD }
@@ -275,6 +278,7 @@ public final class ClickGui {
         /* The settings tab is only the gear at the end of the bar. */
         final boolean iconOnly;
         final List<Row> rows = new ArrayList<>();
+        int sections;  // rows that are subcategory headings, left out of the count
         Rect bounds = Rect.EMPTY;
         float hover;
 
@@ -735,33 +739,47 @@ public final class ClickGui {
         rows.clear();
         tabs.clear();
 
-        for (Category category : Category.values()) {
-            List<Module> inCategory = ModuleManager.byCategory(category);
-            if (inCategory.isEmpty()) {
+        for (Category tabCategory : Category.values()) {
+            if (tabCategory.tab != tabCategory) {
                 continue;
             }
-            Tab categoryTab = new Tab(category.displayName, category.icon, "MODULES", false);
-            for (Module module : inCategory) {
-                Row row = new Row(RowKind.MODULE, module.name, module.description, module.icon());
-                row.module = module;
-                /* The module's own bind leads its subpage: the list only shows
-                 * it, and a middle click is not something anyone discovers. */
-                row.settings.add(new SettingRow(null));
-                for (Setting setting : module.settings()) {
-                    SettingRow settingRow = new SettingRow(setting);
-                    settingRow.knob = setting.normalised();
-                    settingRow.hue = hueOf(setting.colour());
-                    row.settings.add(settingRow);
+            Tab categoryTab = new Tab(tabCategory.displayName, tabCategory.icon, "MODULES", false);
+            for (Category category : Category.values()) {
+                if (category.tab != tabCategory) {
+                    continue;
                 }
-                categoryTab.rows.add(row);
-                rows.add(row);
+                List<Module> inCategory = ModuleManager.byCategory(category);
+                if (inCategory.isEmpty()) {
+                    continue;
+                }
+                if (category != tabCategory) {
+                    categoryTab.rows.add(new Row(RowKind.SECTION, category.displayName, "", category.icon));
+                    categoryTab.sections++;
+                }
+                for (Module module : inCategory) {
+                    Row row = new Row(RowKind.MODULE, module.name, module.description, module.icon());
+                    row.module = module;
+                    /* The module's own bind leads its subpage: the list only shows
+                     * it, and a middle click is not something anyone discovers. */
+                    row.settings.add(new SettingRow(null));
+                    for (Setting setting : module.settings()) {
+                        SettingRow settingRow = new SettingRow(setting);
+                        settingRow.knob = setting.normalised();
+                        settingRow.hue = hueOf(setting.colour());
+                        row.settings.add(settingRow);
+                    }
+                    categoryTab.rows.add(row);
+                    rows.add(row);
+                }
             }
-            tabs.add(categoryTab);
+            if (!categoryTab.rows.isEmpty()) {
+                tabs.add(categoryTab);
+            }
         }
 
         /* The gear: the client's own settings, the config manager and the four
          * things the menu can do to the client itself. */
-        Tab settings = new Tab("Settings", Icon.SETTINGS_2, "OPTIONS", true);
+        Tab settings = new Tab("Settings", Icon.SETTINGS, "OPTIONS", true);
         settings.rows.add(new Row(RowKind.CONFIGS, "Configs", "Create, load and delete your configs.", Icon.BOX));
 
         Module self = ModuleManager.find("ClickGUI");
@@ -1434,8 +1452,16 @@ public final class ClickGui {
         return height;
     }
 
+    private float rowHeight(Row row) {
+        return s(row.kind == RowKind.SECTION ? SECTION_HEIGHT : ROW_HEIGHT);
+    }
+
     private float listHeight(Tab page) {
-        return page.rows.size() * (s(ROW_HEIGHT) + s(ROW_GAP)) + s(ROW_GAP);
+        float height = s(ROW_GAP);
+        for (Row row : page.rows) {
+            height += rowHeight(row) + s(ROW_GAP);
+        }
+        return height;
     }
 
     private float subpageHeight(Row row) {
@@ -1693,7 +1719,12 @@ public final class ClickGui {
              * list would visibly resettle as the cascade finishes. */
             row.enter = entranceAt(ordinal++);
             float drop = (1.0f - row.enter) * s(ROW_RISE);
-            row.bounds = new Rect(body.x(), top - drop, body.width(), s(ROW_HEIGHT));
+            float height = rowHeight(row);
+            row.bounds = new Rect(body.x(), top - drop, body.width(), height);
+            top += height + s(ROW_GAP);
+            if (row.kind == RowKind.SECTION) {
+                continue;
+            }
 
             boolean hasPill = row.kind == RowKind.MODULE || row.kind == RowKind.FLAG;
             float chevronCentre = row.bounds.right()
@@ -1703,7 +1734,6 @@ public final class ClickGui {
 
             boolean hovered = pointable() && body.contains(mouseX, mouseY) && row.bounds.contains(mouseX, mouseY);
             row.hover = Maths.approach(row.hover, hovered ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
-            top += s(ROW_HEIGHT) + s(ROW_GAP);
         }
     }
 
@@ -1833,7 +1863,6 @@ public final class ClickGui {
 
         drawTabBar();
         drawCard();
-        drawCursor();
     }
 
     private void drawTabBar() {
@@ -2000,9 +2029,10 @@ public final class ClickGui {
         gfx.line(cursorX, centreY - s(7.0f), cursorX, centreY + s(7.0f), Math.max(1.0f, s(1.0f)), fade(SEPARATOR));
         cursorX += s(14.0f);
 
-        if (page.countFor != page.rows.size()) {
-            page.countFor = page.rows.size();
-            page.count = page.rows.size() + " " + page.countNoun;
+        int entries = page.rows.size() - page.sections;
+        if (page.countFor != entries) {
+            page.countFor = entries;
+            page.count = entries + " " + page.countNoun;
         }
         drawText(MICRO_FONT, page.count, cursorX, centreY - s(MICRO_BOX) * 0.5f, s(MICRO_BOX), fade(TEXT_FAINT));
         alpha = saved;
@@ -2076,6 +2106,16 @@ public final class ClickGui {
         alpha *= row.enter;
 
         Rect bounds = row.bounds;
+        if (row.kind == RowKind.SECTION) {
+            float iconBox = s(13.0f);
+            float centreY = bounds.bottom() - s(10.0f);
+            gfx.icon(row.icon, new Rect(bounds.x() + s(6.0f), centreY - iconBox * 0.5f, iconBox, iconBox),
+                    fade(TEXT_FAINT));
+            drawTracked(HEADING_FONT, row.title, bounds.x() + s(6.0f) + iconBox + s(8.0f),
+                    centreY - s(HEADING_BOX) * 0.5f, s(HEADING_BOX), fade(TEXT_MUTED), s(TRACKING));
+            alpha = saved;
+            return;
+        }
         float height = bounds.height();
         boolean hasPill = row.kind == RowKind.MODULE || row.kind == RowKind.FLAG;
 
@@ -2313,29 +2353,5 @@ public final class ClickGui {
             drawText(DESC_FONT, configStatus, body.x() + padX, above + s(ROW_GAP) + s(10.0f), s(DESC_BOX),
                     fade(TEXT_FAINT));
         }
-    }
-
-    /* The native cursor is hidden while the menu is up, so the menu draws its
-     * own. The light triangle with a dark inner face reads against both a
-     * bright scene and the card. */
-    private void drawCursor() {
-        float x = mouseX;
-        float y = mouseY;
-        float w = s(6.0f);
-        float h = s(9.5f);
-        float[] xs = {x, x, x + w, x + w * 0.62f};
-        float[] ys = {y, y + h, y + h * 0.68f, y + h * 0.68f};
-        gfx.face(xs, ys, Color.rgb(0xE8ECF2, 0.9f * alpha));
-
-        float cx = (xs[0] + xs[1] + xs[2] + xs[3]) * 0.25f;
-        float cy = (ys[0] + ys[1] + ys[2] + ys[3]) * 0.25f;
-        float inset = 0.85f;
-        float[] innerXs = new float[4];
-        float[] innerYs = new float[4];
-        for (int i = 0; i < 4; i++) {
-            innerXs[i] = cx + (xs[i] - cx) * inset;
-            innerYs[i] = cy + (ys[i] - cy) * inset;
-        }
-        gfx.face(innerXs, innerYs, Color.rgb(0x0B0E14, 0.9f * alpha));
     }
 }

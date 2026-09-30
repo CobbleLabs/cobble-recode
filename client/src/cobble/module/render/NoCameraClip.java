@@ -5,6 +5,6 @@ import cobble.module.Module;
 
 public class NoCameraClip extends Module {
     public NoCameraClip() {
-        super("NoCameraClip", "Keeps the third person camera out of walls", Category.RENDER);
+        super("NoCameraClip", "Keeps the third person camera out of walls", Category.VISUALS);
     }
 }

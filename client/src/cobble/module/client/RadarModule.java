@@ -10,7 +10,7 @@ import cobble.ui.Client;
 
 public final class RadarModule extends Module {
     public RadarModule() {
-        super("Radar", "Everybody in a loaded chunk, and what they are carrying", Category.CLIENT,
+        super("Radar", "Everybody in a loaded chunk, and what they are carrying", Category.HUD,
                 Input.KEY_RIGHT_CONTROL);
         setIcon(Icon.RADIO);
     }

@@ -34,7 +34,7 @@ public class FreeLook extends Module {
     private float savedFov;
 
     public FreeLook() {
-        super("FreeLook", "Looks around without turning your player", Category.RENDER);
+        super("FreeLook", "Looks around without turning your player", Category.VISUALS);
         this.key = addKey("Key", "", Input.glfwKey(56));
         this.mode = addChoice("Mode", "", List.of(ElF), 1);
         this.customFov = addBoolean("Custom FOV", "", false);

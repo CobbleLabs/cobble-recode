@@ -1,12 +1,7 @@
 package cobble.hook;
 
-import cobble.core.Log;
-import java.nio.IntBuffer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
-import org.lwjgl.BufferUtils;
-import org.lwjgl.LWJGLException;
-import org.lwjgl.input.Cursor;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
@@ -15,14 +10,9 @@ import org.lwjgl.input.Mouse;
  * radar. Opening a screen is what makes the game ungrab the mouse, release
  * every held key binding and stop reading input for itself, so the client
  * borrows that instead of taking the window over. It draws nothing: the menu
- * renders from the frame hook, cursor included, and the system cursor is
- * swapped for a transparent one.
+ * renders from the frame hook, over the system cursor.
  */
 public final class MenuScreen extends GuiScreen {
-    private static final String SCOPE = "input";
-
-    private static Cursor blank;
-
     public static void show() {
         Minecraft mc = Minecraft.getMinecraft();
         if (!(mc.currentScreen instanceof MenuScreen)) {
@@ -41,31 +31,17 @@ public final class MenuScreen extends GuiScreen {
     public void initGui() {
         Input.setCapturing(true);
         Keyboard.enableRepeatEvents(true);
-        try {
-            if (blank == null) {
-                IntBuffer pixel = BufferUtils.createIntBuffer(1);
-                blank = new Cursor(1, 1, 0, 0, 1, pixel, null);
-            }
-            Mouse.setNativeCursor(blank);
-        } catch (LWJGLException e) {
-            Log.warn(SCOPE, "system cursor stays visible: %s", e.getMessage());
-        }
     }
 
     @Override
     public void onGuiClosed() {
         Input.setCapturing(false);
         Keyboard.enableRepeatEvents(false);
-        try {
-            Mouse.setNativeCursor(null);
-        } catch (LWJGLException e) {
-            Log.warn(SCOPE, "could not restore the system cursor: %s", e.getMessage());
-        }
     }
 
     /*
      * The game only asks a screen for input from the tick, twenty times a
-     * second, which would leave the drawn cursor stepping. Draining here runs
+     * second, which would leave hovers and drags stepping. Draining here runs
      * it every frame; the tick then finds the queues empty.
      */
     @Override

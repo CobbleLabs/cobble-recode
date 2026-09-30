@@ -70,7 +70,7 @@ public final class TargetHud extends Module {
     private int targetId = -1;
 
     public TargetHud() {
-        super("TargetHud", "Panel for whoever the combat modules are hitting", Category.RENDER);
+        super("TargetHud", "Panel for whoever the combat modules are hitting", Category.VISUALS);
         setIcon(Icon.TARGET);
     }
 

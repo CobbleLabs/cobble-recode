@@ -18,7 +18,7 @@ public class Chams extends Module {
     private float IGauQ1;
 
     public Chams() {
-        super("Chams", "Draws players through walls", Category.RENDER);
+        super("Chams", "Draws players through walls", Category.VISUALS);
     }
 
     private void applyPolygonOffset() {

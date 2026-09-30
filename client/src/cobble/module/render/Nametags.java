@@ -79,7 +79,7 @@ public class Nametags extends Module {
     private int ysuU = 0;
 
     public Nametags() {
-        super("Nametags", "Custom nametags with health, distance and armor", Category.RENDER);
+        super("Nametags", "Custom nametags with health, distance and armor", Category.VISUALS);
         this.scale = addNumber("Scale", "", 1.0F, 0.1F, 2.0F, 1);
         this.autoScale = addBoolean("Auto Scale", "", false);
         this.background = addBoolean("Background", "", true);

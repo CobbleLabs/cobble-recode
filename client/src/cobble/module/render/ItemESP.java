@@ -46,7 +46,7 @@ public class ItemESP extends Module {
     private int activeEntryCount = 0;
 
     public ItemESP() {
-        super("ItemESP", "Highlights dropped items", Category.RENDER);
+        super("ItemESP", "Highlights dropped items", Category.VISUALS);
         this.mode = addChoice("Mode", "", List.of(ItemEspMode.labels()), ItemEspMode.BOX.ordinal());
         this.items = new ItemColorList();
         this.outline = addBoolean("Outline", "", true);

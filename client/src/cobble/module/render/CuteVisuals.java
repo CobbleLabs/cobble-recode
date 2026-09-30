@@ -152,7 +152,7 @@ public final class CuteVisuals extends Module {
     private int bedZ;
 
     public CuteVisuals() {
-        super("CuteVisuals", "Heart and dot trail, and a burst when a bed goes", Category.RENDER);
+        super("CuteVisuals", "Heart and dot trail, and a burst when a bed goes", Category.VISUALS);
         setIcon(Icon.FLAME);
     }
 

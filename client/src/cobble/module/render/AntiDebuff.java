@@ -6,7 +6,7 @@ import net.minecraft.potion.Potion;
 
 public class AntiDebuff extends Module {
     public AntiDebuff() {
-        super("AntiDebuff", "Removes the blindness and nausea effects", Category.RENDER);
+        super("AntiDebuff", "Removes the blindness and nausea effects", Category.VISUALS);
     }
 
     public boolean blocksBlindness(Potion var1) {

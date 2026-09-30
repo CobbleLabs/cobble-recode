@@ -1,7 +1,7 @@
 --[[
     Self test - exercises the whole script API and reports what did not work.
 
-    Switch ScriptSelfTest on in the Client category and the result appears on
+    Switch ScriptSelfTest on in the Scripts category and the result appears on
     screen and in the log. Everything that can be checked without moving the
     player is checked on the spot; the drawing calls are made every frame, so a
     binding that raises lands in the log rather than going unnoticed.
@@ -18,6 +18,8 @@ cold.script {
 
 local results = {}
 local failures = {}
+-- The module is declared at the bottom; the HUD element below only shows while it is on.
+local test
 
 local function check(name, ok, detail)
     results[#results + 1] = name
@@ -145,7 +147,7 @@ check("modules.list", #cold.modules.list() > 3)
 local esp = cold.modules.get("ESP")
 check("modules.get", esp ~= nil and esp.name == "ESP")
 if esp then
-    check("module category", esp.category == "Render", esp.category)
+    check("module category", esp.category == "Visuals", esp.category)
     check("module settings names", #esp:settingNames() > 0)
     local info = esp:setting(esp:settingNames()[1])
     check("module setting info", info ~= nil and info.name ~= nil)
@@ -195,6 +197,7 @@ local element = cold.hud.element {
     height = 22,
     x = 3,
     y = 55,
+    visible = function() return test ~= nil and test.enabled end,
     render = function(self, d)
         cold.render.rect(d.x, d.y, d.width, d.height, cold.rgb(0x000000, 0.45), d.unit * 2)
         cold.render.text("hud element", d.x + d.unit * 3, d.y + d.unit * 4, d.unit * 7,
@@ -345,7 +348,6 @@ end
 
 -- ------------------------------------------------------------- drawing ----
 
-local test
 test = cold.module {
     name = "ScriptSelfTest",
     description = "Runs the script API self test and reports failures",
