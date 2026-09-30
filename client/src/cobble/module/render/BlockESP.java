@@ -18,7 +18,7 @@ public class BlockESP extends Module {
     private int lastEntryHash;
 
     public BlockESP() {
-        super("BlockESP", "Highlights chosen blocks", Category.RENDER);
+        super("BlockESP", "Highlights chosen blocks", Category.VISUALS);
     }
 
     @Override

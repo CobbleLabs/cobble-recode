@@ -35,7 +35,7 @@ public class Cape extends Module {
     private long lastAnimationMillis = -1L;
 
     public Cape() {
-        super("Cape", "Gives you a cape", Category.RENDER);
+        super("Cape", "Gives you a cape", Category.VISUALS);
         instance = this;
         this.KBIxnC();
         cape = addChoice("Cape", "", List.of(this.capeModes), 0);

@@ -15,6 +15,7 @@ import cobble.hook.Input;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
+import cobble.module.client.HudModule;
 import cobble.module.render.TargetHud;
 import cobble.render.Align;
 import cobble.render.FontRole;
@@ -37,9 +38,10 @@ import net.minecraft.entity.EntityLivingBase;
  * list; text is drawn once with a shadow.
  *
  * <p>While a screen is open in-world - the pause menu, the inventory, chat - the
- * HUD becomes an editor. Every element then carries a frame with its name, a dot
- * that switches it off and a corner grip, and can be dragged to move, dragged by
- * the grip to resize, or clicked on the dot to toggle. Positions and per-element
+ * HUD becomes an editor. Every element that is on then carries a frame with its
+ * name, a dot that hides it and a corner grip, and can be dragged to move, dragged
+ * by the grip to resize, or clicked on the dot to hide. A hidden element stays out
+ * of the editor too; the HUD module's settings bring it back. Positions and per-element
  * sizes are remembered in cobble.cfg; nothing here is typed as a number, because
  * the point of editing in place is seeing the result while you do it.
  *
@@ -362,8 +364,14 @@ public final class Hud {
         return units * unit;
     }
 
+    /* HudModule only pushes its settings while it is on, so switched off it would
+     * leave every element showing with whatever it last pushed. */
+    private static boolean switchedOn() {
+        return ModuleManager.get(HudModule.class).enabled();
+    }
+
     private boolean editMode(FrameState state) {
-        return state.inWorld && state.screenOpen && !menuOpen;
+        return state.inWorld && state.screenOpen && !menuOpen && switchedOn();
     }
 
     private void shadowed(FontRole role, String value, float x, float capTop, float size, Color colour) {
@@ -424,16 +432,6 @@ public final class Hud {
 
     private static Color darkerOnce(Color colour) {
         return new Color(colour.r() * 0.7f, colour.g() * 0.7f, colour.b() * 0.7f, colour.a());
-    }
-
-    private boolean shownOf(Element element) {
-        return switch (element) {
-            case WATERMARK -> watermark;
-            case ARRAY_LIST -> arrayList;
-            case PLAYER_INFO -> playerInfo;
-            case TARGET_INFO -> targetInfo;
-            case SPEED -> speed;
-        };
     }
 
     private Rect rectOf(Element element) {
@@ -742,20 +740,13 @@ public final class Hud {
      * global unit while drawScale is reset, so a grip on an element shrunk to half
      * size is still a grip you can hit.
      */
-    private void drawEditChrome(Element element, Rect bounds, boolean shown) {
+    private void drawEditChrome(Element element, Rect bounds) {
         if (bounds.width() <= 0.0f || bounds.height() <= 0.0f) {
             return;
         }
         Color accent = Theme.accent();
         boolean held = grabbed == element && grab != Grab.NONE;
         boolean isHot = hot.element() == element || held;
-
-        /* Switched off: the body still draws, because an invisible element cannot be
-         * switched back on, but it is veiled so there is no reading the screen as though
-         * this were live. */
-        if (!shown) {
-            gfx.rect(bounds, Color.rgb(0x05070A, 0.62f), 0.0f);
-        }
 
         gfx.outline(bounds, accent.withAlpha(isHot ? 1.0f : 0.32f), 1.0f, 0.0f);
 
@@ -768,16 +759,11 @@ public final class Hud {
         gfx.rect(new Rect(labelX - pos(1.0f), dot.y(), labelW + pos(2.0f), dot.height()),
                 Color.rgb(0x05070A, 0.66f), pos(1.0f));
         shadowed(FontRole.MEDIUM, element.label, labelX, dot.y() + (dot.height() - labelSize * 0.727f) * 0.5f,
-                labelSize, Color.rgb(0xFFFFFF, shown ? (isHot ? 0.95f : 0.72f) : 0.42f));
+                labelSize, Color.rgb(0xFFFFFF, isHot ? 0.95f : 0.72f));
 
-        /* Filled while the element is on, a ring while it is off. */
         boolean dotHot = hot.element() == element && hot.grab() == Grab.TOGGLE;
         gfx.rect(dot, Color.rgb(0x05070A, 0.80f), pos(1.0f));
-        if (shown) {
-            gfx.rect(dot.inset(pos(1.3f)), accent.withAlpha(dotHot ? 1.0f : 0.85f), pos(1.0f));
-        } else {
-            gfx.outline(dot.inset(pos(1.3f)), Color.rgb(0xFFFFFF, dotHot ? 0.95f : 0.45f), 1.0f, pos(1.0f));
-        }
+        gfx.rect(dot.inset(pos(1.3f)), accent.withAlpha(dotHot ? 1.0f : 0.85f), pos(1.0f));
 
         Rect grip = gripOf(bounds);
         boolean resizing = held && grab == Grab.RESIZE;
@@ -795,7 +781,7 @@ public final class Hud {
     }
 
     private void drawEditHint(FrameState state) {
-        String line = "HUD editor    drag to move    corner to resize    dot to toggle";
+        String line = "HUD editor    drag to move    corner to resize    dot to hide";
         float size = pos(EDIT_LABEL + 1.0f);
         float height = pos(12.0f);
         float width = gfx.measure(FontRole.MEDIUM, line, size) + pos(10.0f);
@@ -1168,7 +1154,8 @@ public final class Hud {
         float factor = state.scaledWidth > 0 ? (float) state.windowWidth / state.scaledWidth : 2.0f;
         unit = Math.max(factor * scale, 0.5f);
 
-        if (state.inWorld) {
+        boolean on = switchedOn();
+        if (state.inWorld && on) {
             if (sessionStart < 0.0) {
                 sessionStart = Time.nowSeconds();
             }
@@ -1177,32 +1164,32 @@ public final class Hud {
             /* Each element draws under its own size factor. drawScale is what px()
              * multiplies by, so setting it here is all it takes for every offset and
              * dimension inside the element to follow its resize handle. */
-            if (watermark || edit) {
+            if (watermark) {
                 drawScale = sizes[Element.WATERMARK.ordinal()];
                 drawWatermark(state);
             } else {
                 markRect = Rect.EMPTY;
             }
-            if (arrayList || edit) {
+            if (arrayList) {
                 drawScale = sizes[Element.ARRAY_LIST.ordinal()];
                 drawArrayList(context, edit);
             } else {
                 listDrawn = false;
             }
             float below = 0.0f;
-            if (playerInfo || edit) {
+            if (playerInfo) {
                 drawScale = sizes[Element.PLAYER_INFO.ordinal()];
                 below = drawPlayerInfo(context);
             } else {
                 playerRect = Rect.EMPTY;
             }
-            if (targetInfo || edit) {
+            if (targetInfo) {
                 drawScale = sizes[Element.TARGET_INFO.ordinal()];
                 drawTargetInfo(context, edit, below);
             } else {
                 targetDrawn = false;
             }
-            if (speed || edit) {
+            if (speed) {
                 drawScale = sizes[Element.SPEED.ordinal()];
                 drawSpeedReadout(context);
             } else {
@@ -1216,7 +1203,7 @@ public final class Hud {
             if (edit) {
                 for (Element element : ELEMENTS) {
                     if (liveOf(element)) {
-                        drawEditChrome(element, rectOf(element), shownOf(element));
+                        drawEditChrome(element, rectOf(element));
                     }
                 }
                 drawEditHint(state);
@@ -1232,7 +1219,7 @@ public final class Hud {
             grabbed = null;
             hot = Pick.NONE;
         }
-        if (notifications) {
+        if (on && notifications) {
             drawNotifications(context);
         }
     }

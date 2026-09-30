@@ -23,7 +23,7 @@ public class AntiInvis extends Module {
     private static final float MARKER_SCALE = 0.025F;
 
     public AntiInvis() {
-        super("AntiInvis", "Shows invisible players", Category.RENDER);
+        super("AntiInvis", "Shows invisible players", Category.VISUALS);
     }
 
     public boolean isForceVisibleTarget(EntityLivingBase var1) {

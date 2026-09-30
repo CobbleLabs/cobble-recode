@@ -44,7 +44,7 @@ public class Indicators extends Module {
     private final double[] projectedCoords = new double[3];
 
     public Indicators() {
-        super("Indicators", "Points at incoming arrows, pearls and fireballs", Category.RENDER);
+        super("Indicators", "Points at incoming arrows, pearls and fireballs", Category.VISUALS);
         this.indicatorSettings = new IndicatorSettings(this);
     }
 

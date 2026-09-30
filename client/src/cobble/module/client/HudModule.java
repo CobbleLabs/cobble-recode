@@ -18,7 +18,7 @@ public final class HudModule extends Module {
     private final Setting speed;
 
     public HudModule() {
-        super("HUD", "Watermark and module list", Category.CLIENT);
+        super("HUD", "Watermark and module list", Category.HUD);
         setIcon(Icon.MONITOR);
         scale = addNumber("Scale", "Size of the HUD elements", 1.0f, 0.6f, 2.5f, 2);
         watermark = addBoolean("Watermark", "cobble.vip bar in the corner", true);

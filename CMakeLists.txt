@@ -191,17 +191,29 @@ add_custom_command(
     VERBATIM
 )
 
-add_executable(cobble-injector
+set(COLD_IMGUI_DIR "${CMAKE_SOURCE_DIR}/injector/thirdparty/imgui")
+add_library(imgui STATIC
+    "${COLD_IMGUI_DIR}/imgui.cpp"
+    "${COLD_IMGUI_DIR}/imgui_draw.cpp"
+    "${COLD_IMGUI_DIR}/imgui_tables.cpp"
+    "${COLD_IMGUI_DIR}/imgui_widgets.cpp"
+    "${COLD_IMGUI_DIR}/imgui_impl_dx11.cpp"
+    "${COLD_IMGUI_DIR}/imgui_impl_win32.cpp"
+)
+target_include_directories(imgui PUBLIC "${COLD_IMGUI_DIR}")
+target_link_libraries(imgui PUBLIC d3d11 d3dcompiler dwmapi)
+
+add_executable(cobble-injector WIN32
     injector/src/Main.cpp
+    injector/src/LoaderUi.cpp
     injector/src/Inject.cpp
     injector/src/ProcessList.cpp
     injector/src/Embedded.cpp
-    injector/src/KeyCheck.cpp
     "${COLD_LOADER_RC}"
 )
 target_include_directories(cobble-injector PRIVATE
     injector/src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(cobble-injector PRIVATE user32 shlwapi winhttp)
+target_link_libraries(cobble-injector PRIVATE imgui user32 gdi32)
 target_compile_definitions(cobble-injector PRIVATE
     WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS UNICODE _UNICODE)
 if(MSVC)

@@ -3,21 +3,24 @@ package cobble.module;
 import cobble.render.Icon;
 
 public enum Category {
-    COMBAT("Combat", Icon.SWORDS),
-    MOVEMENT("Movement", Icon.FOOTPRINTS),
-    PLAYER("Player", Icon.USER_ROUND),
-    RENDER("Render", Icon.EYE),
-    WORLD("World", Icon.BOX),
-    MINIGAMES("Minigames", Icon.FLAME),
-    OTHER("Other", Icon.WRENCH),
-    CLIENT("Client", Icon.SNOWFLAKE),
-    SCRIPTS("Scripts", Icon.BRACES);
+    COMBAT("Combat", Icon.SWORDS, null),
+    PLAYER("Player", Icon.USER_ROUND, null),
+    MOVEMENT("Movement", Icon.FOOTPRINTS, PLAYER),
+    VISUALS("Visuals", Icon.EYE, null),
+    HUD("HUD", Icon.MONITOR, VISUALS),
+    OTHER("Other", Icon.WRENCH, null),
+    MINIGAMES("Minigames", Icon.FLAME, OTHER),
+    CLIENT("Client", Icon.SNOWFLAKE, OTHER),
+    SCRIPTS("Scripts", Icon.BRACES, null);
 
     public final String displayName;
     public final Icon icon;
+    /** The ClickGUI tab this category is listed in; itself unless it is a subcategory. */
+    public final Category tab;
 
-    Category(String displayName, Icon icon) {
+    Category(String displayName, Icon icon, Category parent) {
         this.displayName = displayName;
         this.icon = icon;
+        this.tab = parent == null ? this : parent;
     }
 }

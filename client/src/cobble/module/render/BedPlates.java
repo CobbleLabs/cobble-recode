@@ -60,7 +60,7 @@ public class BedPlates extends Module {
     private final BedPlateTracker bedPlateTracker = new BedPlateTracker();
 
     public BedPlates() {
-        super("BedPlates", "Shows the blocks defending each bed", Category.RENDER);
+        super("BedPlates", "Shows the blocks defending each bed", Category.VISUALS);
         this.range = addNumber("Range", "", 10.0F, 2.0F, 200.0F, 0);
         this.rounding = addNumber("Rounding", "", 4.0F, 0.0F, 10.0F, 1);
         this.opacity = addNumber("Opacity", "", 55.0F, 5.0F, 100.0F, 0);

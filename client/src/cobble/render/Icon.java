@@ -30,6 +30,7 @@ public enum Icon {
     RADIO("radio"),
     ROTATE_CCW("rotate-ccw"),
     SEARCH("search"),
+    SETTINGS("settings"),
     SETTINGS_2("settings-2"),
     SLIDERS_HORIZONTAL("sliders-horizontal"),
     SNOWFLAKE("snowflake"),
