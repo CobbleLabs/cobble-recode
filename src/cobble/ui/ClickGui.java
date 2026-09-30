@@ -463,7 +463,7 @@ public final class ClickGui {
     }
 
     public boolean interactive() {
-        return open && !closing;
+        return open && !closing && !exiting;
     }
 
     /** True while a bind row or the config name field is waiting for input, so
@@ -496,7 +496,7 @@ public final class ClickGui {
      * Excluding the reveal there would hand module binds back to the game for
      * the couple of seconds the menu is opening. */
     private boolean pointable() {
-        return open && !closing && !revealing;
+        return interactive() && !revealing;
     }
 
     private float s(float value) {
@@ -908,7 +908,7 @@ public final class ClickGui {
     }
 
     public void open() {
-        if (open && !closing) {
+        if (interactive()) {
             return;
         }
         build();
@@ -936,7 +936,7 @@ public final class ClickGui {
     }
 
     public void close() {
-        if (!open || closing) {
+        if (!interactive()) {
             return;
         }
         /* Shutting the menu mid-reveal abandons it; it stays spent. */
@@ -957,10 +957,16 @@ public final class ClickGui {
             bindRow = null;
         }
         editingName = false;
+        /* The game gets its input back now; the exit is only something to
+         * watch. Handing over to the radar keeps the screen, since dropping it
+         * would take the radar's pointer with it. */
+        if (!Client.radar().interactive()) {
+            MenuScreen.hide();
+        }
     }
 
     public void toggle() {
-        if (open && !closing) {
+        if (interactive()) {
             close();
         } else {
             open();
@@ -1215,7 +1221,7 @@ public final class ClickGui {
     }
 
     public void handleEvent(Input.Event event, Context context) {
-        if (!open) {
+        if (!interactive()) {
             return;
         }
         switch (event.kind()) {
@@ -1232,7 +1238,7 @@ public final class ClickGui {
                      * must not be clickable. Swallowed rather than passed
                      * through: the cursor is up and the mouse ungrabbed, so the
                      * game is the wrong place for it. */
-                    if (!closing && !revealing) {
+                    if (!revealing) {
                         mouseDown = event.code() == Input.MOUSE_LEFT;
                         pressAt(mouseX, mouseY, event.code(), context);
                     }
@@ -1559,14 +1565,6 @@ public final class ClickGui {
         return height;
     }
 
-    /* The radar can take the screen over while the menu is on its way out;
-     * dropping the screen then would take the radar's pointer with it. */
-    private void releaseScreen() {
-        if (!Client.radar().interactive()) {
-            MenuScreen.hide();
-        }
-    }
-
     private void layout(Context context) {
         FrameState state = context.state;
         float deltaTime = context.deltaTime;
@@ -1596,7 +1594,6 @@ public final class ClickGui {
                 closing = false;
                 slide = 0.0f;
                 alpha = 0.0f;
-                releaseScreen();
             }
         } else {
             slide = Maths.approach(slide, open && !closing ? 1.0f : 0.0f, SLIDE_SPEED, deltaTime);
@@ -1604,7 +1601,6 @@ public final class ClickGui {
                 open = false;
                 closing = false;
                 slide = 0.0f;
-                releaseScreen();
             }
             alpha = Maths.clamp(Ease.outCubic(Maths.clamp(slide, 0.0f, 1.0f)), 0.0f, 1.0f);
         }

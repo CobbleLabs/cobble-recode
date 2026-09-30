@@ -44,7 +44,7 @@ cmake -S . -B build/native -A x64 -DCOLD_JAVA_HOME="<path to JDK>"
 cmake --build build/native --config Release
 ```
 
-`tools/build.ps1` wraps both steps and finds or installs CMake.
+`build.ps1` wraps both steps and finds or installs CMake.
 
 ```
 src/cobble/      the Java client
@@ -62,7 +62,7 @@ infra/lib/       jars the client compiles against (not in git)
 assets/          fonts, icons, shaders, the Lua prelude
 scripts/         example Lua scripts, copied to dist/scripts
 docs/            notes, most of them from the C++ payload era
-tools/           build.ps1, Widen.java (used by CMake), crop.ps1
+tools/           Widen.java (used by CMake), crop.ps1
 legacy/          the old C++ payload, the 1.21 test env and their tools
 dist/            build output
 ```

@@ -1,9 +1,9 @@
 # Dev-only build for Cobble Recode.
 #
-#   powershell -ExecutionPolicy Bypass -File tools/build.ps1
-#   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Config Release
-#   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -JavaHome "C:\Path\To\JDK"
-#   powershell -ExecutionPolicy Bypass -File tools/build.ps1 -NoAutoInstall
+#   powershell -ExecutionPolicy Bypass -File build.ps1
+#   powershell -ExecutionPolicy Bypass -File build.ps1 -Config Release
+#   powershell -ExecutionPolicy Bypass -File build.ps1 -JavaHome "C:\Path\To\JDK"
+#   powershell -ExecutionPolicy Bypass -File build.ps1 -NoAutoInstall
 #
 # CMake is autodetected (PATH plus the usual install locations plus any
 # previous portable install under build/tools). When nothing is found the
@@ -48,7 +48,7 @@ Write-Host "  Local use only. Do not distribute binaries built with this script.
 Write-Host "================================================================" -ForegroundColor Yellow
 Write-Host ""
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
+$RepoRoot = $PSScriptRoot
 Set-Location -LiteralPath $RepoRoot
 
 function Find-CommandPath {
@@ -368,6 +368,22 @@ Invoke-Step "[1/2] Configuring ($Config|x64)" $CmakeExe @(
     "-A", "x64",
     "-DCOLD_JAVA_HOME=$JavaHome"
 )
+
+# A binary still loaded by the game cannot be overwritten, but Windows lets it
+# be renamed, so it is moved aside and the link writes a fresh one.
+foreach ($name in @("cobble.dll", "cobble-injector.exe")) {
+    $path = Join-Path $RepoRoot "dist\$name"
+    if (-not (Test-Path -LiteralPath $path)) { continue }
+    try {
+        [System.IO.File]::Open($path, "Open", "ReadWrite", "None").Dispose()
+    } catch {
+        $old = "$path.old"
+        Remove-Item -LiteralPath $old -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $old) { $old = "$path.$(Get-Date -Format yyyyMMddHHmmss).old" }
+        Move-Item -LiteralPath $path -Destination $old
+        Write-Host "$name is in use; moved it to $(Split-Path -Leaf $old)" -ForegroundColor DarkYellow
+    }
+}
 
 Invoke-Step "[2/2] Building ($Config)" $CmakeExe @(
     "--build", $BuildDir,

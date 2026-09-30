@@ -18,6 +18,7 @@ dist/coldwtf.control
 dist/coldwtf.control.out
 dist/coldwtf.control.tmp
 dist/*.dll
+dist/*.old
 dist/*.exe
 dist/*.pdb
 dist/*.lib

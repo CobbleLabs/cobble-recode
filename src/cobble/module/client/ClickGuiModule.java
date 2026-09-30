@@ -26,15 +26,16 @@ public final class ClickGuiModule extends Module {
 
     @Override
     public void onEnable(Context context) {
-        // The radar is the other full window; only one of them holds the keyboard.
-        RadarModule radar = ModuleManager.get(RadarModule.class);
-        if (radar != null && radar.enabled()) {
-            radar.setEnabled(false, context);
-        }
         ClickGui gui = Client.gui();
         gui.setBlur(blur.bool());
         Theme.setAccent(accent.colour());
         gui.open();
+        /* The radar is the other full window; only one of them holds the
+         * keyboard. Closed after the menu opens, so it leaves the screen up. */
+        RadarModule radar = ModuleManager.get(RadarModule.class);
+        if (radar != null && radar.enabled()) {
+            radar.setEnabled(false, context);
+        }
     }
 
     @Override

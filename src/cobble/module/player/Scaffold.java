@@ -63,6 +63,7 @@ import org.lwjgl.opengl.GL11;
 
 public class Scaffold extends Module {
     private static final double[] FACE_SAMPLE_OFFSETS;
+    private static final double GAP_DEPTH = 4.0;
     private final Setting rotation;
     private final Setting timeManipulation;
     private final Setting lowTimer;
@@ -70,6 +71,7 @@ public class Scaffold extends Module {
     private final Setting tower;
     private final Setting keepY;
     private final Setting keepYOnUse;
+    private final Setting onDemand;
     private final Setting autoSwap;
     private final Setting iceSwap;
     private final Setting downwardsOnShift;
@@ -79,6 +81,7 @@ public class Scaffold extends Module {
     private final String[] rotationModes = new String[]{"None", "Basic", "Accurate", "Snap"};
     private final String[] towerModes = new String[]{"None", "Telly"};
     private final String[] keepYModes = new String[]{"None", "Telly"};
+    private boolean engaged;
     private int rotationDelayTicks;
     private int aisgr = -1;
     private int heldBlockCount = -1;
@@ -131,6 +134,7 @@ public class Scaffold extends Module {
         this.tower = addChoice("Tower", "", List.of(this.towerModes), 0);
         this.keepY = addChoice("Keep-Y", "", List.of(this.keepYModes), 0);
         this.keepYOnUse = addBoolean("Keep-Y on use", "", false);
+        this.onDemand = addBoolean("On demand", "Only while holding use or falling over a gap", true);
         this.autoSwap = addBoolean("Auto swap", "", true);
         this.iceSwap = addBoolean("Ice Swap", "", false);
         this.downwardsOnShift = addBoolean("Downwards on shift", "", false);
@@ -152,6 +156,59 @@ public class Scaffold extends Module {
 
     @Override
     public void onEnable(Context context) {
+        this.updateEngaged();
+    }
+
+    @Override
+    public void onDisable(Context context) {
+        if (this.engaged) {
+            this.engaged = false;
+            this.disengage();
+        }
+    }
+
+    /* On demand, the module stays switched on but only takes the clicks, the
+     * hotbar and the rotations while it is actually needed, and never without
+     * a block to place - otherwise right click would stop blocking, eating and
+     * drawing a bow. Every switch in or out is a full enable or disable of the
+     * placing state. */
+    private void updateEngaged() {
+        boolean wanted = !this.onDemand.bool()
+            || ClientUtils.isInWorld() && this.hasPlaceableBlock() && (this.isUseKeyHeld() || this.isFallingOverGap());
+        if (wanted != this.engaged) {
+            this.engaged = wanted;
+            if (wanted) {
+                this.engage();
+            } else {
+                this.disengage();
+            }
+        }
+    }
+
+    private boolean isUseKeyHeld() {
+        return mc.currentScreen == null && ClientUtils.xusXfhC(mc.gameSettings.keyBindUseItem);
+    }
+
+    private boolean hasPlaceableBlock() {
+        if (!this.autoSwap.bool()) {
+            return this.isHoldingBlock();
+        }
+        for (int slot = 0; slot < 9; slot++) {
+            if (this.FiigqpM(mc.thePlayer.inventory.getStackInSlot(slot))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFallingOverGap() {
+        return !mc.thePlayer.onGround
+            && mc.thePlayer.motionY < 0.0
+            && !mc.thePlayer.capabilities.isFlying
+            && mc.theWorld.getCollidingBoundingBoxes(mc.thePlayer, mc.thePlayer.getEntityBoundingBox().addCoord(0.0, -GAP_DEPTH, 0.0)).isEmpty();
+    }
+
+    private void engage() {
         this.aisgr = ClientUtils.isInWorld() ? mc.thePlayer.inventory.currentItem : -1;
         this.heldBlockCount = -1;
         this.rotationDelayTicks = (int)this.rotation.choice() == 3 ? 0 : 3;
@@ -192,8 +249,7 @@ public class Scaffold extends Module {
         this.placedBlocks.clear();
     }
 
-    @Override
-    public void onDisable(Context context) {
+    private void disengage() {
         if (ClientUtils.isInWorld() && this.aisgr != -1) {
             mc.thePlayer.inventory.currentItem = this.aisgr;
         }
@@ -237,6 +293,7 @@ public class Scaffold extends Module {
 
     @Override
     public void onUpdate() {
+        this.updateEngaged();
         if (this.isActive()) {
             this.tickIceSwap();
             this.AXyp();
@@ -642,28 +699,29 @@ public class Scaffold extends Module {
 
     @Subscribe
     public void onLeftClick(LeftClickEvent var1) {
-        if (this.enabled()) {
+        if (this.engaged) {
             var1.setCancelled(true);
         }
     }
 
     @Subscribe
     public void onRightClick(RightClickEvent var1) {
-        if (this.enabled()) {
+        this.updateEngaged();
+        if (this.engaged) {
             var1.setCancelled(true);
         }
     }
 
     @Subscribe
     public void onChangeCurrentItem(ChangeCurrentItemEvent var1) {
-        if (this.enabled() && this.autoSwap.bool()) {
+        if (this.engaged && this.autoSwap.bool()) {
             var1.setCancelled(true);
         }
     }
 
     @Subscribe
     public void onSetCurrentItem(SetCurrentItemEvent var1) {
-        if (this.enabled() && this.autoSwap.bool()) {
+        if (this.engaged && this.autoSwap.bool()) {
             this.aisgr = var1.slot;
             var1.setCancelled(true);
         }
@@ -685,7 +743,7 @@ public class Scaffold extends Module {
     }
 
     private void Yszd2() {
-        if (this.enabled() && this.timeManipulation.bool() && ClientUtils.isInWorld() && this.GohoqM()) {
+        if (this.engaged && this.timeManipulation.bool() && ClientUtils.isInWorld() && this.GohoqM()) {
             long var1 = System.nanoTime();
             if (!this.timerManipulating) {
                 this.timerManipulating = true;
@@ -1869,7 +1927,7 @@ public class Scaffold extends Module {
     }
 
     private boolean isActive() {
-        return this.enabled() && ClientUtils.isInWorld() && mc.playerController != null && mc.theWorld != null;
+        return this.engaged && ClientUtils.isInWorld() && mc.playerController != null && mc.theWorld != null;
     }
 
     private boolean isDownwardsKeyHeld() {

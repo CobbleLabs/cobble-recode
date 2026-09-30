@@ -107,20 +107,8 @@ public class AimAssist extends Module {
     }
 
     @Override
-    public void onEnable(Context context) {
-        this.LgCxk7();
-    }
-
-    @Override
     public void onDisable(Context context) {
         this.kaY = -1L;
-        this.LgCxk7();
-    }
-
-    private void LgCxk7() {
-        if (ModuleManager.get(AutoClicker.class) != null) {
-            ModuleManager.get(AutoClicker.class).guiUpdate();
-        }
     }
 
     @Subscribe(priority = Subscribe.Priority.NORMAL)

@@ -22,11 +22,12 @@ public final class RadarModule extends Module {
      */
     @Override
     public void onEnable(Context context) {
+        // Opened first, so the menu closing sees the radar holding the screen and leaves it up.
+        Client.radar().open();
         ClickGuiModule menu = ModuleManager.get(ClickGuiModule.class);
         if (menu != null && menu.enabled()) {
             menu.setEnabled(false, context);
         }
-        Client.radar().open();
     }
 
     @Override
