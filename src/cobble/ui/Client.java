@@ -278,7 +278,7 @@ public final class Client {
         guard.capture();
         try {
             if (gui.visible() && gui.blurEnabled()) {
-                backdrop.capture(state.windowWidth, state.windowHeight, 1.0f, Color.rgb(0x0A0D12, 0.35f));
+                backdrop.capture(state.windowWidth, state.windowHeight, gui.blurStrength(), Color.rgb(0x0A0D12, 0.35f));
             }
             gfx.beginFrame(state.windowWidth, state.windowHeight, time);
             ModuleManager.render(context);

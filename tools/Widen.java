@@ -41,7 +41,7 @@ public final class Widen {
                 reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
                     @Override
                     public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-                        super.visit(version, widen(access), name, signature, superName, interfaces);
+                        super.visit(Opcodes.V17, widen(access), name, signature, superName, interfaces);
                     }
 
                     @Override

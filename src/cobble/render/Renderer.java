@@ -227,7 +227,7 @@ public final class Renderer {
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
-    private void flush() {
+    public void flush() {
         if (quadCount == 0) {
             return;
         }
@@ -239,6 +239,61 @@ public final class Renderer {
         GL15.glBufferSubData(GL15.GL_ARRAY_BUFFER, 0, vertexData);
         GL11.glDrawElements(GL11.GL_TRIANGLES, quadCount * 6, GL11.GL_UNSIGNED_INT, 0L);
         quadCount = 0;
+    }
+
+    public void pause() {
+        flush();
+        GL20.glUseProgram(0);
+        GL30.glBindVertexArray(0);
+        GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        GL15.glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, 0);
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+    }
+
+    public void resume() {
+        GL30.glBindVertexArray(vertexArray);
+        ui.bind();
+        ui.set("uProjection", Mat4.orthographic(0.0f, width, height, 0.0f));
+        ui.set("uFontAtlas", 0);
+        ui.set("uIconAtlas", 1);
+        ui.set("uImage", 2);
+        ui.set("uFontAtlasTexel", fonts.texelWidth(), fonts.texelHeight());
+        ui.set("uIconAtlasTexel", icons.texelWidth(), icons.texelHeight());
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, fonts.texture());
+        GL13.glActiveTexture(GL13.GL_TEXTURE1);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, icons.texture());
+        GL13.glActiveTexture(GL13.GL_TEXTURE2);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundImage);
+        if (samplers) {
+            GL33.glBindSampler(0, 0);
+            GL33.glBindSampler(1, 0);
+            GL33.glBindSampler(2, 0);
+        }
+
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDisable(GL11.GL_CULL_FACE);
+        GL11.glDepthMask(false);
+        GL11.glColorMask(true, true, true, true);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL14.glBlendEquation(GL14.GL_FUNC_ADD);
+        GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE,
+                GL11.GL_ONE_MINUS_SRC_ALPHA);
+
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glLoadIdentity();
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glLoadIdentity();
+        GL11.glOrtho(0.0, width, height, 0.0, -1.0, 1.0);
+        GL11.glMatrixMode(GL11.GL_TEXTURE);
+        GL11.glLoadIdentity();
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glViewport(0, 0, width, height);
+        Gl.disableClientArrays(3);
+
+        applyClip();
     }
 
     private void applyClip() {

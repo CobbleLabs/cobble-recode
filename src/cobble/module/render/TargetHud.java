@@ -1,252 +1,689 @@
 package cobble.module.render;
 
-import cobble.core.Color;
-import cobble.core.Maths;
-import cobble.core.Rect;
-import cobble.core.Time;
+import cobble.event.AttackEntityEvent;
+import cobble.event.Subscribe;
 import cobble.game.CombatTarget;
-import cobble.game.EntityView;
-import cobble.game.FrameState;
-import cobble.game.Game;
+import cobble.core.Time;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.Setting;
 import cobble.module.Subcategory;
-import cobble.render.Align;
-import cobble.render.FontRole;
 import cobble.render.Icon;
 import cobble.render.Renderer;
+import cobble.ui.Client;
 import cobble.ui.Theme;
+import cobble.util.font.FontManager;
+import cobble.util.font.IFont;
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiChat;
+import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.entity.RenderSkeleton;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemSword;
+import net.minecraft.item.ItemTool;
+import net.minecraft.potion.Potion;
+import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
 
 /**
- * Raven-b's TargetHUD, Modern mode.
- *
- * <p>The whole idea of the original is that the bar tells you two things at
- * once: where the target's health is now, and where it was a moment ago. A hit
- * lands as a bright bar snapping back and a dimmer ghost draining after it, so
- * the damage a swing did is legible without reading a number. Healing runs the
- * other way and the ghost leads instead of trailing.
- *
- * <p>It follows whatever combat module currently has a target rather than one
- * in particular, and fades rather than vanishing when that target is dropped -
- * a panel that blinks out between two swings is worse than no panel.
+ * 1:1 Port of OpenRise 6.9.5 TargetInfo (ModernTargetInfo mode).
+ * Features:
+ * - LINESeed typography
+ * - Smooth elastic entrance (EASE_OUT_ELASTIC) and back exit (EASE_IN_BACK) animations
+ * - Animated health bar with quintic easing (EASE_OUT_QUINT)
+ * - Winning / Losing calculation taking sharpness, strength, armor & protection into account
+ * - Target player head avatar with hurt animation and outline
+ * - Blood particle effects on damage
+ * - Preview mode when in ClickGUI or Chat
  */
 public final class TargetHud extends Module {
-    /* GUI-scaled units, the same space the rest of the HUD is measured in. */
-    private static final float WIDTH = 116.0f;
-    private static final float HEIGHT = 44.0f;
-    private static final float PADDING = 7.0f;
-    private static final float BAR_HEIGHT = 4.0f;
-    private static final float FACE_SIZE = 30.0f;
+    private static final Minecraft mc = Minecraft.getMinecraft();
 
-    private static final float FADE_RATE = 9.0f;
-    private static final float BAR_RATE = 22.0f;
-    private static final float GHOST_RATE = 4.5f;
+    private final Setting offsetX = addNumber("Offset X", "Pixels right of the screen centre", 0.0f, -600.0f, 600.0f, 0);
+    private final Setting offsetY = addNumber("Offset Y", "Pixels below the screen centre", 50.0f, -400.0f, 400.0f, 0);
+    private final Setting scale = addNumber("Scale", "Size of the panel", 1.0f, 0.5f, 2.0f, 2);
+    private final Setting showOutcome = addBoolean("Win or loss", "Display Winning: or Losing: calculation", true);
+    private final Setting particles = addBoolean("Particles", "Spawn blood particles when target takes damage", true);
 
-    private static final Rect SKIN_FACE_UV = new Rect(8.0f / 64.0f, 8.0f / 64.0f, 8.0f / 64.0f, 8.0f / 64.0f);
+    private EntityLivingBase target;
+    private long lastAttackTime = 0L;
+    private final long TIMEOUT_MS = 1000L;
 
-    private final Setting offsetX = addNumber("Offset X", "Pixels right of the screen centre", 0, -400, 400, 0);
-    private final Setting offsetY = addNumber("Offset Y", "Pixels below the screen centre", 34, -300, 300, 0);
-    private final Setting scale = addNumber("Scale", "Size of the panel", 1, 0.6f, 2, 2);
-    private final Setting backdrop = addNumber("Backdrop", "Opacity of the slab behind the text", 0.55f, 0, 1, 2);
-    private final Setting healthColour = addBoolean("Health colour",
-            "Colour the bar by health rather than the accent", true);
-    private final Setting showDistance = addBoolean("Distance", "Print how far away they are", true);
-    private final Setting showOutcome = addBoolean("Win or loss", "Say whether you are ahead on health", true);
-    private final Setting marker = addBoolean("Marker", "Bracket the target in the world", true);
+    // Animations
+    private double scaleValue = 0.0;
+    private double scaleStart = 0.0;
+    private double scaleTarget = 0.0;
+    private long scaleStartTime = 0L;
+    private long scaleDuration = 850L;
+    private boolean scaleElastic = true;
 
-    private String name = "";
-    private float health;
-    private float maxHealth = 20.0f;
-    /* 0..1, the lagging copy of the bar. */
-    private float ghost;
-    /* 0..1, where the bar is now. */
-    private float fraction;
-    private float distance;
-    private float ownFraction = 1.0f;
-    private float alpha;
-    private int targetId = -1;
+    private double healthValue = 0.0;
+    private double healthStart = 0.0;
+    private double healthTarget = 0.0;
+    private long healthStartTime = 0L;
+    private final long healthDuration = 250L;
+
+    // Advantage caching
+    private long lastAdvantageCalcTime = 0L;
+    private float cachedAdvantage = 0.0f;
+
+    // Hurt tracking for particles
+    private int lastHurtTime = 0;
+
+    private static final class Particle {
+        float x, y;
+        float vx, vy;
+        float alpha = 1.0f;
+        float size;
+
+        Particle(float x, float y, float vx, float vy, float size) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+            this.size = size;
+        }
+
+        boolean update(float dt) {
+            x += vx * dt * 60.0f;
+            y += vy * dt * 60.0f;
+            alpha -= dt * 2.2f;
+            return alpha > 0.0f;
+        }
+    }
+
+    private final List<Particle> particleList = new ArrayList<>();
 
     public TargetHud() {
-        super("TargetHud", "Panel for whoever the combat modules are hitting", Category.VISUALS, Subcategory.BASIC);
+        super("TargetHud", "OpenRise Modern TargetHUD", Category.VISUALS, Subcategory.BASIC);
         setIcon(Icon.TARGET);
+        setEnabled(true, null);
     }
 
     @Override
     public void onEnable(Context context) {
-        alpha = 0.0f;
-        targetId = -1;
-        ghost = 0.0f;
-        fraction = 0.0f;
+        scaleValue = 0.0;
+        scaleTarget = 0.0;
+        healthValue = 0.0;
+        target = null;
+        particleList.clear();
     }
 
-    private static EntityView find(FrameState state, int id) {
-        for (EntityView entity : state.entities) {
-            if (entity.id == id) {
-                return entity;
+    @Subscribe
+    public void onAttack(AttackEntityEvent event) {
+        if (event.entity instanceof EntityLivingBase living) {
+            this.target = living;
+            this.lastAttackTime = System.currentTimeMillis();
+        }
+    }
+
+    private void updateScaleAnimation(boolean targetPresent) {
+        double dest = targetPresent ? 1.0 : 0.0;
+        long now = System.currentTimeMillis();
+        if (dest != scaleTarget) {
+            scaleTarget = dest;
+            scaleStart = scaleValue;
+            scaleStartTime = now;
+            scaleDuration = targetPresent ? 850L : 400L;
+            scaleElastic = targetPresent;
+        }
+        long elapsed = now - scaleStartTime;
+        double progress = Math.min(1.0, Math.max(0.0, (double) elapsed / scaleDuration));
+        double factor;
+        if (scaleElastic) {
+            // EASE_OUT_ELASTIC
+            if (progress <= 0.0) {
+                factor = 0.0;
+            } else if (progress >= 1.0) {
+                factor = 1.0;
+            } else {
+                factor = Math.pow(2.0, -10.0 * progress) * Math.sin((progress * 10.0 - 0.75) * 2.0943951023931953) * 0.5 + 1.0;
+            }
+        } else {
+            // EASE_IN_BACK
+            factor = 2.70158 * progress * progress * progress - 1.70158 * progress * progress;
+        }
+        scaleValue = scaleStart + (scaleTarget - scaleStart) * factor;
+        if (progress >= 1.0) {
+            scaleValue = scaleTarget;
+        }
+    }
+
+    private void updateHealthAnimation(double targetHpBarWidth) {
+        long now = System.currentTimeMillis();
+        if (Math.abs(targetHpBarWidth - healthTarget) > 0.001) {
+            healthTarget = targetHpBarWidth;
+            healthStart = healthValue;
+            healthStartTime = now;
+        }
+        long elapsed = now - healthStartTime;
+        double progress = Math.min(1.0, Math.max(0.0, (double) elapsed / healthDuration));
+        // EASE_OUT_QUINT
+        double d2 = progress - 1.0;
+        double factor = 1.0 + d2 * d2 * d2 * d2 * d2;
+        healthValue = healthStart + (healthTarget - healthStart) * factor;
+        if (progress >= 1.0) {
+            healthValue = healthTarget;
+        }
+    }
+
+    private float calculateDamage(ItemStack stack, Entity entity, Entity opponent) {
+        float f = 1.0F;
+        if (stack != null) {
+            Item item = stack.getItem();
+            if (item instanceof ItemSword sword) {
+                f = sword.getDamageVsEntity();
+            } else if (item instanceof ItemTool tool) {
+                f = tool.getToolMaterial().getDamageVsEntity();
+            }
+
+            int i = EnchantmentHelper.getEnchantmentLevel(Enchantment.sharpness.effectId, stack);
+            if (i > 0) {
+                f += i * 1.25F;
             }
         }
-        return null;
+
+        if (entity instanceof EntityLivingBase living) {
+            if (living.getActivePotionEffect(Potion.damageBoost) != null) {
+                int j = living.getActivePotionEffect(Potion.damageBoost).getAmplifier() + 1;
+                f += j * 3.0F;
+            }
+        }
+
+        if (opponent instanceof EntityLivingBase livingOpponent) {
+            float totalArmor = livingOpponent.getTotalArmorValue();
+            float f2 = Math.min(totalArmor * 0.04F, 0.8F);
+            f *= 1.0F - f2;
+            int k = getProtectionPoints(livingOpponent);
+            int l = Math.min(20, (int) Math.ceil(Math.min(25, k) * 0.75F));
+            if (l > 0) {
+                f *= 1.0F - l * 0.04F;
+            }
+
+            if (livingOpponent.getActivePotionEffect(Potion.resistance) != null) {
+                int i1 = livingOpponent.getActivePotionEffect(Potion.resistance).getAmplifier() + 1;
+                float f3 = Math.min(i1 * 0.2F, 0.8F);
+                f *= 1.0F - f3;
+            }
+        }
+
+        if (!Float.isFinite(f)) {
+            f = 1.0F;
+        }
+        return Math.max(0.01F, f);
     }
 
-    private void drawMarker(Context context, EntityView entity) {
-        if (!marker.bool() || entity == null || !context.projection.valid()) {
-            return;
+    private int getProtectionPoints(EntityLivingBase living) {
+        int i = 0;
+        for (int j = 0; j < 4; j++) {
+            ItemStack stack = living.getCurrentArmor(j);
+            int k = stack != null ? EnchantmentHelper.getEnchantmentLevel(Enchantment.protection.effectId, stack) : 0;
+            if (k > 0) {
+                i += (int) Math.floor((6 + k * k) * 0.75F / 3.0F);
+            }
         }
-        Rect bounds = context.projection.projectBox(entity.boxMin(), entity.boxMax());
-        if (bounds != null) {
-            Theme.drawTargetMarker(bounds, alpha * animation(), context.time);
-        }
+        return i;
     }
 
-    private void drawPanel(EntityView entity, Rect bounds, float alpha) {
-        Renderer gfx = Renderer.instance();
-        float unit = bounds.height() / HEIGHT;
-        float radius = 5.0f * unit;
+    private float getAdvantage(EntityLivingBase currentTarget) {
+        long now = System.currentTimeMillis();
+        if (now - lastAdvantageCalcTime > 200L) {
+            cachedAdvantage = calculateAdvantage(currentTarget);
+            lastAdvantageCalcTime = now;
+        }
+        return cachedAdvantage;
+    }
 
-        float slab = backdrop.number();
-        if (slab > 0.0f) {
-            gfx.shadow(bounds, Color.rgb(0x000000, 0.45f * alpha), 10.0f * unit, radius);
-            gfx.rect(bounds, Color.rgb(0x0B0D12, slab * alpha), radius);
-            gfx.outline(bounds, Theme.BORDER.withAlpha(alpha), 1.0f, radius);
+    private float calculateAdvantage(EntityLivingBase currentTarget) {
+        if (mc.thePlayer == null || currentTarget == null) {
+            return 0.0F;
         }
 
-        Color bar = healthColour.bool() ? Theme.healthColour(health, maxHealth) : Theme.accent();
-
-        float pad = PADDING * unit;
-        float nameSize = 10.0f * unit;
-        float smallSize = 8.0f * unit;
-
-        /* Avatar on the left, like the reference card: the target's own skin face
-         * when there is one, a dim placeholder when there is not. */
-        Rect face = new Rect(bounds.x() + pad, bounds.centerY() - FACE_SIZE * unit * 0.5f, FACE_SIZE * unit,
-                FACE_SIZE * unit);
-        int texture = entity != null && entity.handle instanceof AbstractClientPlayer player
-                ? Game.playerSkin(player).texture() : 0;
-        if (texture != 0) {
-            gfx.imageCrisp(face, SKIN_FACE_UV, texture, new Color(1.0f, 1.0f, 1.0f, alpha), 0.0f);
-        } else {
-            gfx.rect(face, Color.rgb(0x05070A, 0.55f * alpha), 3.0f * unit);
-            gfx.icon(Icon.USER_ROUND, face.inset(face.width() * 0.18f), Color.rgb(0xAAAAAA, 0.7f * alpha));
+        float f = Math.max(0.1F, mc.thePlayer.getHealth());
+        float f2 = Math.max(0.1F, currentTarget.getHealth());
+        float f3 = calculateDamage(mc.thePlayer.getHeldItem(), mc.thePlayer, currentTarget);
+        float f4 = calculateDamage(currentTarget.getHeldItem(), currentTarget, mc.thePlayer);
+        if (f3 <= 0.01F && f4 <= 0.01F) {
+            return 0.0F;
         }
 
-        /* The text column starts clear of the avatar. */
-        float textLeft = face.right() + 6.0f * unit;
-        float textWidth = bounds.right() - pad - textLeft;
-        /* Three rows, measured from the cap line down: who it is, how much of
-         * them is left, and the bar. Spaced from the panel rather than from each
-         * other so no row can drift into the one below it. */
-        float nameRow = bounds.y() + pad;
-        float statRow = bounds.y() + 21.0f * unit;
-
-        /* Name on the left, distance on the right, both on the same cap line so
-         * the two runs sit on one baseline whatever the glyphs are. */
-        float nameWidth = textWidth - (showDistance.bool() ? 34.0f * unit : 0.0f);
-        String shown = gfx.elide(FontRole.SEMI_BOLD, name, nameSize, nameWidth);
-        gfx.textCap(FontRole.SEMI_BOLD, shown, textLeft + 0.8f * unit, nameRow + 0.8f * unit, nameSize,
-                Color.rgb(0x05070A, 0.7f * alpha));
-        gfx.textCap(FontRole.SEMI_BOLD, shown, textLeft, nameRow, nameSize, Theme.TEXT_BRIGHT.withAlpha(alpha));
-
-        if (showDistance.bool()) {
-            gfx.textCap(FontRole.MEDIUM, String.format(Locale.ROOT, "%.1fm", distance), bounds.right() - pad,
-                    nameRow + 1.5f * unit, smallSize, Theme.TEXT_DIM.withAlpha(alpha), Align.RIGHT);
+        int i;
+        for (i = 0; f > 0.0F && f2 > 0.0F && i < 256; i++) {
+            f2 -= f3;
+            f -= f4;
         }
 
-        Rect track = new Rect(textLeft, bounds.bottom() - pad - BAR_HEIGHT * unit, textWidth, BAR_HEIGHT * unit);
-        float barRadius = track.height() * 0.5f;
-        gfx.rect(track, Color.rgb(0x05070A, 0.62f * alpha), barRadius);
-
-        /* The ghost is the same bar a beat behind. Drawn first and dimmer, so a
-         * hit reads as the bright bar snapping in and the dim one draining after
-         * it. */
-        if (ghost > fraction + 0.001f) {
-            gfx.rect(new Rect(track.x(), track.y(), track.width() * ghost, track.height()),
-                    bar.withAlpha(0.32f * alpha), barRadius);
-        }
-        if (fraction > 0.001f) {
-            gfx.rect(new Rect(track.x(), track.y(), track.width() * fraction, track.height()), bar.withAlpha(alpha),
-                    barRadius);
-        }
-        /* Healing runs the other way: the ghost leads and the solid bar catches
-         * up, so the gap is the health that just came back. */
-        if (ghost < fraction - 0.001f) {
-            gfx.rect(new Rect(track.x() + track.width() * ghost, track.y(), track.width() * (fraction - ghost),
-                    track.height()), Theme.TEXT_BRIGHT.withAlpha(0.28f * alpha), barRadius);
-        }
-
-        String healthText = String.format(Locale.ROOT, "%.1f", health);
-        gfx.textCap(FontRole.MEDIUM, healthText, textLeft + 0.7f * unit, statRow + 0.7f * unit, smallSize,
-                Color.rgb(0x05070A, 0.7f * alpha));
-        gfx.textCap(FontRole.MEDIUM, healthText, textLeft, statRow, smallSize, bar.withAlpha(alpha));
-
-        if (showOutcome.bool()) {
-            boolean winning = fraction <= ownFraction;
-            gfx.textCap(FontRole.BOLD, winning ? "W" : "L", bounds.right() - pad, statRow, smallSize,
-                    (winning ? Theme.POSITIVE : Theme.NEGATIVE).withAlpha(alpha), Align.RIGHT);
-        }
+        return i >= 256 ? f3 - f4 : f - f2;
     }
 
     @Override
     public void onRender(Context context) {
-        FrameState state = context.state;
-        float step = 1.0f - (float) Math.exp(-FADE_RATE * context.deltaTime);
-
-        EntityView target = null;
-        if (state.inWorld && !state.screenOpen) {
-            EntityView current = find(state, CombatTarget.current(Time.nowSeconds()));
-            if (current != null && current.health > 0.0f) {
-                target = current;
-            }
-        }
-
-        if (target != null) {
-            if (target.id != targetId) {
-                /* A new target starts with the bar already where it belongs;
-                 * easing it up from zero would read as the last one healing. */
-                targetId = target.id;
-                ghost = 1.0f;
-                fraction = 1.0f;
-            }
-            name = Game.entityName(target.handle);
-            if (name.isEmpty()) {
-                name = target.isPlayer ? "player" : "entity";
-            }
-            health = target.health + target.absorption;
-            maxHealth = target.maxHealth > 0.0f ? target.maxHealth : 20.0f;
-            distance = (float) target.distance;
-            ownFraction = state.player.maxHealth > 0.0f
-                    ? Maths.clamp(state.player.health / state.player.maxHealth, 0.0f, 1.0f) : 1.0f;
-            alpha += (1.0f - alpha) * step;
-        } else {
-            alpha -= alpha * step;
-            if (alpha < 0.01f) {
-                targetId = -1;
-                return;
-            }
-        }
-
-        float wanted = maxHealth > 0.0f ? Maths.clamp(health / maxHealth, 0.0f, 1.0f) : 0.0f;
-        fraction += (wanted - fraction) * (1.0f - (float) Math.exp(-BAR_RATE * context.deltaTime));
-        ghost += (fraction - ghost) * (1.0f - (float) Math.exp(-GHOST_RATE * context.deltaTime));
-
-        float shown = alpha * animation();
-        if (shown < 0.01f) {
+        if (mc.thePlayer == null || mc.theWorld == null) {
             return;
         }
 
-        /* Sized in GUI units so the panel is the same size on screen at any
-         * resolution, exactly as the rest of the HUD is. */
-        float unit = Math.max(1, state.scaleFactor) * scale.number();
-        float width = WIDTH * unit;
-        float height = HEIGHT * unit;
-        Rect bounds = new Rect(state.windowWidth * 0.5f - width * 0.5f + offsetX.number() * unit,
-                state.windowHeight * 0.5f + offsetY.number() * unit, width, height);
+        boolean guiOpen = mc.currentScreen instanceof GuiChat || Client.gui().visible();
+        EntityLivingBase activeTarget = this.target;
 
-        EntityView entity = find(state, targetId);
-        drawMarker(context, entity);
-        drawPanel(entity, bounds, shown);
+        // Check pointed entity or mouse over if aiming/swinging
+        if (activeTarget == null || !activeTarget.isEntityAlive()) {
+            if (mc.pointedEntity instanceof EntityLivingBase living && living.isEntityAlive()) {
+                activeTarget = living;
+                this.target = living;
+                this.lastAttackTime = System.currentTimeMillis();
+            } else if (mc.objectMouseOver != null && mc.objectMouseOver.entityHit instanceof EntityLivingBase living && living.isEntityAlive()) {
+                activeTarget = living;
+                this.target = living;
+                this.lastAttackTime = System.currentTimeMillis();
+            }
+        }
+
+        // Preview target when in ClickGui or Chat
+        if (guiOpen && (activeTarget == null || !activeTarget.isEntityAlive())) {
+            activeTarget = mc.thePlayer;
+        }
+
+        boolean targetPresent = activeTarget != null && activeTarget.isEntityAlive()
+                && (guiOpen || (System.currentTimeMillis() - lastAttackTime <= 2000L));
+
+        updateScaleAnimation(targetPresent);
+
+        if (scaleValue <= 0.001) {
+            return;
+        }
+
+        // Spawn particles if target took damage
+        if (particles.bool() && activeTarget != null && activeTarget.hurtTime > 0 && lastHurtTime == 0) {
+            for (int i = 0; i < 6; i++) {
+                float vx = (float) ((Math.random() - 0.5) * 3.5);
+                float vy = (float) ((Math.random() - 0.5) * 3.5);
+                particleList.add(new Particle(24.0f, 24.0f, vx, vy, (float) (Math.random() * 2.0 + 1.5)));
+            }
+        }
+        lastHurtTime = activeTarget != null ? activeTarget.hurtTime : 0;
+
+        // Update particles
+        Iterator<Particle> it = particleList.iterator();
+        while (it.hasNext()) {
+            if (!it.next().update(context.deltaTime)) {
+                it.remove();
+            }
+        }
+
+        ScaledResolution sr = new ScaledResolution(mc);
+        float scaledWidth = sr.getScaledWidth();
+        float scaledHeight = sr.getScaledHeight();
+
+        Renderer.instance().pause();
+        try {
+            GlStateManager.matrixMode(GL11.GL_PROJECTION);
+            GlStateManager.pushMatrix();
+            try {
+                GlStateManager.loadIdentity();
+                GlStateManager.ortho(0.0D, (double) scaledWidth, (double) scaledHeight, 0.0D, 1000.0D, 3000.0D);
+
+                GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+                GlStateManager.pushMatrix();
+                try {
+                    GlStateManager.loadIdentity();
+                    GlStateManager.translate(0.0F, 0.0F, -2000.0F);
+
+                    GlStateManager.enableBlend();
+                    GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+                    GlStateManager.enableAlpha();
+                    GlStateManager.alphaFunc(516, 0.05F);
+                    GlStateManager.enableTexture2D();
+                    GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+
+                    renderModernTargetInfo(activeTarget, scaledWidth, scaledHeight);
+                } finally {
+                    GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+                    GlStateManager.popMatrix();
+                }
+            } finally {
+                GlStateManager.matrixMode(GL11.GL_PROJECTION);
+                GlStateManager.popMatrix();
+            }
+        } catch (Throwable t) {
+            cobble.core.Log.error("TargetHud", t, "Error rendering TargetHud");
+        } finally {
+            GlStateManager.matrixMode(GL11.GL_MODELVIEW);
+            Renderer.instance().resume();
+        }
+    }
+
+    private void renderModernTargetInfo(EntityLivingBase entity, float scaledWidth, float scaledHeight) {
+        if (entity == null) {
+            return;
+        }
+
+        float b0 = 32.0f; // Head size
+        float d8 = entity.hurtTime > 0 ? entity.hurtTime * 0.5f : 0.0f;
+        float d9 = d8 / 2.0f;
+
+        IFont lightFont = FontManager.getLineSeedRegular(9.0f);
+        IFont mediumFont = FontManager.getLineSeedBold(9.0f);
+
+        String s1 = entity.getName();
+        float adv = getAdvantage(entity);
+        boolean winning = adv > 0.0f;
+        String s2 = winning ? "Winning:" : "Losing:";
+
+        float d2 = mediumFont.getStringWidth(s1);
+        float d3 = lightFont.getStringWidth(s2);
+
+        float healthVal = Math.max(0.0f, Math.min(entity.getHealth(), entity.getMaxHealth()));
+        String hpText = String.format(Locale.ROOT, "%.1f", healthVal);
+        float d5 = mediumFont.getStringWidth(hpText);
+
+        float d6 = Math.max(d3 + d2 + 35.0f - d5, 65.0f);
+        double maxHp = entity.getMaxHealth() > 0.0f ? entity.getMaxHealth() : 20.0f;
+        updateHealthAnimation((healthVal / maxHp) * d6);
+        float d7 = (float) healthValue;
+
+        float d10 = 48.0f + d6 + 4.0f + d5 + 8.0f;
+        float d11 = 48.0f;
+
+        float panelScale = scale.number();
+        float d0 = (scaledWidth / 2.0f) + offsetX.number() - (d10 * panelScale / 2.0f);
+        float d1 = (scaledHeight / 2.0f) + offsetY.number();
+
+        float d12 = (float) scaleValue;
+
+        GlStateManager.pushMatrix();
+        try {
+            float centerX = d0 + (d10 * panelScale) / 2.0f;
+            float centerY = d1 + (d11 * panelScale) / 2.0f;
+            GlStateManager.translate(centerX, centerY, 0.0f);
+            GlStateManager.scale(d12 * panelScale, d12 * panelScale, 1.0f);
+            GlStateManager.translate(-centerX, -centerY, 0.0f);
+
+            // 1. Panel Background & Drop Shadow
+            drawRoundedRect(d0 - 2.0f, d1 - 2.0f, d10 + 4.0f, d11 + 4.0f, 10.0f, new Color(0, 0, 0, 50).getRGB());
+            drawRoundedRect(d0 - 1.0f, d1 - 1.0f, d10 + 2.0f, d11 + 2.0f, 9.0f, new Color(0, 0, 0, 80).getRGB());
+            drawRoundedRect(d0, d1, d10 - 1.0f, d11, 8.0f, new Color(13, 15, 20, 205).getRGB());
+            drawRoundedOutline(d0, d1, d10 - 1.0f, d11, 8.0f, 1.0f, new Color(255, 255, 255, 22).getRGB());
+
+            // 2. Head / Avatar
+            float headX = d0 + 8.0f + d9;
+            float headY = d1 + 8.0f + d9;
+            float headSize = b0 - d8;
+            renderTargetHead(entity, headX, headY, headSize, d8);
+
+            // 3. Texts
+            int s2Color = showOutcome.bool() ? (winning ? 0xFF55FF55 : 0xFFFF5555) : 0xFFFFFFFF;
+            lightFont.drawString(s2, d0 + 8.0f + b0 + 7.0f, d1 + 8.0f + 4.0f + 2.0f, s2Color, true);
+            mediumFont.drawString(s1, d0 + 8.0f + b0 + 7.0f + d3 + 3.0f, d1 + 8.0f + 4.0f + 2.5f, 0xFFFFFFFF, true);
+
+            // 4. Health Bar Track
+            float barX = d0 + 8.0f + b0 + 7.0f;
+            float barY = d1 + 8.0f + b0 - 4.0f - 7.0f;
+            drawRoundedRect(barX, barY, d6, 6.0f, 3.0f, new Color(22, 25, 34, 160).getRGB());
+
+            // 5. Animated Health Bar Fill
+            if (d7 > 0.5f) {
+                int color1 = Theme.accent().packed();
+                int color2 = cobble.core.Color.mix(Theme.accent(), cobble.core.Color.WHITE, 0.35f).packed();
+                drawRoundedGradientRect(barX, barY, Math.min(d6, d7), 6.0f, 3.0f, color1, color2);
+            }
+
+            // 6. Numerical Health Value
+            mediumFont.drawString(hpText, barX + d6 + 4.0f, d1 + 8.0f + b0 - 4.0f - 8.0f, 0xFFDDDDDD, true);
+
+            // 7. Particles
+            if (!particleList.isEmpty()) {
+                for (Particle p : particleList) {
+                    int pColor = new Color(0.9f, 0.15f, 0.15f, p.alpha * 0.85f).getRGB();
+                    drawRect(d0 + 8.0f + p.x, d1 + 8.0f + p.y, d0 + 8.0f + p.x + p.size, d1 + 8.0f + p.y + p.size, pColor);
+                }
+            }
+        } finally {
+            GlStateManager.popMatrix();
+        }
+    }
+
+    private void renderTargetHead(EntityLivingBase entity, float x, float y, float size, float hurtShrink) {
+        ResourceLocation skin;
+        if (entity instanceof AbstractClientPlayer player) {
+            skin = player.getLocationSkin();
+        } else {
+            skin = new ResourceLocation("textures/entity/steve.png");
+        }
+
+        drawRoundedRect(x - 0.5f, y - 0.5f, size + 1.0f, size + 1.0f, 4.0f, new Color(8, 10, 14, 180).getRGB());
+
+        mc.getTextureManager().bindTexture(skin);
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.enableAlpha();
+        if (hurtShrink > 0.0f) {
+            float hurtFactor = Math.min(1.0f, hurtShrink / 4.5f);
+            GlStateManager.color(1.0f, 1.0f - hurtFactor * 0.6f, 1.0f - hurtFactor * 0.6f, 1.0f);
+        } else {
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+
+        // Base skin face
+        drawTexture(skin, x, y, 8.0F, 8.0F, 8.0F, 8.0F, 64.0F, 64.0F, size, size);
+        // Hat / outer layer
+        drawTexture(skin, x, y, 40.0F, 8.0F, 8.0F, 8.0F, 64.0F, 64.0F, size, size);
+
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+        drawRoundedOutline(x - 0.5f, y - 0.5f, size + 1.0f, size + 1.0f, 4.0f, 1.0f, new Color(0, 0, 0, 70).getRGB());
+    }
+
+    public static void drawTexture(ResourceLocation location, float x, float y, float u, float v, float uW, float vH, float texW, float texH, float width, float height) {
+        mc.getTextureManager().bindTexture(location);
+        GL11.glTexParameteri(3553, 10242, 33071);
+        GL11.glTexParameteri(3553, 10243, 33071);
+        GL11.glTexParameteri(3553, 10241, 9728);
+        GL11.glTexParameteri(3553, 10240, 9728);
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.enableAlpha();
+        float f = u / texW;
+        float f1 = v / texH;
+        float f2 = (u + uW) / texW;
+        float f3 = (v + vH) / texH;
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer wr = tessellator.getWorldRenderer();
+        wr.begin(7, DefaultVertexFormats.POSITION_TEX);
+        wr.pos(x, y + height, 0.0).tex(f, f3).endVertex();
+        wr.pos(x + width, y + height, 0.0).tex(f2, f3).endVertex();
+        wr.pos(x + width, y, 0.0).tex(f2, f1).endVertex();
+        wr.pos(x, y, 0.0).tex(f, f1).endVertex();
+        tessellator.draw();
+        GlStateManager.disableBlend();
+    }
+
+    public static void drawRect(float left, float top, float right, float bottom, int color) {
+        if (left < right) {
+            float temp = left;
+            left = right;
+            right = temp;
+        }
+        if (top < bottom) {
+            float temp = top;
+            top = bottom;
+            bottom = temp;
+        }
+        float a = (float) (color >> 24 & 255) / 255.0F;
+        float r = (float) (color >> 16 & 255) / 255.0F;
+        float g = (float) (color >> 8 & 255) / 255.0F;
+        float b = (float) (color & 255) / 255.0F;
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer wr = tessellator.getWorldRenderer();
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.color(r, g, b, a);
+        wr.begin(7, DefaultVertexFormats.POSITION);
+        wr.pos((double) left, (double) bottom, 0.0D).endVertex();
+        wr.pos((double) right, (double) bottom, 0.0D).endVertex();
+        wr.pos((double) right, (double) top, 0.0D).endVertex();
+        wr.pos((double) left, (double) top, 0.0D).endVertex();
+        tessellator.draw();
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+    }
+
+    public static void drawRoundedRect(float x, float y, float width, float height, float radius, int color) {
+        if (width <= 0.0f || height <= 0.0f) return;
+        float maxRadius = Math.min(width, height) / 2.0f;
+        radius = Math.min(radius, maxRadius);
+        float x2 = x + width;
+        float y2 = y + height;
+
+        float a = (float) (color >> 24 & 255) / 255.0F;
+        float r = (float) (color >> 16 & 255) / 255.0F;
+        float g = (float) (color >> 8 & 255) / 255.0F;
+        float b = (float) (color & 255) / 255.0F;
+
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.color(r, g, b, a);
+
+        GL11.glBegin(GL11.GL_POLYGON);
+        for (int i = 0; i <= 90; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x2 - radius + Math.sin(rad) * radius, y + radius - Math.cos(rad) * radius);
+        }
+        for (int i = 90; i <= 180; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x2 - radius + Math.sin(rad) * radius, y2 - radius - Math.cos(rad) * radius);
+        }
+        for (int i = 180; i <= 270; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x + radius + Math.sin(rad) * radius, y2 - radius - Math.cos(rad) * radius);
+        }
+        for (int i = 270; i <= 360; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x + radius + Math.sin(rad) * radius, y + radius - Math.cos(rad) * radius);
+        }
+        GL11.glEnd();
+
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+    }
+
+    public static void drawRoundedGradientRect(float x, float y, float width, float height, float radius, int color1, int color2) {
+        if (width <= 0.0f || height <= 0.0f) return;
+        float maxRadius = Math.min(width, height) / 2.0f;
+        radius = Math.min(radius, maxRadius);
+        float x2 = x + width;
+        float y2 = y + height;
+
+        float a1 = (float) (color1 >> 24 & 255) / 255.0F;
+        float r1 = (float) (color1 >> 16 & 255) / 255.0F;
+        float g1 = (float) (color1 >> 8 & 255) / 255.0F;
+        float b1 = (float) (color1 & 255) / 255.0F;
+
+        float a2 = (float) (color2 >> 24 & 255) / 255.0F;
+        float r2 = (float) (color2 >> 16 & 255) / 255.0F;
+        float g2 = (float) (color2 >> 8 & 255) / 255.0F;
+        float b2 = (float) (color2 & 255) / 255.0F;
+
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GL11.glShadeModel(GL11.GL_SMOOTH);
+
+        GL11.glBegin(GL11.GL_POLYGON);
+        for (int i = 0; i <= 90; i += 15) {
+            double rad = Math.toRadians(i);
+            double vx = x2 - radius + Math.sin(rad) * radius;
+            double vy = y + radius - Math.cos(rad) * radius;
+            float t = (float) ((vx - x) / Math.max(1.0f, width));
+            GL11.glColor4f(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t, a1 + (a2 - a1) * t);
+            GL11.glVertex2d(vx, vy);
+        }
+        for (int i = 90; i <= 180; i += 15) {
+            double rad = Math.toRadians(i);
+            double vx = x2 - radius + Math.sin(rad) * radius;
+            double vy = y2 - radius - Math.cos(rad) * radius;
+            float t = (float) ((vx - x) / Math.max(1.0f, width));
+            GL11.glColor4f(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t, a1 + (a2 - a1) * t);
+            GL11.glVertex2d(vx, vy);
+        }
+        for (int i = 180; i <= 270; i += 15) {
+            double rad = Math.toRadians(i);
+            double vx = x + radius + Math.sin(rad) * radius;
+            double vy = y2 - radius - Math.cos(rad) * radius;
+            float t = (float) ((vx - x) / Math.max(1.0f, width));
+            GL11.glColor4f(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t, a1 + (a2 - a1) * t);
+            GL11.glVertex2d(vx, vy);
+        }
+        for (int i = 270; i <= 360; i += 15) {
+            double rad = Math.toRadians(i);
+            double vx = x + radius + Math.sin(rad) * radius;
+            double vy = y + radius - Math.cos(rad) * radius;
+            float t = (float) ((vx - x) / Math.max(1.0f, width));
+            GL11.glColor4f(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t, a1 + (a2 - a1) * t);
+            GL11.glVertex2d(vx, vy);
+        }
+        GL11.glEnd();
+
+        GL11.glShadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+    }
+
+    public static void drawRoundedOutline(float x, float y, float width, float height, float radius, float lineWidth, int color) {
+        if (width <= 0.0f || height <= 0.0f) return;
+        float maxRadius = Math.min(width, height) / 2.0f;
+        radius = Math.min(radius, maxRadius);
+        float x2 = x + width;
+        float y2 = y + height;
+
+        float a = (float) (color >> 24 & 255) / 255.0F;
+        float r = (float) (color >> 16 & 255) / 255.0F;
+        float g = (float) (color >> 8 & 255) / 255.0F;
+        float b = (float) (color & 255) / 255.0F;
+
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GL11.glLineWidth(lineWidth);
+        GlStateManager.color(r, g, b, a);
+
+        GL11.glBegin(GL11.GL_LINE_LOOP);
+        for (int i = 0; i <= 90; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x2 - radius + Math.sin(rad) * radius, y + radius - Math.cos(rad) * radius);
+        }
+        for (int i = 90; i <= 180; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x2 - radius + Math.sin(rad) * radius, y2 - radius - Math.cos(rad) * radius);
+        }
+        for (int i = 180; i <= 270; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x + radius + Math.sin(rad) * radius, y2 - radius - Math.cos(rad) * radius);
+        }
+        for (int i = 270; i <= 360; i += 15) {
+            double rad = Math.toRadians(i);
+            GL11.glVertex2d(x + radius + Math.sin(rad) * radius, y + radius - Math.cos(rad) * radius);
+        }
+        GL11.glEnd();
+
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
     }
 }

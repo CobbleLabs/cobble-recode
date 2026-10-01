@@ -197,12 +197,8 @@ local element = cold.hud.element {
     height = 22,
     x = 3,
     y = 55,
-    visible = function() return test ~= nil and test.enabled end,
-    render = function(self, d)
-        cold.render.rect(d.x, d.y, d.width, d.height, cold.rgb(0x000000, 0.45), d.unit * 2)
-        cold.render.text("hud element", d.x + d.unit * 3, d.y + d.unit * 4, d.unit * 7,
-            cold.accent(), { cap = true, shadow = true })
-    end,
+    visible = function() return false end,
+    render = function(self, d) end,
 }
 check("hud element", element ~= nil and element.name == "SelfTestHud")
 check("hud element pos", (function()

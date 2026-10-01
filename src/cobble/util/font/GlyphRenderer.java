@@ -6,6 +6,7 @@ import org.lwjgl.opengl.GL11;
 
 public final class GlyphRenderer {
     public void push() {
+        GlStateManager.matrixMode(5888);
         GL11.glPushMatrix();
     }
 
@@ -37,8 +38,8 @@ public final class GlyphRenderer {
     public void end() {
         GlStateManager.bindTexture(0);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GL11.glPopMatrix();
         GlStateManager.matrixMode(5888);
+        GL11.glPopMatrix();
     }
 
     private static void vertex(float var0, float var1, float var2, float var3) {

@@ -217,6 +217,7 @@ public final class ClickGui {
     private enum RowKind {
         MODULE,   // toggle pill plus a settings subpage
         FLAG,     // one boolean setting, toggle pill only
+        SLIDER,   // one numeric slider setting
         COLOUR,   // one colour setting, subpage with the editor
         CONFIGS,  // subpage with the config manager
         ACTION,   // runs something when clicked
@@ -260,6 +261,8 @@ public final class ClickGui {
         final String title;
         Module module;
         Setting setting;
+        SettingRow sliderRow;
+        Rect sliderControl = Rect.EMPTY;
         Action action;
         final List<SettingRow> settings = new ArrayList<>();
         Rect bounds = Rect.EMPTY;
@@ -435,7 +438,7 @@ public final class ClickGui {
      * threading a factor through a few dozen colour arguments and missing
      * some. */
     private float alpha;
-    private boolean blur;
+    private float blurStrength = 1.0f;
     /* Drops to 0 while a HUD element is dragged, so the whole screen can be seen;
      * the menu stays open underneath and comes back on release. */
     private float presence = 1.0f;
@@ -481,12 +484,20 @@ public final class ClickGui {
         return bar.contains(x, y) || card.contains(x, y);
     }
 
+    public void setBlurStrength(float value) {
+        blurStrength = value;
+    }
+
+    public float blurStrength() {
+        return blurStrength;
+    }
+
     public void setBlur(boolean value) {
-        blur = value;
+        blurStrength = value ? (blurStrength > 0.01f ? blurStrength : 1.0f) : 0.0f;
     }
 
     public boolean blurEnabled() {
-        return blur;
+        return blurStrength > 0.01f;
     }
 
     /* Whether the menu will answer the pointer. Narrower than interactive():
@@ -840,8 +851,9 @@ public final class ClickGui {
             }
             Setting blurSetting = self.setting("Backdrop blur");
             if (blurSetting != null) {
-                Row row = new Row(RowKind.FLAG, "Backdrop blur", "Frost the scene behind the menu.", Icon.LAYERS);
+                Row row = new Row(RowKind.SLIDER, "Backdrop blur", "Frost the scene behind the menu.", Icon.LAYERS);
                 row.setting = blurSetting;
+                row.sliderRow = new SettingRow(blurSetting);
                 settings.rows.add(row);
             }
         }
@@ -1437,6 +1449,11 @@ public final class ClickGui {
             row.module.toggle(context);
         } else if (row.kind == RowKind.FLAG) {
             row.setting.setBool(!row.setting.bool());
+        } else if (row.kind == RowKind.SLIDER) {
+            if (row.sliderControl.width() > 0.0f && row.sliderRow != null) {
+                activeSlider = row.sliderRow;
+                row.setting.setNormalised((x - row.sliderControl.x()) / row.sliderControl.width());
+            }
         }
     }
 
@@ -1743,7 +1760,8 @@ public final class ClickGui {
 
         float cardY = bar.bottom() + s(PANEL_GAP);
         float header = s(HEADER_HEIGHT);
-        float maxHeight = Math.max(header + s(40.0f), screenH - cardY - s(24.0f));
+        float maxContentHeight = 7.5f * (s(ROW_HEIGHT) + s(ROW_GAP));
+        float maxHeight = Math.min(header + maxContentHeight + s(8.0f), Math.max(header + s(40.0f), screenH - cardY - s(24.0f)));
         float wanted = header + content + s(8.0f);
         float height = Math.min(maxHeight, Math.max(header + s(40.0f), wanted));
 
@@ -1842,8 +1860,20 @@ public final class ClickGui {
             boolean hasPill = row.kind == RowKind.MODULE || row.kind == RowKind.FLAG;
             float chevronCentre = row.bounds.right()
                     - (hasPill ? s(PILL_MARGIN + PILL_WIDTH + CHEVRON_BOX) : s(22.0f));
-            row.chevron = row.kind == RowKind.FLAG ? Rect.EMPTY
+            row.chevron = (row.kind == RowKind.FLAG || row.kind == RowKind.SLIDER) ? Rect.EMPTY
                     : new Rect(chevronCentre - s(14.0f), row.bounds.y(), s(28.0f), row.bounds.height());
+
+            if (row.kind == RowKind.SLIDER) {
+                float sliderWidth = s(80.0f);
+                float sliderHeight = s(SLIDER_TRACK);
+                float trackX = row.bounds.right() - s(PILL_MARGIN) - sliderWidth;
+                float trackY = row.bounds.centerY() + s(3.0f);
+                row.sliderControl = new Rect(trackX, trackY - sliderHeight * 0.5f, sliderWidth, sliderHeight);
+                if (row.sliderRow != null) {
+                    row.sliderRow.control = row.sliderControl;
+                    row.sliderRow.knob = Maths.approach(row.sliderRow.knob, row.setting.normalised(), 20.0f, deltaTime);
+                }
+            }
 
             boolean hovered = pointable() && body.contains(mouseX, mouseY) && row.bounds.contains(mouseX, mouseY);
             row.hover = Maths.approach(row.hover, hovered ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
@@ -1968,10 +1998,10 @@ public final class ClickGui {
         /* The design puts nothing behind the menu; the card carries its own
          * body. The blur is opt-in. */
         Backdrop backdrop = Client.backdrop();
-        if (blur && backdrop.valid()) {
+        if (blurEnabled() && backdrop.valid()) {
             Rect full = new Rect(0.0f, 0.0f, screenW, screenH);
             gfx.image(full, new Rect(0.0f, 1.0f, 1.0f, -1.0f), backdrop.texture(), fade(Color.WHITE), 0.0f);
-            gfx.rect(full, Color.rgb(0x000000, 0.28f * alpha), 0.0f);
+            gfx.rect(full, Color.rgb(0x000000, 0.28f * alpha * Math.min(1.0f, blurStrength)), 0.0f);
         }
 
         drawTabBar();
@@ -2108,6 +2138,15 @@ public final class ClickGui {
         }
         if (clipBody) {
             gfx.popClip();
+        }
+        if (content > body.height()) {
+            float trackHeight = body.height();
+            float thumbHeight = Math.max(s(24.0f), trackHeight * (trackHeight / content));
+            float maxScroll = Math.max(1.0f, content - trackHeight);
+            float thumbY = body.y() + (scroll / maxScroll) * (trackHeight - thumbHeight);
+            float thumbWidth = s(3.0f);
+            float thumbX = body.right() - thumbWidth + s(6.0f);
+            gfx.rect(new Rect(thumbX, thumbY, thumbWidth, thumbHeight), fade(Color.rgb(0xFFFFFF, 0.22f)), s(1.5f));
         }
         alpha = saved;
 
@@ -2331,6 +2370,9 @@ public final class ClickGui {
             if (hasPill) {
                 limit -= s(PILL_WIDTH);
             }
+            if (row.kind == RowKind.SLIDER) {
+                limit -= s(85.0f);
+            }
             if (row.chevron.width() > 0.0f) {
                 limit -= s(28.0f);
             }
@@ -2343,6 +2385,21 @@ public final class ClickGui {
             float pillHeight = s(PILL_HEIGHT);
             drawPill(new Rect(bounds.right() - s(PILL_MARGIN) - pillWidth, bounds.centerY() - pillHeight * 0.5f,
                     pillWidth, pillHeight), row.on);
+        }
+
+        if (row.kind == RowKind.SLIDER && row.setting != null) {
+            drawText(MICRO_FONT, formatNumber(row.setting), bounds.right() - s(PILL_MARGIN), bounds.centerY() - s(5.0f), s(MICRO_BOX), fade(CHIP_TEXT), Align.RIGHT);
+            Rect track = row.sliderControl;
+            if (track.width() > 0.0f) {
+                gfx.rect(track, fade(TRACK_BG), track.height() * 0.5f);
+                float fill = track.width() * Maths.clamp(row.sliderRow != null ? row.sliderRow.knob : row.setting.normalised(), 0.0f, 1.0f);
+                if (fill > 0.5f) {
+                    gfx.rect(new Rect(track.x(), track.y(), fill, track.height()), accent(), track.height() * 0.5f);
+                }
+                float knobRadius = s(5.0f);
+                gfx.rect(new Rect(track.x() + fill - knobRadius, track.centerY() - knobRadius, knobRadius * 2.0f,
+                        knobRadius * 2.0f), fade(KNOB_ON), knobRadius);
+            }
         }
 
         if (row.chevron.width() > 0.0f) {

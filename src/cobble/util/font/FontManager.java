@@ -29,7 +29,10 @@ public final class FontManager {
         new FontManager$7("Bold", "ProductSans-Bold.ttf", 1),
         new FontManager$7("Smooth", "Smooth.ttf", 0),
         new FontManager$7("Pixel", "Doto-Black.ttf", 0),
-        new FontManager$7("Tahoma", "tahoma.ttf", 0)
+        new FontManager$7("Tahoma", "tahoma.ttf", 0),
+        new FontManager$7("LINESeed", "LINESeedKR-Rg.ttf", 0),
+        new FontManager$7("LINESeed-Bold", "LINESeedKR-Bd.ttf", 1),
+        new FontManager$7("LINESeed-Thin", "LINESeedKR-Th.ttf", 0)
     };
     private static final Map<String, FontManager$7> BUNDLED_FONT_MAP = buildBundledFontMap();
     private static final Map<String, Font> BASE_FONT_CACHE = new ConcurrentHashMap<>();
@@ -79,7 +82,19 @@ public final class FontManager {
         return getRenderer(var0, 9.0F);
     }
 
-    private static IFont getRenderer(String var0, float var1) {
+    public static IFont getFont(String name, float size) {
+        return getRenderer(name, size);
+    }
+
+    public static IFont getLineSeedRegular(float size) {
+        return getRenderer("LINESeed", size);
+    }
+
+    public static IFont getLineSeedBold(float size) {
+        return getRenderer("LINESeed-Bold", size);
+    }
+
+    public static IFont getRenderer(String var0, float var1) {
         final float var2 = Math.max(1.0F, var1);
         if (var0 != null && !isMinecraftFont(var0)) {
             final FontManager$7 var3 = BUNDLED_FONT_MAP.get(var0);
@@ -89,10 +104,14 @@ public final class FontManager {
                     var6,
                     new Supplier<IFont>() {
                         public IFont get() {
-                            Font var1x = FontManager.BASE_FONT_CACHE.computeIfAbsent(var3.fileName, var0x -> FontManager.loadBaseFont(var0x));
-                            return (IFont)(var1x == null
-                                ? FontManager.getMinecraftRenderer(var2)
-                                : new TrueTypeFont(var1x.deriveFont(var3.style, var2), true));
+                            try {
+                                Font var1x = FontManager.BASE_FONT_CACHE.computeIfAbsent(var3.fileName, var0x -> FontManager.loadBaseFont(var0x));
+                                return (IFont)(var1x == null
+                                    ? FontManager.getMinecraftRenderer(var2)
+                                    : new TrueTypeFont(var1x.deriveFont(var3.style, var2), true));
+                            } catch (Throwable t) {
+                                return FontManager.getMinecraftRenderer(var2);
+                            }
                         }
                     }
                 );
@@ -205,6 +224,7 @@ public final class FontManager {
                 var7.put("Modern", "Bold");
                 var7.put("Sf-Regular", "Bold");
                 var7.put("Sf-Ui", "Bold");
+                var7.put("LINESeed", "LINESeed-Bold");
                 CUSTOM_FONT_MAP.clear();
                 CUSTOM_FONT_MAP.putAll(var6);
                 BOLD_FAMILY_MAP.clear();

@@ -1,7 +1,7 @@
 package cobble.module;
 
 import cobble.module.client.ClickGuiModule;
-import cobble.module.client.HudModule;
+import cobble.module.render.Interface;
 import cobble.module.client.RadarModule;
 import cobble.module.combat.AimAssist;
 import cobble.module.combat.AttributeSwap;
@@ -183,7 +183,7 @@ final class ModuleList {
                 new NickBot(),
 
                 new ClickGuiModule(),
-                new HudModule(),
+                new Interface(),
                 new RadarModule());
     }
 }

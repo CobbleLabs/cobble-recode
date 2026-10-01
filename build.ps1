@@ -390,6 +390,10 @@ Invoke-Step "[2/2] Building ($Config)" $CmakeExe @(
     "--config", $Config
 )
 
+if (Test-Path "$env:APPDATA\cobble\scripts") {
+    Copy-Item -Path "$RepoRoot\scripts\*" -Destination "$env:APPDATA\cobble\scripts\" -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 # -------------------------------------------------------------------- report --
 Write-Host ""
 Write-Host "Build OK ($Config|x64)." -ForegroundColor Green
