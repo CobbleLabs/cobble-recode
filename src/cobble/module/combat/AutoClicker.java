@@ -1,6 +1,6 @@
 package cobble.module.combat;
 
-import cobble.event.PrePlayerInteractEvent;
+import cobble.event.GameLoopEvent;
 import cobble.event.Subscribe;
 import cobble.event.TickStartEvent;
 import cobble.module.Category;
@@ -19,7 +19,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
-import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.init.Blocks;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.Item;
@@ -148,8 +147,14 @@ public class AutoClicker extends Module {
     }
 
     @Subscribe
-    public void onPrePlayerInteract(PrePlayerInteractEvent event) {
-        if (!ClientUtils.isInWorld()) {
+    public void onGameLoop(GameLoopEvent event) {
+        if (!ClientUtils.isInWorld() || mc.thePlayer == null || mc.theWorld == null || mc.thePlayer.isDead) {
+            breaking = false;
+            if (nextClickAt >= 0) {
+                InputHookManager.simulateMouseButton(0, false);
+            }
+            nextClickAt = -1;
+            isBounce = false;
             return;
         }
         if (Client.gui().visible() || mc.currentScreen != null || !mc.inGameHasFocus || !Mouse.isButtonDown(0)) {
@@ -186,15 +191,15 @@ public class AutoClicker extends Module {
             nextClickAt = now + nextInterval();
             return;
         }
-        // A stalled tick would otherwise pay back every missed click at once.
+        // A stalled frame would otherwise pay back every missed click at once.
         if (now - nextClickAt > 250.0) {
             nextClickAt = now;
         }
-        int attackKey = mc.gameSettings.keyBindAttack.getKeyCode();
         if (nextClickAt <= now) {
+            mc.entityRenderer.getMouseOver(1.0f);
             mc.leftClickCounter = 0;
-            KeyBinding.onTick(attackKey);
-            InputHookManager.simulateMouseButton(0, true);
+            mc.clickMouse();
+            mc.leftClickCounter = 0;
             nextClickAt = now + nextInterval();
         }
     }
@@ -260,7 +265,14 @@ public class AutoClicker extends Module {
         float high = Math.max(minCps.number(), maxCps.number());
         if (!randomization.bool()) {
             float base = 1000.0f / Math.max(uniform(low, high), 0.1f);
-            return clamp(base + uniform(-14.0f, 14.0f), 24.0f, 250.0f);
+            double u1 = Math.max(1e-9, unit());
+            double u2 = unit();
+            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            float interval = base * (float) Math.exp(0.18 * z - 0.5 * 0.18 * 0.18);
+            if (unit() < 0.035) {
+                interval += base * uniform(0.75f, 1.35f);
+            }
+            return clamp(interval, 24.0f, 300.0f);
         }
         updateFatigue();
         updateBurst();
@@ -281,64 +293,46 @@ public class AutoClicker extends Module {
         if ("Butterfly".equals(style)) {
             if (isBounce) {
                 // Secondary bounce tap of the two-finger butterfly stroke (debounce switch contact)
-                interval = uniform(26.0f, 46.0f);
+                double u1 = Math.max(1e-9, unit());
+                double u2 = unit();
+                double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                interval = 35.0f + (float) (6.0 * z);
+                interval = clamp(interval, 24.0f, 55.0f);
                 isBounce = false;
             } else {
                 if (tempoClicksLeft <= 0) {
-                    float targetTempo = uniform(low - 2.0f, high + 1.5f);
-                    tempo = clamp(0.6f * tempo + 0.4f * targetTempo, 1.0f, 25.0f);
+                    float targetTempo = uniform(low - 1.8f, high + 1.2f) + nextPink() * pinkAmplitude;
+                    tempo = clamp(0.65f * tempo + 0.35f * targetTempo, 1.0f, 25.0f);
                     tempoClicksLeft = random.nextInt(4, 13);
                 }
                 --tempoClicksLeft;
 
-                // Probability that this stroke produces a debounce double-tap
-                if (random.nextDouble() < 0.42 * intensity) {
-                    float interStroke = (1000.0f / Math.max(tempo, 1.0f)) * uniform(1.15f, 1.45f);
-                    interval = interStroke;
-                    isBounce = true;
-                } else {
-                    float base = 1000.0f / Math.max(tempo, 1.0f);
+                float base = 1000.0f / Math.max(tempo, 1.0f);
+                if (random.nextDouble() < 0.40 * intensity) {
                     double u1 = Math.max(1e-9, unit());
                     double u2 = unit();
                     double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                    double s = uniform(0.18f, 0.28f) * intensity;
+                    double s = 0.16 * intensity;
+                    interval = base * uniform(1.10f, 1.35f) * (float) Math.exp(s * z - 0.5 * s * s);
+                    isBounce = true;
+                } else {
+                    double u1 = Math.max(1e-9, unit());
+                    double u2 = unit();
+                    double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                    double s = uniform(0.18f, 0.26f) * intensity;
                     interval = base * (float) Math.exp(s * z - 0.5 * s * s);
                 }
 
-                // Occasional human motor adjustment micro-pause
-                if (random.nextDouble() < 0.05 * intensity) {
-                    interval += uniform(30.0f, 75.0f);
+                // Natural human tracking / finger repositioning outlier pause (~4.5% of strokes)
+                if (random.nextDouble() < 0.045 * intensity) {
+                    interval += base * uniform(1.10f, 1.85f);
                 }
             }
         } else if ("Jitter".equals(style)) {
             if (tempoClicksLeft <= 0) {
-                float targetTempo = uniform(low - 2.5f, high + 2.0f);
-                tempo = clamp(0.55f * tempo + 0.45f * targetTempo, 1.0f, 25.0f);
+                float targetTempo = uniform(low - 2.0f, high + 1.5f) + nextPink() * pinkAmplitude;
+                tempo = clamp(0.60f * tempo + 0.40f * targetTempo, 1.0f, 25.0f);
                 tempoClicksLeft = random.nextInt(3, 10);
-            }
-            --tempoClicksLeft;
-
-            float base = 1000.0f / Math.max(tempo, 1.0f);
-            double u1 = Math.max(1e-9, unit());
-            double u2 = unit();
-            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            double s = uniform(0.24f, 0.36f) * intensity;
-            interval = base * (float) Math.exp(s * z - 0.5 * s * s);
-            interval *= 1.0f + (fatigue - 1.0f) * intensity;
-            interval *= 1.0f + (burst - 1.0f) * intensity;
-
-            double q = unit();
-            if (q < 0.18 * intensity) {
-                interval = uniform(28.0f, 48.0f);
-            } else if (q < 0.26 * intensity) {
-                interval += uniform(35.0f, 80.0f);
-            }
-        } else {
-            // Normal single-finger index tapping
-            if (tempoClicksLeft <= 0) {
-                float targetTempo = uniform(low - 1.5f, high + 1.2f);
-                tempo = clamp(0.7f * tempo + 0.3f * targetTempo, 1.0f, 25.0f);
-                tempoClicksLeft = random.nextInt(6, 17);
             }
             --tempoClicksLeft;
 
@@ -352,14 +346,38 @@ public class AutoClicker extends Module {
             interval *= 1.0f + (burst - 1.0f) * intensity;
 
             double q = unit();
-            if (q < 0.08 * intensity) {
-                interval = uniform(32.0f, 52.0f);
-            } else if (q < 0.16 * intensity) {
-                interval += uniform(30.0f, 70.0f);
+            if (q < 0.12 * intensity) {
+                interval = uniform(32.0f, 48.0f);
+            } else if (q < 0.155 * intensity) {
+                interval += base * uniform(0.75f, 1.35f);
+            }
+        } else {
+            // Normal single-finger index tapping
+            if (tempoClicksLeft <= 0) {
+                float targetTempo = uniform(low - 1.2f, high + 1.0f) + nextPink() * pinkAmplitude;
+                tempo = clamp(0.70f * tempo + 0.30f * targetTempo, 1.0f, 25.0f);
+                tempoClicksLeft = random.nextInt(5, 15);
+            }
+            --tempoClicksLeft;
+
+            float base = 1000.0f / Math.max(tempo, 1.0f);
+            double u1 = Math.max(1e-9, unit());
+            double u2 = unit();
+            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            double s = uniform(0.18f, 0.26f) * intensity;
+            interval = base * (float) Math.exp(s * z - 0.5 * s * s);
+            interval *= 1.0f + (fatigue - 1.0f) * intensity;
+            interval *= 1.0f + (burst - 1.0f) * intensity;
+
+            double q = unit();
+            if (q < 0.06 * intensity) {
+                interval = uniform(38.0f, 54.0f);
+            } else if (q < 0.095 * intensity) {
+                interval += base * uniform(0.75f, 1.35f);
             }
         }
 
-        return clamp(interval, 24.0f, 250.0f);
+        return clamp(interval, 24.0f, 300.0f);
     }
 
     private void updateFatigue() {
