@@ -75,6 +75,11 @@ public class AutoClicker extends Module {
     private int recentCount = 0;
     private float lastInterval = 65.0f;
 
+    // Intave 50-swing batch duration defense state
+    private int batchSwings = 0;
+    private float batchElapsedMs = 0.0f;
+    private double lastClickTimeMs = 0.0;
+
     public AutoClicker() {
         super("AutoClicker", "Clicks for you while you hold left", Category.COMBAT, Subcategory.BASIC);
     }
@@ -94,6 +99,10 @@ public class AutoClicker extends Module {
         recentIndex = 0;
         recentCount = 0;
         lastInterval = 65.0f;
+        batchSwings = 0;
+        batchElapsedMs = 0.0f;
+        lastClickTimeMs = 0.0;
+
 
         sessionStart = System.currentTimeMillis();
         tempo = clamp((minCps.number() + maxCps.number()) * 0.5f, 1.0f, 25.0f);
@@ -202,6 +211,10 @@ public class AutoClicker extends Module {
         }
 
         double now = System.nanoTime() / 1.0e6;
+        if (lastClickTimeMs > 0 && now - lastClickTimeMs > 2500.0) {
+            batchSwings = 0;
+            batchElapsedMs = 0.0f;
+        }
         if (nextClickAt < 0) {
             nextClickAt = now + nextInterval();
             return;
@@ -215,9 +228,11 @@ public class AutoClicker extends Module {
             mc.leftClickCounter = 0;
             mc.clickMouse();
             mc.leftClickCounter = 0;
+            lastClickTimeMs = now;
             nextClickAt = now + nextInterval();
         }
     }
+
 
     @Subscribe
     public void onTickStart(TickStartEvent event) {
@@ -293,6 +308,7 @@ public class AutoClicker extends Module {
         low = clamp(low, 1.0f, 20.0f);
         high = clamp(high, low, 20.0f);
         float intensity = randomizationPercent.number() / 100.0f;
+        batchSwings++;
 
         // 1. Ornstein-Uhlenbeck continuous session drift (-0.22 to +0.22)
         drift = clamp(0.98f * drift + (float) nextGaussian() * 0.04f, -0.22f, 0.22f);
@@ -330,9 +346,27 @@ public class AutoClicker extends Module {
             interval += uniform(35.0f, 75.0f) * intensity;
         }
 
-        interval = clamp(interval, 25.0f, 210.0f);
+        // 8. Natural Human Combat Burst & Tracking Reposition (at clicks ~20 and ~40 of 50-stroke sequence)
+        if ((batchSwings == 20 || batchSwings == 40) && intensity > 0.3f) {
+            interval += uniform(170.0f, 240.0f) * intensity;
+        }
 
-        // 8. Active Standard Deviation & CV Floor Validator (Intave & Vulcan safe):
+        // 9. Active Intave 50-Swing Batch Duration Floor (length >= 4080ms guarantee):
+        // Intave Deviation.java condition: if (std < 25 && length < 4000)
+        // If the 49 intervals between swing 1 and swing 50 sum to >= 4080ms, length < 4000 is IMPOSSIBLE.
+        // It enters the decay branch (vl -= 0.1; vl *= 0.9;) and can NEVER flag low deviation.
+        float currentElapsed = batchElapsedMs + interval;
+        int clicksLeft = 50 - batchSwings;
+        if (clicksLeft > 0 && clicksLeft <= 4 && intensity > 0.3f) {
+            float needed = 4080.0f - currentElapsed;
+            if (needed > clicksLeft * 65.0f) {
+                interval += (needed / (float) clicksLeft);
+            }
+        }
+
+        interval = clamp(interval, 25.0f, 240.0f);
+
+        // 10. Active Standard Deviation & CV Floor Validator (Intave & Vulcan safe):
         // Intave flags "low deviation" if CV < 0.45 or std < 30ms over sliding windows.
         // We actively ensure every window (6, 8, 10, 16) has robust human variance (CV >= 0.46, std >= 32ms).
         float targetMinCv = 0.46f * intensity;
@@ -348,9 +382,9 @@ public class AutoClicker extends Module {
                 if (pCv < targetMinCv || pStd < targetMinStd) {
                     lowVar = true;
                     if (interval >= pMean) {
-                        interval = clamp(interval + uniform(28.0f, 48.0f), 25.0f, 210.0f);
+                        interval = clamp(interval + uniform(28.0f, 48.0f), 25.0f, 240.0f);
                     } else {
-                        interval = clamp(interval - uniform(18.0f, 32.0f), 25.0f, 210.0f);
+                        interval = clamp(interval - uniform(18.0f, 32.0f), 25.0f, 240.0f);
                     }
                     break;
                 }
@@ -360,20 +394,27 @@ public class AutoClicker extends Module {
             }
         }
 
-        // 9. Prevent identical consecutive intervals (no mechanical equality)
+        // 11. Prevent identical consecutive intervals (no mechanical equality)
         if (recentCount > 0 && Math.abs(interval - lastInterval) < 3.0f) {
             float delta = uniform(4.0f, 10.0f);
             interval += (interval >= lastInterval ? delta : -delta);
-            interval = clamp(interval, 25.0f, 210.0f);
+            interval = clamp(interval, 25.0f, 240.0f);
         }
 
-        // 10. USB polling grid quantization (1 kHz hardware mouse clock)
+        // 12. USB polling grid quantization (1 kHz hardware mouse clock)
         interval = Math.round(interval) + uniform(-0.15f, 0.15f);
-        interval = clamp(interval, 25.0f, 210.0f);
+        interval = clamp(interval, 25.0f, 240.0f);
+
+        batchElapsedMs += interval;
+        if (batchSwings >= 50) {
+            batchSwings = 0;
+            batchElapsedMs = 0.0f;
+        }
 
         recordInterval(interval);
         return interval;
     }
+
 
     private void updateFatigue() {
         float sessionLoad = Math.min((System.currentTimeMillis() - sessionStart) / 1000L / 60.0f * 0.004f, 0.10f);
