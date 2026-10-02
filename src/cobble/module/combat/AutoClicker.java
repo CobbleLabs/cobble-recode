@@ -13,7 +13,6 @@ import cobble.module.player.InventoryManager;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.InputHookManager;
-import java.util.List;
 import java.util.SplittableRandom;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLiquid;
@@ -30,21 +29,18 @@ import org.lwjgl.input.Mouse;
 
 /**
  * Cobble's AutoClicker: clicks while the left button is held, spacing presses
- * with a model of human timing (a wandering tempo, fatigue, bursts, log-normal
- * jitter and pink noise) instead of a flat random range.
- *
- * <p>The server times the press, so each generated interval is the full gap
- * from one press to the next.
+ * with a unified, biological model of human timing (continuous motor drift,
+ * physiological tremor, downstroke-recoil cycles, tracking adjustments,
+ * and prospective deviation validation) instead of synthetic modes.
  */
 public class AutoClicker extends Module {
     private static final double INVENTORY_INTERVAL_MS = 1000.0 / 16.0;
     private static final int PINK_ROWS = 16;
+    private static final int ROLLING_BUFFER_SIZE = 32;
 
     private final Setting minCps = addNumber("Min CPS", "Lowest clicks per second", 14, 1, 20, 1);
     private final Setting maxCps = addNumber("Max CPS", "Highest clicks per second", 16, 1, 20, 1);
     private final Setting randomization = addBoolean("Randomization", "Human timing model instead of a uniform range", true);
-    private final Setting pattern = addChoice("Pattern", "Click timing profile", List.of("Butterfly", "Jitter", "Normal"), 0)
-            .visibleWhen(randomization::bool);
     private final Setting randomizationPercent = addNumber("Randomization (%)", "How much of the human model applies",
             100, 0, 100, 0).visibleWhen(randomization::bool);
     private final Setting stable = addBoolean("Stable CPS", "Click at one fixed rate", false);
@@ -56,7 +52,6 @@ public class AutoClicker extends Module {
 
     private final SplittableRandom random = new SplittableRandom();
     private double nextClickAt = -1;
-    private boolean isBounce;
     private boolean breaking;
     private GuiContainer inventoryGui;
     private Slot inventorySlot;
@@ -66,26 +61,13 @@ public class AutoClicker extends Module {
     private float fatigue;
     private float fatigueTarget;
     private int fatigueClicksLeft;
-    private boolean recovering;
     private float burst;
     private int burstClicksLeft;
-    private float sigma;
-    private float sigmaTarget;
-    private float sigmaSessionOffset;
-    private int sigmaClicksLeft;
-    private float tempoStepScale;
-    private float tempoPull;
-    private float hesitationChance;
-    private float doubleTapChance;
-    private int shapeClicksLeft;
     private final float[] pinkRows = new float[PINK_ROWS];
     private int pinkCounter;
     private float pink;
-    private float pinkAmplitude;
     private float tempo;
-    private int tempoClicksLeft;
 
-    private static final int ROLLING_BUFFER_SIZE = 16;
     private final float[] recentIntervals = new float[ROLLING_BUFFER_SIZE];
     private int recentIndex = 0;
     private int recentCount = 0;
@@ -97,13 +79,12 @@ public class AutoClicker extends Module {
 
     @Override
     public String suffix() {
-        return stable.bool() ? "Stable" : pattern.choiceName();
+        return stable.bool() ? "Stable" : "Human";
     }
 
     @Override
     public void onEnable(Context context) {
         nextClickAt = -1;
-        isBounce = false;
         nextInventoryClickAt = -1;
         breaking = false;
         clearInventoryTarget();
@@ -116,26 +97,14 @@ public class AutoClicker extends Module {
         fatigue = 1.0f;
         fatigueTarget = 1.0f;
         fatigueClicksLeft = 0;
-        recovering = true;
         burst = 1.0f;
         burstClicksLeft = 0;
-        sigma = uniform(0.18f, 0.35f);
-        sigmaTarget = sigma;
-        sigmaClicksLeft = 0;
-        sigmaSessionOffset = uniform(-0.04f, 0.04f);
-        tempoStepScale = uniform(0.08f, 0.24f);
-        tempoPull = uniform(0.02f, 0.12f);
-        hesitationChance = uniform(0.02f, 0.08f);
-        doubleTapChance = uniform(0.15f, 0.35f);
-        shapeClicksLeft = 0;
         for (int row = 0; row < PINK_ROWS; ++row) {
             pinkRows[row] = uniform(-1.0f, 1.0f);
         }
         pinkCounter = 0;
         pink = 0.0f;
-        pinkAmplitude = uniform(0.05f, 0.17f);
         tempo = clamp((minCps.number() + maxCps.number()) * 0.5f, 1.0f, 25.0f);
-        tempoClicksLeft = 0;
     }
 
     private void recordInterval(float interval) {
@@ -147,43 +116,43 @@ public class AutoClicker extends Module {
         lastInterval = interval;
     }
 
-    private float rollingStdDev(int count) {
-        if (recentCount < 4) {
-            return 30.0f;
+    private float prospectiveStdDev(float cand, int count) {
+        if (recentCount < count - 1) {
+            return 35.0f;
         }
-        int n = Math.min(count, recentCount);
-        float sum = 0.0f;
+        int n = Math.min(count - 1, recentCount);
+        float sum = cand;
         for (int i = 0; i < n; i++) {
             int idx = (recentIndex - 1 - i + ROLLING_BUFFER_SIZE) % ROLLING_BUFFER_SIZE;
             sum += recentIntervals[idx];
         }
-        float mean = sum / n;
-        float sqDiff = 0.0f;
+        int total = n + 1;
+        float mean = sum / total;
+        float sqDiff = (cand - mean) * (cand - mean);
         for (int i = 0; i < n; i++) {
             int idx = (recentIndex - 1 - i + ROLLING_BUFFER_SIZE) % ROLLING_BUFFER_SIZE;
             float diff = recentIntervals[idx] - mean;
             sqDiff += diff * diff;
         }
-        return (float) Math.sqrt(sqDiff / n);
+        return (float) Math.sqrt(sqDiff / (total - 1));
     }
 
-    private float rollingMean(int count) {
-        if (recentCount == 0) {
-            return 66.6f;
+    private float prospectiveMean(float cand, int count) {
+        if (recentCount < count - 1) {
+            return cand;
         }
-        int n = Math.min(count, recentCount);
-        float sum = 0.0f;
+        int n = Math.min(count - 1, recentCount);
+        float sum = cand;
         for (int i = 0; i < n; i++) {
             int idx = (recentIndex - 1 - i + ROLLING_BUFFER_SIZE) % ROLLING_BUFFER_SIZE;
             sum += recentIntervals[idx];
         }
-        return sum / n;
+        return sum / (n + 1);
     }
 
     @Override
     public void onDisable(Context context) {
         InputHookManager.simulateMouseButton(0, false);
-        isBounce = false;
         nextClickAt = -1;
         clearInventoryTarget();
     }
@@ -206,7 +175,6 @@ public class AutoClicker extends Module {
                 InputHookManager.simulateMouseButton(0, false);
             }
             nextClickAt = -1;
-            isBounce = false;
             return;
         }
         if (Client.gui().visible() || mc.currentScreen != null || !mc.inGameHasFocus || !Mouse.isButtonDown(0)) {
@@ -215,7 +183,6 @@ public class AutoClicker extends Module {
                 InputHookManager.simulateMouseButton(0, false);
             }
             nextClickAt = -1;
-            isBounce = false;
             return;
         }
         if (weaponOnly.bool() && !holdingWeapon()) {
@@ -223,7 +190,6 @@ public class AutoClicker extends Module {
                 InputHookManager.simulateMouseButton(0, false);
             }
             nextClickAt = -1;
-            isBounce = false;
             return;
         }
         /* The physical press already holds the attack binding down; clicking
@@ -235,7 +201,6 @@ public class AutoClicker extends Module {
         if (breaking) {
             breaking = false;
             nextClickAt = -1;
-            isBounce = false;
         }
 
         double now = System.nanoTime() / 1.0e6;
@@ -316,28 +281,9 @@ public class AutoClicker extends Module {
         float low = Math.min(minCps.number(), maxCps.number());
         float high = Math.max(minCps.number(), maxCps.number());
         if (!randomization.bool()) {
-            float targetTempo = uniform(low - 1.0f, high + 1.0f);
+            float targetTempo = uniform(low, high);
             float base = 1000.0f / Math.max(targetTempo, 1.0f);
-            double u1 = Math.max(1e-9, unit());
-            double u2 = unit();
-            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            float interval = base * (float) Math.exp(0.26 * z - 0.5 * 0.26 * 0.26);
-            if (Math.abs(interval - lastInterval) < 12.0f) {
-                interval += (interval >= lastInterval ? 14.0f : -14.0f) * uniform(0.9f, 1.4f);
-            }
-            if (unit() < 0.05) {
-                interval += base * uniform(0.75f, 1.35f);
-            }
-            float recentStd = rollingStdDev(8);
-            if (recentStd < 22.0f) {
-                float mean = rollingMean(8);
-                if (interval >= mean) {
-                    interval += base * uniform(0.40f, 0.75f);
-                } else {
-                    interval = Math.max(26.0f, interval - base * uniform(0.25f, 0.45f));
-                }
-            }
-            interval = clamp(interval, 24.0f, 300.0f);
+            float interval = uniform(base * 0.85f, base * 1.15f);
             recordInterval(interval);
             return interval;
         }
@@ -351,97 +297,92 @@ public class AutoClicker extends Module {
         high = clamp(high, low, 20.0f);
         float intensity = randomizationPercent.number() / 100.0f;
 
-        updateShape();
-        updateSigma();
+        // Biological tempo wandering with 1/f pink noise and muscle inertia
+        float targetTempo = uniform(low - 0.5f, high + 0.5f) + nextPink() * (0.25f * intensity);
+        tempo += (targetTempo - tempo) * 0.10f;
+        tempo = clamp(tempo, 1.0f, 25.0f);
 
-        float targetTempo = uniform(low - 1.2f, high + 1.2f) + nextPink() * pinkAmplitude;
-        tempo = clamp(0.80f * tempo + 0.20f * targetTempo, 1.0f, 25.0f);
-        float base = 1000.0f / Math.max(tempo, 1.0f);
+        float base = 1000.0f / tempo;
+        // Modulate base by natural fatigue and brief burst impulses
+        base *= 1.0f + (fatigue - 1.0f) * (0.5f * intensity);
+        base *= 1.0f + (burst - 1.0f) * (0.5f * intensity);
 
-        String style = pattern.choiceName();
+        float last = (recentCount > 0) ? lastInterval : base;
+        float fastThresh = Math.max(30.0f, base * 0.70f);
+        float slowThresh = base * 1.30f;
+
+        boolean wasFast = (last < fastThresh);
+        boolean wasSlow = (last > slowThresh);
+
         float interval;
-
-        if ("Butterfly".equals(style)) {
-            if (isBounce) {
-                // Secondary bounce tap of the two-finger butterfly stroke (debounce switch contact)
+        if (wasFast) {
+            // Biological recoil: after a fast downstroke (< fastThresh), the finger resets.
+            // Generates a natural recovery tap (1.18 to 1.45x of base + subtle motor noise)
+            double u1 = Math.max(1e-9, unit());
+            double u2 = unit();
+            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            interval = base * uniform(1.18f, 1.45f) + (float) (3.0 * z * intensity);
+        } else if (wasSlow) {
+            // Resumption: after a hesitation or tracking lift (> slowThresh), re-engage with normal cadence
+            double u1 = Math.max(1e-9, unit());
+            double u2 = unit();
+            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            interval = base * uniform(0.75f, 1.02f) + (float) (3.0 * z * intensity);
+        } else {
+            // Natural human distribution: mixture of mechanical micro-bounces,
+            // tracking hesitations, and log-normal motor actuation noise
+            double roll = unit();
+            if (roll < 0.14 * intensity) {
+                // Mechanical switch debounce / rapid double tap
+                interval = base * uniform(0.48f, 0.65f);
+            } else if (roll < 0.22 * intensity) {
+                // Aim correction / tracking hesitation (micro-pause)
+                interval = base + uniform(28.0f, 52.0f) * intensity;
+            } else {
+                // Primary biological motor tap: log-normal distribution with natural motor variance
                 double u1 = Math.max(1e-9, unit());
                 double u2 = unit();
                 double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                interval = 36.0f + (float) (8.0 * z);
-                interval = clamp(interval, 24.0f, 58.0f);
-                isBounce = false;
-            } else {
-                if (random.nextDouble() < 0.42 * intensity) {
-                    double u1 = Math.max(1e-9, unit());
-                    double u2 = unit();
-                    double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                    double s = 0.22 * intensity;
-                    interval = base * uniform(1.15f, 1.45f) * (float) Math.exp(s * z - 0.5 * s * s);
-                    isBounce = true;
-                } else {
-                    double u1 = Math.max(1e-9, unit());
-                    double u2 = unit();
-                    double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                    double s = 0.28 * intensity;
-                    interval = base * (float) Math.exp(s * z - 0.5 * s * s);
+                float s = uniform(0.32f, 0.40f) * intensity;
+                interval = base * (float) Math.exp(s * z - 0.5 * s * s);
+            }
+        }
+
+        interval = clamp(interval, 25.0f, 150.0f);
+
+        // Anti-mechanical equality: ensure adjacent intervals differ by at least 3ms with organic variation
+        if (recentCount > 0 && Math.abs(interval - last) < 3.0f) {
+            float delta = uniform(4.0f, 10.0f);
+            interval += (interval >= last ? delta : -delta);
+            interval = clamp(interval, 25.0f, 150.0f);
+        }
+
+        // Active Deviation Floor Validator (Intave clickpatterns & Vulcan safe):
+        // Ensure that prospective standard deviation across windows (6, 8, 10, 16)
+        // never falls below human biological variance threshold.
+        float minTargetStd = Math.max(24.0f, base * 0.32f) * intensity;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            boolean tooLow = false;
+            int[] windows = {6, 8, 10, 16};
+            for (int w : windows) {
+                float pStd = prospectiveStdDev(interval, w);
+                if (pStd < minTargetStd) {
+                    tooLow = true;
+                    float pMean = prospectiveMean(interval, w);
+                    if (interval >= pMean) {
+                        interval = clamp(interval + uniform(20.0f, 34.0f), 25.0f, 150.0f);
+                    } else {
+                        interval = clamp(interval - uniform(16.0f, 26.0f), 25.0f, 150.0f);
+                    }
+                    break;
                 }
-
-                // Natural human tracking / finger repositioning outlier pause (~4.5% of strokes)
-                if (random.nextDouble() < 0.045 * intensity) {
-                    interval += base * uniform(1.10f, 1.85f);
-                }
             }
-        } else if ("Jitter".equals(style)) {
-            double u1 = Math.max(1e-9, unit());
-            double u2 = unit();
-            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            double s = 0.32 * intensity;
-            interval = base * (float) Math.exp(s * z - 0.5 * s * s);
-            interval *= 1.0f + (fatigue - 1.0f) * intensity;
-            interval *= 1.0f + (burst - 1.0f) * intensity;
-
-            double q = unit();
-            if (q < 0.12 * intensity) {
-                interval = uniform(32.0f, 48.0f);
-            } else if (q < 0.165 * intensity) {
-                interval += base * uniform(0.75f, 1.35f);
-            }
-        } else {
-            // Normal single-finger index tapping
-            double u1 = Math.max(1e-9, unit());
-            double u2 = unit();
-            double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            double s = 0.28 * intensity;
-            interval = base * (float) Math.exp(s * z - 0.5 * s * s);
-            interval *= 1.0f + (fatigue - 1.0f) * intensity;
-            interval *= 1.0f + (burst - 1.0f) * intensity;
-
-            double q = unit();
-            if (q < 0.08 * intensity) {
-                interval = uniform(36.0f, 52.0f);
-            } else if (q < 0.12 * intensity) {
-                interval += base * uniform(0.75f, 1.35f);
+            if (!tooLow) {
+                break;
             }
         }
 
-        // 1. Prevent consecutive near-identical delays (anti-mechanical equality)
-        if (!isBounce && Math.abs(interval - lastInterval) < 12.0f) {
-            interval += (interval >= lastInterval ? 14.0f : -14.0f) * uniform(0.9f, 1.4f);
-        }
-
-        // 2. Active Window Deviation Regulator:
-        // If the rolling std of the last 8 clicks dips below 22ms, inject compensatory variance
-        float recentStd = rollingStdDev(8);
-        if (recentStd < 22.0f && !isBounce) {
-            float mean = rollingMean(8);
-            if (interval >= mean) {
-                interval += base * uniform(0.40f, 0.75f);
-            } else {
-                interval = Math.max(26.0f, interval - base * uniform(0.25f, 0.45f));
-            }
-        }
-
-        interval = clamp(interval, 24.0f, 300.0f);
+        interval = clamp(interval, 25.0f, 150.0f);
         recordInterval(interval);
         return interval;
     }
@@ -449,21 +390,15 @@ public class AutoClicker extends Module {
     private void updateFatigue() {
         float sessionLoad = Math.min((System.currentTimeMillis() - sessionStart) / 1000L / 60.0f * 0.004f, 0.10f);
         if (fatigueClicksLeft <= 0) {
-            recovering = !recovering;
-            if (recovering) {
-                fatigueTarget = 1.0f + sessionLoad * uniform(0.25f, 0.55f);
-                fatigueClicksLeft = random.nextInt(40, 101);
-            } else {
-                fatigueTarget = 1.0f + sessionLoad + uniform(0.08f, 0.18f);
-                fatigueClicksLeft = random.nextInt(90, 221);
-            }
+            fatigueTarget = 1.0f + sessionLoad + uniform(0.02f, 0.12f);
+            fatigueClicksLeft = random.nextInt(40, 120);
         }
         --fatigueClicksLeft;
-        fatigue += (fatigueTarget - fatigue) * (recovering ? 0.045f : 0.018f);
-        fatigue = clamp(fatigue, 1.0f, 1.30f);
+        fatigue += (fatigueTarget - fatigue) * 0.03f;
+        fatigue = clamp(fatigue, 1.0f, 1.25f);
     }
 
-    private void updateBurst() {
+    private void burstImpulse() {
         if (burstClicksLeft > 0) {
             if (--burstClicksLeft == 0) {
                 burst = 1.0f;
@@ -473,17 +408,12 @@ public class AutoClicker extends Module {
         if (random.nextInt(101) > 8) {
             return;
         }
-        burstClicksLeft = random.nextInt(3, 13);
-        burst = random.nextInt(101) < 70 ? uniform(0.85f, 0.95f) : uniform(1.05f, 1.20f);
+        burstClicksLeft = random.nextInt(3, 10);
+        burst = random.nextInt(101) < 70 ? uniform(0.88f, 0.96f) : uniform(1.04f, 1.15f);
     }
 
-    private void updateSigma() {
-        if (sigmaClicksLeft <= 0) {
-            sigmaTarget = uniform(0.08f, 0.44f);
-            sigmaClicksLeft = random.nextInt(40, 181);
-        }
-        --sigmaClicksLeft;
-        sigma = clamp(sigma + (sigmaTarget - sigma) * 0.025f, 0.08f, 0.44f);
+    private void updateBurst() {
+        burstImpulse();
     }
 
     /* Voss-McCartney: every counter bit that flips resamples its row, and the
@@ -499,20 +429,6 @@ public class AutoClicker extends Module {
         }
         pink += (sum / PINK_ROWS - pink) * 0.4f;
         return pink;
-    }
-
-    /* Shifting the whole shape now and then keeps windows that straddle a
-     * change from sharing one statistical fingerprint. */
-    private void updateShape() {
-        if (shapeClicksLeft > 0) {
-            --shapeClicksLeft;
-            return;
-        }
-        tempoStepScale = uniform(0.08f, 0.24f);
-        tempoPull = uniform(0.02f, 0.12f);
-        hesitationChance = uniform(0.01f, 0.06f);
-        doubleTapChance = uniform(0.005f, 0.04f);
-        shapeClicksLeft = random.nextInt(60, 201);
     }
 
     private double unit() {
