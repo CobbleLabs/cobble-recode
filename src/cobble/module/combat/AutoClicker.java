@@ -85,6 +85,12 @@ public class AutoClicker extends Module {
     private float tempo;
     private int tempoClicksLeft;
 
+    private static final int ROLLING_BUFFER_SIZE = 16;
+    private final float[] recentIntervals = new float[ROLLING_BUFFER_SIZE];
+    private int recentIndex = 0;
+    private int recentCount = 0;
+    private float lastInterval = 65.0f;
+
     public AutoClicker() {
         super("AutoClicker", "Clicks for you while you hold left", Category.COMBAT, Subcategory.BASIC);
     }
@@ -101,6 +107,10 @@ public class AutoClicker extends Module {
         nextInventoryClickAt = -1;
         breaking = false;
         clearInventoryTarget();
+
+        recentIndex = 0;
+        recentCount = 0;
+        lastInterval = 65.0f;
 
         sessionStart = System.currentTimeMillis();
         fatigue = 1.0f;
@@ -126,6 +136,48 @@ public class AutoClicker extends Module {
         pinkAmplitude = uniform(0.05f, 0.17f);
         tempo = clamp((minCps.number() + maxCps.number()) * 0.5f, 1.0f, 25.0f);
         tempoClicksLeft = 0;
+    }
+
+    private void recordInterval(float interval) {
+        recentIntervals[recentIndex] = interval;
+        recentIndex = (recentIndex + 1) % ROLLING_BUFFER_SIZE;
+        if (recentCount < ROLLING_BUFFER_SIZE) {
+            recentCount++;
+        }
+        lastInterval = interval;
+    }
+
+    private float rollingStdDev(int count) {
+        if (recentCount < 4) {
+            return 30.0f;
+        }
+        int n = Math.min(count, recentCount);
+        float sum = 0.0f;
+        for (int i = 0; i < n; i++) {
+            int idx = (recentIndex - 1 - i + ROLLING_BUFFER_SIZE) % ROLLING_BUFFER_SIZE;
+            sum += recentIntervals[idx];
+        }
+        float mean = sum / n;
+        float sqDiff = 0.0f;
+        for (int i = 0; i < n; i++) {
+            int idx = (recentIndex - 1 - i + ROLLING_BUFFER_SIZE) % ROLLING_BUFFER_SIZE;
+            float diff = recentIntervals[idx] - mean;
+            sqDiff += diff * diff;
+        }
+        return (float) Math.sqrt(sqDiff / n);
+    }
+
+    private float rollingMean(int count) {
+        if (recentCount == 0) {
+            return 66.6f;
+        }
+        int n = Math.min(count, recentCount);
+        float sum = 0.0f;
+        for (int i = 0; i < n; i++) {
+            int idx = (recentIndex - 1 - i + ROLLING_BUFFER_SIZE) % ROLLING_BUFFER_SIZE;
+            sum += recentIntervals[idx];
+        }
+        return sum / n;
     }
 
     @Override
@@ -264,15 +316,30 @@ public class AutoClicker extends Module {
         float low = Math.min(minCps.number(), maxCps.number());
         float high = Math.max(minCps.number(), maxCps.number());
         if (!randomization.bool()) {
-            float base = 1000.0f / Math.max(uniform(low, high), 0.1f);
+            float targetTempo = uniform(low - 1.0f, high + 1.0f);
+            float base = 1000.0f / Math.max(targetTempo, 1.0f);
             double u1 = Math.max(1e-9, unit());
             double u2 = unit();
             double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            float interval = base * (float) Math.exp(0.18 * z - 0.5 * 0.18 * 0.18);
-            if (unit() < 0.035) {
+            float interval = base * (float) Math.exp(0.26 * z - 0.5 * 0.26 * 0.26);
+            if (Math.abs(interval - lastInterval) < 12.0f) {
+                interval += (interval >= lastInterval ? 14.0f : -14.0f) * uniform(0.9f, 1.4f);
+            }
+            if (unit() < 0.05) {
                 interval += base * uniform(0.75f, 1.35f);
             }
-            return clamp(interval, 24.0f, 300.0f);
+            float recentStd = rollingStdDev(8);
+            if (recentStd < 22.0f) {
+                float mean = rollingMean(8);
+                if (interval >= mean) {
+                    interval += base * uniform(0.40f, 0.75f);
+                } else {
+                    interval = Math.max(26.0f, interval - base * uniform(0.25f, 0.45f));
+                }
+            }
+            interval = clamp(interval, 24.0f, 300.0f);
+            recordInterval(interval);
+            return interval;
         }
         updateFatigue();
         updateBurst();
@@ -287,6 +354,10 @@ public class AutoClicker extends Module {
         updateShape();
         updateSigma();
 
+        float targetTempo = uniform(low - 1.2f, high + 1.2f) + nextPink() * pinkAmplitude;
+        tempo = clamp(0.80f * tempo + 0.20f * targetTempo, 1.0f, 25.0f);
+        float base = 1000.0f / Math.max(tempo, 1.0f);
+
         String style = pattern.choiceName();
         float interval;
 
@@ -296,30 +367,22 @@ public class AutoClicker extends Module {
                 double u1 = Math.max(1e-9, unit());
                 double u2 = unit();
                 double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                interval = 35.0f + (float) (6.0 * z);
-                interval = clamp(interval, 24.0f, 55.0f);
+                interval = 36.0f + (float) (8.0 * z);
+                interval = clamp(interval, 24.0f, 58.0f);
                 isBounce = false;
             } else {
-                if (tempoClicksLeft <= 0) {
-                    float targetTempo = uniform(low - 1.8f, high + 1.2f) + nextPink() * pinkAmplitude;
-                    tempo = clamp(0.65f * tempo + 0.35f * targetTempo, 1.0f, 25.0f);
-                    tempoClicksLeft = random.nextInt(4, 13);
-                }
-                --tempoClicksLeft;
-
-                float base = 1000.0f / Math.max(tempo, 1.0f);
-                if (random.nextDouble() < 0.40 * intensity) {
+                if (random.nextDouble() < 0.42 * intensity) {
                     double u1 = Math.max(1e-9, unit());
                     double u2 = unit();
                     double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                    double s = 0.16 * intensity;
-                    interval = base * uniform(1.10f, 1.35f) * (float) Math.exp(s * z - 0.5 * s * s);
+                    double s = 0.22 * intensity;
+                    interval = base * uniform(1.15f, 1.45f) * (float) Math.exp(s * z - 0.5 * s * s);
                     isBounce = true;
                 } else {
                     double u1 = Math.max(1e-9, unit());
                     double u2 = unit();
                     double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-                    double s = uniform(0.18f, 0.26f) * intensity;
+                    double s = 0.28 * intensity;
                     interval = base * (float) Math.exp(s * z - 0.5 * s * s);
                 }
 
@@ -329,18 +392,10 @@ public class AutoClicker extends Module {
                 }
             }
         } else if ("Jitter".equals(style)) {
-            if (tempoClicksLeft <= 0) {
-                float targetTempo = uniform(low - 2.0f, high + 1.5f) + nextPink() * pinkAmplitude;
-                tempo = clamp(0.60f * tempo + 0.40f * targetTempo, 1.0f, 25.0f);
-                tempoClicksLeft = random.nextInt(3, 10);
-            }
-            --tempoClicksLeft;
-
-            float base = 1000.0f / Math.max(tempo, 1.0f);
             double u1 = Math.max(1e-9, unit());
             double u2 = unit();
             double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            double s = uniform(0.20f, 0.30f) * intensity;
+            double s = 0.32 * intensity;
             interval = base * (float) Math.exp(s * z - 0.5 * s * s);
             interval *= 1.0f + (fatigue - 1.0f) * intensity;
             interval *= 1.0f + (burst - 1.0f) * intensity;
@@ -348,36 +403,47 @@ public class AutoClicker extends Module {
             double q = unit();
             if (q < 0.12 * intensity) {
                 interval = uniform(32.0f, 48.0f);
-            } else if (q < 0.155 * intensity) {
+            } else if (q < 0.165 * intensity) {
                 interval += base * uniform(0.75f, 1.35f);
             }
         } else {
             // Normal single-finger index tapping
-            if (tempoClicksLeft <= 0) {
-                float targetTempo = uniform(low - 1.2f, high + 1.0f) + nextPink() * pinkAmplitude;
-                tempo = clamp(0.70f * tempo + 0.30f * targetTempo, 1.0f, 25.0f);
-                tempoClicksLeft = random.nextInt(5, 15);
-            }
-            --tempoClicksLeft;
-
-            float base = 1000.0f / Math.max(tempo, 1.0f);
             double u1 = Math.max(1e-9, unit());
             double u2 = unit();
             double z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-            double s = uniform(0.18f, 0.26f) * intensity;
+            double s = 0.28 * intensity;
             interval = base * (float) Math.exp(s * z - 0.5 * s * s);
             interval *= 1.0f + (fatigue - 1.0f) * intensity;
             interval *= 1.0f + (burst - 1.0f) * intensity;
 
             double q = unit();
-            if (q < 0.06 * intensity) {
-                interval = uniform(38.0f, 54.0f);
-            } else if (q < 0.095 * intensity) {
+            if (q < 0.08 * intensity) {
+                interval = uniform(36.0f, 52.0f);
+            } else if (q < 0.12 * intensity) {
                 interval += base * uniform(0.75f, 1.35f);
             }
         }
 
-        return clamp(interval, 24.0f, 300.0f);
+        // 1. Prevent consecutive near-identical delays (anti-mechanical equality)
+        if (!isBounce && Math.abs(interval - lastInterval) < 12.0f) {
+            interval += (interval >= lastInterval ? 14.0f : -14.0f) * uniform(0.9f, 1.4f);
+        }
+
+        // 2. Active Window Deviation Regulator:
+        // If the rolling std of the last 8 clicks dips below 22ms, inject compensatory variance
+        float recentStd = rollingStdDev(8);
+        if (recentStd < 22.0f && !isBounce) {
+            float mean = rollingMean(8);
+            if (interval >= mean) {
+                interval += base * uniform(0.40f, 0.75f);
+            } else {
+                interval = Math.max(26.0f, interval - base * uniform(0.25f, 0.45f));
+            }
+        }
+
+        interval = clamp(interval, 24.0f, 300.0f);
+        recordInterval(interval);
+        return interval;
     }
 
     private void updateFatigue() {
