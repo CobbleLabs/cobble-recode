@@ -25,9 +25,10 @@ import org.objectweb.asm.tree.VarInsnNode;
 
 /**
  * Inserts bridge calls into game classes. Injections are straight-line and
- * leave the operand stack as they found it, and a redirect has the same stack
- * effect as the instruction it replaces, so the existing stack map frames stay
- * valid. The one branch, a cancel, resumes at a frame of the method's entry
+ * leave the operand stack as they found it, one that takes the result trades
+ * the value about to be returned for another of its type, and a redirect has
+ * the same stack effect as the instruction it replaces, so the existing stack
+ * map frames stay valid. The one branch, a cancel, resumes at a frame of the method's entry
  * state, which HEAD still has.
  */
 final class Patcher {

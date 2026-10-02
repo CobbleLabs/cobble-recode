@@ -59,6 +59,7 @@ public abstract class Module {
             return;
         }
         enabled = value;
+        ModuleManager.markChanged();
         Log.debug("module", "%s %s", name, value ? "enabled" : "disabled");
         if (context != null) {
             run(value, context);
@@ -98,6 +99,7 @@ public abstract class Module {
 
     public void setKey(int value) {
         key = value;
+        ModuleManager.markChanged();
     }
 
     /** A held bind keeps the module on only while it is down, instead of toggling per press. */
@@ -161,7 +163,10 @@ public abstract class Module {
     protected void settingChanged(Setting setting) {}
 
     private Setting track(Setting setting) {
-        setting.onChange = () -> settingChanged(setting);
+        setting.onChange = () -> {
+            settingChanged(setting);
+            ModuleManager.markChanged();
+        };
         settings.add(setting);
         return setting;
     }

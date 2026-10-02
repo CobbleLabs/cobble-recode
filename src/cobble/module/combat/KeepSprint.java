@@ -21,7 +21,7 @@ public class KeepSprint extends Module {
     private final Setting slowdown;
 
     public KeepSprint() {
-        super("KeepSprint", "Keeps sprinting through your own hits", Category.COMBAT, Subcategory.ADVANCED);
+        super("KeepSprint", "Keeps sprinting through your own hits", Category.COMBAT, Subcategory.MEDIUM);
         this.slowdown = addNumber("Slowdown", "", 0.0F, 0.0F, 100.0F, 0);
     }
 

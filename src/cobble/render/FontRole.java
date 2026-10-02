@@ -1,10 +1,10 @@
 package cobble.render;
 
 public enum FontRole {
-    REGULAR("Inter-Regular"),
-    MEDIUM("Inter-Medium"),
-    SEMI_BOLD("Inter-SemiBold"),
-    BOLD("Inter-Bold"),
+    REGULAR("Geist-Regular"),
+    MEDIUM("Geist-Medium"),
+    SEMI_BOLD("Geist-SemiBold"),
+    BOLD("Geist-Bold"),
     MONO("JetBrainsMono-Medium"),
     MONO_BOLD("JetBrainsMono-Bold");
 

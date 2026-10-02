@@ -42,6 +42,10 @@ public final class ClickGuiModule extends Module {
         if (radar != null && radar.enabled()) {
             radar.setEnabled(false, context);
         }
+        AltManagerModule alts = ModuleManager.get(AltManagerModule.class);
+        if (alts != null && alts.enabled()) {
+            alts.setEnabled(false, context);
+        }
     }
 
     @Override

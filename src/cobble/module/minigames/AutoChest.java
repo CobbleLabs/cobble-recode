@@ -40,7 +40,7 @@ public class AutoChest extends Module {
     private long nextClickAtMillis;
 
     public AutoChest() {
-        super("AutoChest", "Scroll up to deposit and down to steal", Category.MINIGAMES, Subcategory.ADVANCED);
+        super("AutoChest", "Scroll up to deposit and down to steal", Category.MINIGAMES, Subcategory.MEDIUM);
         this.speed = addNumber("Speed", "", 100.0F, 0.0F, 500.0F, 0);
         this.closeWhenDone = addBoolean("Close When Done", "", false);
         this.blocks = addBoolean("Blocks", "", true);

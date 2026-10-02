@@ -40,7 +40,7 @@ public class FakeLag extends Module implements ProgressBarSource {
     private final FakePlayerRenderer$1 serverPositionTracker = new FakePlayerRenderer$1();
 
     public FakeLag() {
-        super("FakeLag", "Disable on", Category.PLAYER, Subcategory.EXTREME);
+        super("FakeLag", "Disable on", Category.PLAYER, Subcategory.ADVANCED);
         this.mode = addChoice("Mode", "", List.of(wagB), 1);
         this.packetDelay = addNumber("Packet delay", "", 0.0F, 0.0F, 1500.0F, 0);
         this.disableLagrange = addBoolean("Disable Lagrange", "", false);

@@ -34,7 +34,7 @@ public class AutoDeflect extends Module {
     private final Random random = new Random();
 
     public AutoDeflect() {
-        super("AutoDeflect", "Hits incoming fireballs back", Category.PLAYER, Subcategory.ADVANCED);
+        super("AutoDeflect", "Hits incoming fireballs back", Category.PLAYER, Subcategory.MEDIUM);
         this.autoDeflectSettings = new AutoDeflectSettings(this);
     }
 

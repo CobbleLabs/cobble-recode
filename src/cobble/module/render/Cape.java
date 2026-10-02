@@ -5,8 +5,6 @@ import cobble.module.Category;
 import cobble.module.Module;
 import cobble.module.Setting;
 import cobble.module.Subcategory;
-import cobble.ui.Theme;
-import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -22,13 +20,8 @@ public class Cape extends Module {
     private String[] capeModes;
     private List<String> capeEntries = new ArrayList<>();
     public static List<List<ResourceLocation>> capeFrames = new ArrayList<>();
-    private int vnO = -1;
-    private DynamicTexture dynamicTexture;
-    private int[] capePixels;
-    private int[] animatedPixelIndices;
-    private int[] ru4;
-    private int capeTextureWidth;
-    private long lastAnimationMillis = -1L;
+    private CapeShimmer shimmer;
+    private int shimmerIndex = -1;
 
     public Cape() {
         super("Cape", "Gives you a cape", Category.VISUALS, Subcategory.BASIC);
@@ -40,7 +33,7 @@ public class Cape extends Module {
     private void KBIxnC() {
         ArrayList var1 = new ArrayList();
 
-        for (String var5 : new String(Assets.read("assets/jade/textures/capes/capes.txt"), StandardCharsets.UTF_8).split("\n")) {
+        for (String var5 : new String(Assets.read("assets/cobble/textures/capes/capes.txt"), StandardCharsets.UTF_8).split("\n")) {
             var5 = var5.trim();
             if (!var5.isEmpty()) {
                 var1.add(var5);
@@ -64,9 +57,13 @@ public class Cape extends Module {
         this.capeModes = (String[]) var21.toArray(new String[0]);
     }
 
+    public static boolean selected() {
+        return instance != null && instance.enabled() && cape.choice() > 0;
+    }
+
     /** The selected cape's current frame, or null for none. */
     public static ResourceLocation texture() {
-        if (instance == null || !instance.enabled() || cape.choice() <= 0) {
+        if (!selected()) {
             return null;
         }
 
@@ -79,8 +76,8 @@ public class Cape extends Module {
             return null;
         }
 
-        if (var0 == instance.vnO) {
-            instance.updateJadeCapeAnimation();
+        if (var0 == instance.shimmerIndex) {
+            instance.shimmer.update();
         }
 
         List<ResourceLocation> var1 = capeFrames.get(var0);
@@ -93,14 +90,9 @@ public class Cape extends Module {
 
     public void loadCapeTextures() {
         capeFrames.clear();
-        this.vnO = -1;
-        this.dynamicTexture = null;
-        this.capePixels = null;
-        this.animatedPixelIndices = null;
-        this.ru4 = null;
-        this.capeTextureWidth = 0;
-        this.lastAnimationMillis = -1L;
-        String var1 = "/assets/jade/textures/capes/";
+        shimmer = null;
+        shimmerIndex = -1;
+        String var1 = "/assets/cobble/textures/capes/";
 
         try {
             for (String var3 : this.capeEntries) {
@@ -141,9 +133,11 @@ public class Cape extends Module {
                             int var9 = var7.getHeight();
                             int var10 = Math.max(1, var8 / 2);
                             ArrayList var11 = new ArrayList();
-                            if ("Jade".equals(var5)) {
-                                this.vnO = capeFrames.size();
-                                var11.add(this.createJadeCapeTexture(var7));
+                            CapeShimmer lettering = var5.equals("Cobble") ? CapeShimmer.of(var7) : null;
+                            if (lettering != null) {
+                                shimmer = lettering;
+                                shimmerIndex = capeFrames.size();
+                                var11.add(mc.getTextureManager().getDynamicTextureLocation(var5, lettering.texture));
                             } else if (var9 > var10 && var9 % var10 == 0) {
                                 int var12 = var9 / var10;
 
@@ -162,71 +156,6 @@ public class Cape extends Module {
             }
         } catch (Exception var15) {
             var15.printStackTrace();
-        }
-    }
-
-    private ResourceLocation createJadeCapeTexture(BufferedImage var1) {
-        BufferedImage var2 = new BufferedImage(var1.getWidth(), var1.getHeight(), 2);
-        Graphics var3 = var2.getGraphics();
-        var3.drawImage(var1, 0, 0, null);
-        var3.dispose();
-        this.capeTextureWidth = var2.getWidth();
-        int var4 = var2.getHeight();
-        this.capePixels = new int[this.capeTextureWidth * var4];
-        ArrayList var5 = new ArrayList();
-        ArrayList var6 = new ArrayList();
-        var2.getRGB(0, 0, this.capeTextureWidth, var4, this.capePixels, 0, this.capeTextureWidth);
-
-        for (int var7 = 0; var7 < this.capePixels.length; var7++) {
-            int var8 = this.capePixels[var7];
-            int var9 = var8 >>> 24 & 0xFF;
-            int var10 = var8 >>> 16 & 0xFF;
-            int var11 = var8 >>> 8 & 0xFF;
-            int var12 = var8 & 0xFF;
-            int var13 = Math.max(var10, Math.max(var11, var12));
-            if (var9 > 0 && var13 > 26) {
-                int var14 = Math.min(255, Math.max(0, (var13 - 24) * 255 / 231));
-                var5.add(var7);
-                var6.add(var14);
-                this.capePixels[var7] = var9 << 24 | 1572864 | 6144 | 24;
-            }
-        }
-
-        this.animatedPixelIndices = new int[var5.size()];
-        this.ru4 = new int[var6.size()];
-
-        for (int var15 = 0; var15 < var5.size(); var15++) {
-            this.animatedPixelIndices[var15] = (Integer)var5.get(var15);
-            this.ru4[var15] = (Integer)var6.get(var15);
-        }
-
-        this.dynamicTexture = new DynamicTexture(var2);
-        return mc.getTextureManager().getDynamicTextureLocation("jade_dynamic_cape", this.dynamicTexture);
-    }
-
-    private void updateJadeCapeAnimation() {
-        if (this.dynamicTexture != null && this.capePixels != null && this.animatedPixelIndices != null && this.ru4 != null && this.capeTextureWidth > 0) {
-            long var1 = System.currentTimeMillis();
-            if (this.lastAnimationMillis < 0L || var1 - this.lastAnimationMillis >= 100L) {
-                this.lastAnimationMillis = var1;
-                int[] var3 = this.dynamicTexture.getTextureData();
-                if (var3.length == this.capePixels.length) {
-                    for (int var4 = 0; var4 < this.animatedPixelIndices.length; var4++) {
-                        int var5 = this.ru4[var4];
-                        int var6 = this.animatedPixelIndices[var4];
-                        int var7 = this.capePixels[var6];
-                        int var8 = var7 >>> 24 & 0xFF;
-                        int var10 = Theme.accent().argb();
-                        int var11 = 255 - var5;
-                        int var12 = ((var7 >>> 16 & 0xFF) * var11 + (var10 >>> 16 & 0xFF) * var5) / 255;
-                        int var13 = ((var7 >>> 8 & 0xFF) * var11 + (var10 >>> 8 & 0xFF) * var5) / 255;
-                        int var14 = ((var7 & 0xFF) * var11 + (var10 & 0xFF) * var5) / 255;
-                        var3[var6] = var8 << 24 | var12 << 16 | var13 << 8 | var14;
-                    }
-
-                    this.dynamicTexture.updateDynamicTexture();
-                }
-            }
         }
     }
 }

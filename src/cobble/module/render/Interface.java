@@ -11,6 +11,8 @@ import cobble.module.Setting;
 import cobble.module.Subcategory;
 import cobble.module.client.ClickGuiModule;
 import cobble.render.Icon;
+import cobble.ui.Client;
+import cobble.ui.Hud;
 import cobble.ui.Theme;
 import cobble.util.font.FontManager;
 import cobble.util.font.IFont;
@@ -93,6 +95,7 @@ public final class Interface extends Module {
     private final Setting background;
     private final Setting backgroundAlpha;
     private final Setting potionEffects;
+    private final Setting listScale;
 
     private final List<ArrayListEntry> allEntries = new ArrayList<>();
     private final List<ArrayListEntry> activeEntries = new ArrayList<>();
@@ -112,8 +115,10 @@ public final class Interface extends Module {
         removeSpaces = addBoolean("Remove Spaces", "Remove spaces from module names", false);
         dropShadow = addBoolean("Drop Shadow", "Render font with shadow", true);
         background = addChoice("Background", "Background behind modules", List.of("Normal", "None"), 0);
-        backgroundAlpha = addNumber("Background Alpha", "Opacity of module backgrounds", 110.0f, 0.0f, 255.0f, 0);
+        backgroundAlpha = addNumber("Background Alpha", "Opacity of module backgrounds", 110.0f, 0.0f, 255.0f, 0)
+                .visibleWhen(() -> background.is("Normal"));
         potionEffects = addBoolean("Potion Effects", "Display active potion effects", true);
+        listScale = addNumber("Scale", "How large the module list is drawn", 1.0f, 0.5f, 2.5f, 2);
 
         setEnabled(true, null);
         rebuildEntries();
@@ -144,7 +149,7 @@ public final class Interface extends Module {
         };
     }
 
-    private Color getThemeColor1() {
+    public Color getThemeColor1() {
         return switch (themeChoice.choiceName()) {
             case "Hyper" -> new Color(236, 110, 173);
             case "Bubblegum" -> new Color(243, 145, 216);
@@ -155,7 +160,7 @@ public final class Interface extends Module {
         };
     }
 
-    private Color getThemeColor2() {
+    public Color getThemeColor2() {
         return switch (themeChoice.choiceName()) {
             case "Hyper" -> new Color(52, 148, 230);
             case "Bubblegum" -> new Color(152, 165, 243);
@@ -260,18 +265,32 @@ public final class Interface extends Module {
 
     @Override
     public void onRender(Context context) {
+        Client.hud().bindScale(Hud.Element.ARRAY_LIST, listScale);
         doRender();
     }
 
     private void doRender() {
-        if (mc.gameSettings != null && mc.gameSettings.showDebugInfo) {
-            return;
-        }
-
         long now = System.currentTimeMillis();
         float elapsedMs = Math.min(100.0f, lastFrameTime > 0 ? (now - lastFrameTime) : 16.0f);
         lastFrameTime = now;
+        inGuiSpace((width, height) -> renderHud(width, height, now, elapsedMs));
+    }
 
+    /** A draw in the GUI's own pixels, given the screen's size in them. */
+    @FunctionalInterface
+    public interface GuiDraw {
+        void draw(float width, float height);
+    }
+
+    /**
+     * Runs a draw in the GUI's own pixels, the way the game draws its HUD, with
+     * the client's renderer paused around it. Skipped under the debug screen,
+     * which takes the whole HUD over.
+     */
+    public static void inGuiSpace(GuiDraw draw) {
+        if (mc.gameSettings != null && mc.gameSettings.showDebugInfo) {
+            return;
+        }
         ScaledResolution sr = new ScaledResolution(mc);
         float scaledWidth = sr.getScaledWidth();
         float scaledHeight = sr.getScaledHeight();
@@ -297,7 +316,7 @@ public final class Interface extends Module {
                     GlStateManager.enableTexture2D();
                     GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-                    renderHud(scaledWidth, scaledHeight, now, elapsedMs);
+                    draw.draw(scaledWidth, scaledHeight);
                 } finally {
                     GlStateManager.matrixMode(GL11.GL_MODELVIEW);
                     GlStateManager.popMatrix();
@@ -371,19 +390,44 @@ public final class Interface extends Module {
             }
         }
 
-        float currentY = edgeOffset;
+        /*
+         * The list is laid out around its anchor, the corner it hugs: rows stand
+         * against whichever side of the screen it is on and stack away from that
+         * edge, so dropped on the other half it mirrors. Positions here are local
+         * to the anchor and drawn under its translation and scale, which is what
+         * lets the rows ease into a mirrored layout instead of jumping.
+         */
+        Hud hud = Client.hud();
+        float widest = 0.0f;
+        int shown = 0;
+        for (ArrayListEntry entry : activeEntries) {
+            if (entry.module.enabled()) {
+                widest = Math.max(widest, entry.getTotalWidth());
+                ++shown;
+            }
+        }
+        Hud.Anchor anchor = hud.anchor(Hud.Element.ARRAY_LIST, scaledWidth - edgeOffset + 3.0f, edgeOffset - 3.0f,
+                scaledWidth, scaledHeight);
+        float scale = anchor.scale();
+        boolean placeholder = shown == 0 && hud.editing();
+        float blockWidth = placeholder ? arrayListFont.getStringWidth("Module list") + 5.0f : widest + 5.0f;
+        float blockHeight = Math.max(1, shown) * moduleSpacing;
+        float anchorX = Hud.keepOnScreen(anchor.x(), blockWidth * scale, anchor.left(), scaledWidth);
+        float anchorY = Hud.keepOnScreen(anchor.y(), blockHeight * scale, anchor.top(), scaledHeight);
+
+        int row = 0;
         for (ArrayListEntry entry : activeEntries) {
             if (entry.animationTime <= 0.0f) continue;
             float totalWidth = entry.getTotalWidth();
             if (entry.module.enabled()) {
-                entry.targetX = scaledWidth - totalWidth - edgeOffset;
+                entry.targetX = anchor.left() ? 2.0f : -totalWidth - 3.0f;
             } else {
-                entry.targetX = scaledWidth + totalWidth + edgeOffset;
+                entry.targetX = anchor.left() ? -totalWidth - edgeOffset - 5.0f : totalWidth + edgeOffset;
             }
-            entry.targetY = currentY;
+            entry.targetY = anchor.top() ? row * moduleSpacing + 3.0f : -(row + 1) * moduleSpacing + 3.0f;
 
             if (entry.module.enabled() || entry.animationTime >= 10.0f) {
-                currentY += moduleSpacing;
+                ++row;
             }
 
             if (Math.abs(entry.x - entry.targetX) < 0.5f && Math.abs(entry.y - entry.targetY) < 0.5f
@@ -414,7 +458,9 @@ public final class Interface extends Module {
             }
         }
 
-        // 4. Render ArrayList
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(anchorX, anchorY, 0.0f);
+        GlStateManager.scale(scale, scale, 1.0f);
         for (ArrayListEntry entry : activeEntries) {
             if (entry.animationTime <= 0.0f) continue;
             float totalWidth = entry.getTotalWidth();
@@ -435,7 +481,17 @@ public final class Interface extends Module {
                     arrayListFont.drawString(entry.displayTag, entry.x + entry.nameWidth + 3.0f, entry.y - 0.5f, 0xFFCCCCCC, false);
                 }
             }
-
+        }
+        if (placeholder) {
+            /* Nothing on: a faint stand-in, so the list can still be moved. */
+            float left = anchor.left() ? 0.0f : -blockWidth;
+            float top = anchor.top() ? 0.0f : -moduleSpacing;
+            drawRect(left, top, left + blockWidth, top + moduleSpacing, new Color(0, 0, 0, 70).getRGB());
+            arrayListFont.drawString("Module list", left + 2.0f, top + 2.5f, 0x99FFFFFF, false);
+        }
+        GlStateManager.popMatrix();
+        if (shown > 0 || placeholder) {
+            hud.placeGui(Hud.Element.ARRAY_LIST, anchor, anchorX, anchorY, blockWidth * scale, blockHeight * scale);
         }
 
         float f3 = scaledHeight - regular18Font.getFontHeight() - 2.0f;

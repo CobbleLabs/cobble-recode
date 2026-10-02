@@ -1,6 +1,7 @@
 package cobble.render;
 
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
@@ -40,6 +41,9 @@ public final class StateGuard {
     private boolean depthWriteMask;
     private final boolean[] colorWriteMask = new boolean[4];
     private int matrixMode;
+    private final FloatBuffer modelview = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer projection = BufferUtils.createFloatBuffer(16);
+    private final FloatBuffer textureMatrix = BufferUtils.createFloatBuffer(16);
     private final int[] textureBinding = new int[UNITS];
     private final int[] samplerBinding = new int[UNITS];
     private final boolean[] textureEnabled = new boolean[UNITS];
@@ -72,6 +76,13 @@ public final class StateGuard {
             colorWriteMask[index] = flags.get(index) != 0;
         }
         matrixMode = GL11.glGetInteger(GL11.GL_MATRIX_MODE);
+        /* Read back rather than pushed. The stacks are only a few deep and the
+         * game and Lunar push onto them too, so a push of ours could overflow and
+         * the matching pop would then take one of theirs. The texture matrix is
+         * the active unit's, so it is read before the loop below moves the unit. */
+        readMatrix(GL11.GL_MODELVIEW_MATRIX, modelview);
+        readMatrix(GL11.GL_PROJECTION_MATRIX, projection);
+        readMatrix(GL11.GL_TEXTURE_MATRIX, textureMatrix);
         alphaTest = GL11.glIsEnabled(GL11.GL_ALPHA_TEST);
         lighting = GL11.glIsEnabled(GL11.GL_LIGHTING);
 
@@ -88,14 +99,6 @@ public final class StateGuard {
         cullFace = GL11.glIsEnabled(GL11.GL_CULL_FACE);
         stencilTest = GL11.glIsEnabled(GL11.GL_STENCIL_TEST);
 
-        // A compatibility context cannot read a matrix back, so they go onto the driver's own stacks.
-        GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glPushMatrix();
-        GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glPushMatrix();
-        GL11.glMatrixMode(GL11.GL_TEXTURE);
-        GL11.glPushMatrix();
-        GL11.glMatrixMode(matrixMode);
     }
 
     public void restore() {
@@ -123,11 +126,11 @@ public final class StateGuard {
         GL11.glColorMask(colorWriteMask[0], colorWriteMask[1], colorWriteMask[2], colorWriteMask[3]);
 
         GL11.glMatrixMode(GL11.GL_TEXTURE);
-        GL11.glPopMatrix();
+        GL11.glLoadMatrix(textureMatrix);
         GL11.glMatrixMode(GL11.GL_PROJECTION);
-        GL11.glPopMatrix();
+        GL11.glLoadMatrix(projection);
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
-        GL11.glPopMatrix();
+        GL11.glLoadMatrix(modelview);
         GL11.glMatrixMode(matrixMode);
 
         set(GL11.GL_BLEND, blend);
@@ -137,6 +140,12 @@ public final class StateGuard {
         set(GL11.GL_STENCIL_TEST, stencilTest);
         set(GL11.GL_ALPHA_TEST, alphaTest);
         set(GL11.GL_LIGHTING, lighting);
+        GlCache.resync();
+    }
+
+    private static void readMatrix(int name, FloatBuffer into) {
+        into.clear();
+        GL11.glGetFloat(name, into);
     }
 
     private void readInts(int name, int[] into) {

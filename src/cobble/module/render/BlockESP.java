@@ -19,7 +19,7 @@ public class BlockESP extends Module {
     private int lastEntryHash;
 
     public BlockESP() {
-        super("BlockESP", "Highlights chosen blocks", Category.VISUALS, Subcategory.EXTREME);
+        super("BlockESP", "Highlights chosen blocks", Category.VISUALS, Subcategory.ADVANCED);
     }
 
     @Override

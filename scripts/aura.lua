@@ -27,7 +27,7 @@ aura = cold.module {
     name = "ScriptAura",
     description = "Aims at the best target and hits it once the server agrees",
     category = "combat",
-    subcategory = "extreme",
+    subcategory = "advanced",
     icon = "swords",
     settings = {
         { name = "Range", type = "number", value = 3.0, min = 1.0, max = 6.0, decimals = 2 },

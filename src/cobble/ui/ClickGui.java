@@ -64,7 +64,16 @@ public final class ClickGui {
     private static final float ROW_GAP = 4.0f;
     private static final float ROW_RADIUS = 8.0f;
     private static final float SECTION_HEIGHT = 28.0f;
-    private static final float GEAR_SLOT_WIDTH = 52.0f;
+    /* The gear and the search button sit side by side at the end of the bar. */
+    private static final float ICON_SLOT_WIDTH = 40.0f;
+    /* How much the selected category's glass swells as it rises over the bar; it
+     * stays centred on its label, so it stands out without leaving the line. */
+    private static final float GLASS_SWELL = 3.0f;
+    /* Room the selected category's glass leaves either side of its label. */
+    private static final float GLASS_PAD = 18.0f;
+    private static final float LIFT_SPEED = 16.0f;
+    private static final float SEARCH_SPEED = 14.0f;
+    private static final int MAX_QUERY = 24;
 
     /* The subcategory selector: the tab bar's pill and chip at header size,
      * tucked into the card's top right corner. Margin plus radius is the
@@ -89,6 +98,9 @@ public final class ClickGui {
     private static final float SETTING_PAD_X = 14.0f;
     private static final float CHOICE_ITEM_HEIGHT = 26.0f;
     private static final float SLIDER_TRACK = 4.0f;
+    /* A slider standing in a row of its own, and the room its value takes beside it. */
+    private static final float SLIDER_ROW_WIDTH = 96.0f;
+    private static final float SLIDER_VALUE_WIDTH = 40.0f;
     private static final float EDITOR_FIELD = 96.0f;
     private static final float EDITOR_STRIP = 10.0f;
     private static final float EDITOR_SWATCH = 18.0f;
@@ -166,31 +178,6 @@ public final class ClickGui {
     private static final float REVEAL_END = 1.70f;
     private static final float REVEAL_POP_SCALE = 0.32f;
 
-    /* Exit.
-     *
-     * The reveal run backwards on a tighter clock: the card folds up into the
-     * bar, the bar contracts back to the capsule, the capsule drops away. Same
-     * shapes, same eases, same trick of overlapping the windows - the bar
-     * starts narrowing while the card is still folding - which is what keeps it
-     * one movement instead of three in a queue.
-     *
-     * A third of the reveal's length, and with neither the brand label nor the
-     * hold. The entrance is the client introducing itself and can afford a beat
-     * to be read; on the way out there is nothing to read, and whoever
-     * triggered it is waiting to get back to the game. An exit that takes as
-     * long as an entrance reads as the menu being reluctant to leave. */
-    private static final float EXIT_FOLD_END = 0.16f;
-    private static final float EXIT_NARROW_START = 0.10f;
-    private static final float EXIT_NARROW_END = 0.28f;
-    /* The name signs off inside the capsule, the way the reveal signs on: it
-     * arrives as the contraction settles and leaves as the collapse begins, so
-     * it is only ever on a shape that is holding still. The mechanical phases
-     * above were tightened to pay for the beat it needs. */
-    private static final float EXIT_LABEL_IN = 0.19f;
-    private static final float EXIT_LABEL_FULL = 0.31f;
-    private static final float EXIT_POP_START = 0.40f;
-    private static final float EXIT_END = 0.52f;
-
     private static final int MAX_CONFIG_NAME = 24;
 
     /* The accent comes from the shared theme, so the gear tab's colour editor
@@ -199,6 +186,12 @@ public final class ClickGui {
     private static final Color CARD_BORDER = Color.rgb(0x262629);
     private static final Color TAB_BAR_BG = Color.rgb(0x171719, 236 / 255.0f);
     private static final Color TAB_CHIP_BG = Color.rgb(0x28282B);
+    /* The glass is white over the bar's dark, never a colour of its own. */
+    private static final Color GLASS_TOP = Color.rgb(0xFFFFFF, 0.05f);
+    private static final Color GLASS_BOTTOM = Color.rgb(0xFFFFFF, 0.02f);
+    private static final Color GLASS_SHEEN = Color.rgb(0xFFFFFF, 0.04f);
+    private static final Color GLASS_RIM = Color.rgb(0xFFFFFF, 0.07f);
+    private static final Color GLASS_SHADOW = Color.rgb(0x000000, 0.18f);
     private static final Color ROW_BG = Color.rgb(0x171719, 170 / 255.0f);
     private static final Color ROW_BG_ON = Color.rgb(0x202023, 235 / 255.0f);
     private static final Color SEPARATOR = Color.rgb(0x303034);
@@ -238,6 +231,7 @@ public final class ClickGui {
         Rect control = Rect.EMPTY;  // slider track, pill, chip or swatch
         float hover;
         float knob;           // smoothed slider position
+        float on;             // smoothed toggle, so a switch slides like a module's
         float enter = 1.0f;   // 0..1 arrival, staggered by position in the page
         boolean expanded;
         float expand;         // choice list open animation
@@ -303,6 +297,7 @@ public final class ClickGui {
         final List<Row> rows = new ArrayList<>();
         Rect bounds = Rect.EMPTY;
         float hover;
+        float lift;  // 0 resting, 1 selected: drives the glass's swell
 
         /* Uppercased label and its tracked width, which the header needs every
          * frame and which only move when the scale does. The tracked width is
@@ -377,8 +372,8 @@ public final class ClickGui {
     /* Same split as tab and shownTab: the chip follows the click, the list
      * filters by shownSubcategory once the old one has faded out. Entering a
      * tab always starts at General. */
-    private Subcategory subcategory = Subcategory.GENERAL;
-    private Subcategory shownSubcategory = Subcategory.GENERAL;
+    private Subcategory subcategory = Subcategory.ALL;
+    private Subcategory shownSubcategory = Subcategory.ALL;
     /* The shown tab's rows under the shown subcategory: the modules it lets
      * through, each heading only if something under it survived. */
     private final List<Row> shownRows = new ArrayList<>();
@@ -404,11 +399,6 @@ public final class ClickGui {
     private boolean revealSpent;
     private boolean revealing;
     private float revealClock;
-    /* Every close, on its own clock: the reveal in reverse and tightened up.
-     * Runs instead of the plain slide fade, which is left for the one case the
-     * exit cannot start from - a close that lands mid-reveal. */
-    private boolean exiting;
-    private float exitClock;
     private final Reveal reveal = new Reveal();
 
     private Row subpage;
@@ -416,6 +406,19 @@ public final class ClickGui {
     private float indicator;              // interpolated slot of the tab chip
     private float indicatorAlpha = 1.0f;  // fades out when the gear is selected
     private float gearHover;
+    /* Search: the field the bar turns into and what has been typed in it.
+     * shownResults is to the matches what shownTab is to a category: it flips
+     * at the handover, once the list in front has faded out. */
+    private boolean searching;
+    private float searchAnim;
+    private String query = "";
+    private boolean shownResults;
+    private final Tab searchTab = new Tab("Search", Icon.SEARCH, "RESULTS", false);
+    private Rect searchButton = Rect.EMPTY;
+    private Rect searchField = Rect.EMPTY;
+    private Rect searchClose = Rect.EMPTY;
+    private float searchHover;
+    private float searchCloseHover;
     private float backHover;
     private String pendingTab = "";       // selection restored before the tabs exist
 
@@ -430,7 +433,6 @@ public final class ClickGui {
 
     private boolean built;
     private boolean open;
-    private boolean closing;
     private float slide;  // 0 = gone, 1 = in place
     /* Every colour in this file resolves through fade() or accent(), and both
      * fold this in, so scaling it for the length of one draw call is how a
@@ -469,13 +471,13 @@ public final class ClickGui {
     }
 
     public boolean interactive() {
-        return open && !closing && !exiting;
+        return open;
     }
 
     /** True while a bind row or the config name field is waiting for input, so
      * the client must not route keys anywhere else. */
     public boolean capturingKey() {
-        return keyListener != null || bindRow != null || editingName;
+        return keyListener != null || bindRow != null || editingName || searching;
     }
 
     /** Whether a point is inside the menu, so what is outside it can be offered
@@ -534,8 +536,8 @@ public final class ClickGui {
     }
 
     /* A size in this file means the height of the line box, the way the design
-     * sheet means it. The renderer means an em, which for Inter is a fifth
-     * smaller, so every call goes through here. */
+     * sheet means it. The renderer means an em, which is smaller than the
+     * line box by the font's own ratio, so every call goes through here. */
     private float fontEm(FontRole role, float box) {
         float ratio = gfx.fonts().face(role).boxHeight(1.0f);
         return ratio > 0.0001f ? box / ratio : box;
@@ -588,7 +590,7 @@ public final class ClickGui {
             return "NONE";
         }
         if (key <= 8) {
-            return "MOUSE";
+            return "MOUSE " + (key + 1);
         }
         return upperCase(Keys.keyName(key));
     }
@@ -679,51 +681,6 @@ public final class ClickGui {
      * throughout; what this computes is the smaller shapes the paint is
      * currently allowed to fill. */
     private void advanceReveal(float deltaTime) {
-        if (exiting) {
-            /* The exit fills the same rectangles from the other end, so every
-             * draw function is unchanged: the card is painted at a frame that
-             * is now shrinking, and the clip it already installs while
-             * unfolding is what makes the fold hide its contents top-down
-             * instead of squashing them. */
-            float clock = exitClock;
-            float foldT = Ease.morph(Ease.window(clock, 0.0f, EXIT_FOLD_END));
-            float narrowT = Ease.morph(Ease.window(clock, EXIT_NARROW_START, EXIT_NARROW_END));
-            float popT = Ease.morph(Ease.window(clock, EXIT_POP_START, EXIT_END));
-
-            settleReveal();
-
-            /* Contents go first and quickly. Letting them ride the fold would
-             * drag a row halfway under the closing edge and hold it there. */
-            reveal.cardContent = 1.0f - Ease.outCubic(Ease.window(clock, 0.0f, EXIT_FOLD_END * 0.6f));
-            reveal.barContent = 1.0f - Ease.outCubic(Ease.window(clock, EXIT_NARROW_START - 0.06f,
-                    EXIT_NARROW_START + 0.08f));
-
-            float foldedHeight = card.height() * (1.0f - foldT);
-            reveal.cardVisible = foldedHeight > 1.0f;
-            reveal.card = new Rect(card.x(), card.y(), card.width(), foldedHeight);
-
-            /* Same capsule the reveal is born as, measured the same way, so the
-             * shape the bar contracts into is the shape it grew out of. */
-            float capsule = capsuleWidth(bar.width());
-            float shrink = 1.0f - popT;
-            float width = Maths.lerp(bar.width(), capsule, narrowT) * shrink;
-            float height = bar.height() * shrink;
-            reveal.bar = new Rect(bar.centerX() - width * 0.5f, bar.centerY() - height * 0.5f, width, height);
-            reveal.barRadius = Maths.lerp(s(TAB_BAR_RADIUS), reveal.bar.height() * 0.5f, narrowT);
-
-            /* Mirror of the arrival ripple: the halo gathers as the capsule
-             * collapses, so it leaves the way it came in rather than simply
-             * ceasing to exist. */
-            reveal.glow = popT * popT;
-
-            /* Up while the capsule is still, gone before it starts to shrink -
-             * a centred string on a box that is changing width is the one
-             * thing that gives away that this is a rectangle being resized. */
-            reveal.label = Ease.outExpo(Ease.window(clock, EXIT_LABEL_IN, EXIT_LABEL_FULL))
-                    * (1.0f - Ease.morph(Ease.window(clock, EXIT_POP_START, EXIT_POP_START + 0.07f)));
-            return;
-        }
-
         if (!revealing) {
             settleReveal();
             return;
@@ -819,6 +776,7 @@ public final class ClickGui {
                     for (Setting setting : module.settings()) {
                         SettingRow settingRow = new SettingRow(setting);
                         settingRow.knob = setting.normalised();
+                        settingRow.on = setting.bool() ? 1.0f : 0.0f;
                         settingRow.hue = hueOf(setting.colour());
                         row.settings.add(settingRow);
                     }
@@ -887,6 +845,9 @@ public final class ClickGui {
         subpageAnim = 0.0f;
         shownTab = tab;
         shownSubcategory = subcategory;
+        searching = false;
+        query = "";
+        shownResults = false;
         refreshShown();
         pageLeaving = false;
         pageFade = 1.0f;
@@ -928,13 +889,15 @@ public final class ClickGui {
             return;
         }
         build();
-        /* Reopening part way through the exit abandons it outright rather than
-         * playing it backwards: the capsule is mid-collapse and rewinding it
-         * from there lands on a shape the entrance does not start from. */
+        /* Every open starts from the categories, never from a search left behind. */
+        searching = false;
+        query = "";
+        searchAnim = 0.0f;
+        if (shownResults) {
+            shownResults = false;
+            refreshShown();
+        }
         open = true;
-        closing = false;
-        exiting = false;
-        exitClock = 0.0f;
         slide = 0.0f;
         scroll = 0.0f;
         /* Every open unrolls its list; the first one of the session also gets
@@ -955,17 +918,11 @@ public final class ClickGui {
         if (!interactive()) {
             return;
         }
-        /* Shutting the menu mid-reveal abandons it; it stays spent. */
-        boolean wasRevealing = revealing;
+        /* Gone at once, with no exit to watch. Shutting the menu mid-reveal
+         * abandons the reveal; it stays spent. */
         revealing = false;
-        /* The card folds back into the bar and the bar contracts into the
-         * capsule, on its own clock. From a standing menu only: mid-reveal the
-         * shapes on screen are a capsule and a half-open card, while the exit
-         * would start collapsing from the settled geometry - a visible jump.
-         * That case keeps the plain fade. */
-        exiting = !wasRevealing;
-        closing = wasRevealing;
-        exitClock = 0.0f;
+        open = false;
+        slide = 0.0f;
         releaseAll();
         stopListening();
         if (bindRow != null) {
@@ -973,9 +930,8 @@ public final class ClickGui {
             bindRow = null;
         }
         editingName = false;
-        /* The game gets its input back now; the exit is only something to
-         * watch. Handing over to the radar keeps the screen, since dropping it
-         * would take the radar's pointer with it. */
+        /* Handing over to the radar keeps the screen, since dropping it would
+         * take the radar's pointer with it. */
         if (!Client.radar().interactive()) {
             MenuScreen.hide();
         }
@@ -1016,6 +972,60 @@ public final class ClickGui {
         pickerAxis = -1;
     }
 
+    private void openSearch() {
+        closeSubpage();
+        if (bindRow != null) {
+            bindRow.binding = false;
+            bindRow = null;
+        }
+        editingName = false;
+        searching = true;
+    }
+
+    private void closeSearch() {
+        if (searching) {
+            searching = false;
+            setQuery("");
+        }
+    }
+
+    private void leaveSearchFor(Row row) {
+        for (int index = 0; index < tabs.size(); index++) {
+            if (tabs.get(index).rows.contains(row)) {
+                tab = index;
+                subcategory = Subcategory.ALL;
+                break;
+            }
+        }
+        closeSearch();
+    }
+
+    /* Typing narrows the matches as it goes; only bringing the results in or
+     * taking them away is a page handover. */
+    private void setQuery(String value) {
+        query = value;
+        searchTab.rows.clear();
+        String needle = value.toLowerCase(Locale.ROOT);
+        if (!needle.isEmpty()) {
+            for (Tab current : tabs) {
+                if (current.iconOnly) {
+                    continue;
+                }
+                for (Row row : current.rows) {
+                    if (row.kind == RowKind.MODULE && row.name.toLowerCase(Locale.ROOT).contains(needle)) {
+                        searchTab.rows.add(row);
+                    }
+                }
+            }
+        }
+        boolean wanted = searching && !value.isEmpty();
+        if (wanted != shownResults || pageLeaving) {
+            pageLeaving = true;
+        } else if (shownResults) {
+            refreshShown();
+        }
+    }
+
     private void selectTab(int index) {
         if (index >= tabs.size()) {
             return;
@@ -1034,7 +1044,7 @@ public final class ClickGui {
          * start leaving. The swap itself happens in layout() once the old page
          * has faded out. */
         tab = index;
-        subcategory = Subcategory.GENERAL;
+        subcategory = Subcategory.ALL;
         sectionHeld = false;
         closeSubpage();
         pageLeaving = true;
@@ -1058,7 +1068,7 @@ public final class ClickGui {
         shownRows.clear();
         shownEntries = 0;
         Row heading = null;
-        for (Row row : tabs.get(shownTab).rows) {
+        for (Row row : (shownResults ? searchTab : tabs.get(shownTab)).rows) {
             if (row.kind == RowKind.SECTION) {
                 heading = row;
             } else if (row.module == null || shownSubcategory.shows(row.module)) {
@@ -1112,7 +1122,7 @@ public final class ClickGui {
                 /* Restoring a saved selection, not navigating to it: no handover. */
                 tab = index;
                 shownTab = index;
-                subcategory = Subcategory.GENERAL;
+                subcategory = Subcategory.ALL;
                 shownSubcategory = subcategory;
                 refreshShown();
                 chipLeft = 0.0f;
@@ -1263,7 +1273,7 @@ public final class ClickGui {
                      * must not be clickable. Swallowed rather than passed
                      * through: the cursor is up and the mouse ungrabbed, so the
                      * game is the wrong place for it. */
-                    if (!revealing) {
+                    if (!revealing && !bindButton(event.code())) {
                         mouseDown = event.code() == Input.MOUSE_LEFT;
                         pressAt(mouseX, mouseY, event.code(), context);
                     }
@@ -1291,12 +1301,46 @@ public final class ClickGui {
                 char character = (char) event.code();
                 if (editingName && validConfigChar(character) && configName.length() < MAX_CONFIG_NAME) {
                     configName += character;
+                } else if (searching && character >= 32 && query.length() < MAX_QUERY) {
+                    setQuery(query + character);
                 }
             }
         }
     }
 
+    /*
+     * A waiting bind takes the wheel and the side buttons. Left and right are
+     * never a bind: they are attacking and using items, and a module toggled by
+     * them would flip on every swing. They stay clicks, so they can still cancel.
+     */
+    private boolean bindButton(int button) {
+        if (button == Input.MOUSE_LEFT || button == Input.MOUSE_RIGHT) {
+            return false;
+        }
+        if (keyListener != null) {
+            keyListener.setting.setKey(button);
+            keyListener.listeningForKey = false;
+            keyListener = null;
+            return true;
+        }
+        if (bindRow != null) {
+            bindRow.module.setKey(button);
+            bindRow.binding = false;
+            bindRow = null;
+            return true;
+        }
+        return false;
+    }
+
     private void pressKey(int code) {
+        if (searching) {
+            if (code == Input.KEY_ESCAPE) {
+                closeSearch();
+            } else if (code == Input.KEY_BACKSPACE && !query.isEmpty()) {
+                setQuery(query.substring(0, query.length() - 1));
+            }
+            return;
+        }
         if (editingName) {
             if (code == Input.KEY_ESCAPE) {
                 editingName = false;
@@ -1357,9 +1401,19 @@ public final class ClickGui {
             if (button != Input.MOUSE_LEFT) {
                 return;
             }
+            if (searching && searchClose.contains(x, y)) {
+                closeSearch();
+                return;
+            }
+            if (!searching && searchButton.contains(x, y)) {
+                openSearch();
+                return;
+            }
             for (int index = 0; index < tabs.size(); index++) {
-                Rect bounds = tabs.get(index).bounds;
-                if (bounds.width() > 0.0f && bounds.contains(x, y)) {
+                Tab current = tabs.get(index);
+                if (current.bounds.width() > 0.0f && current.bounds.contains(x, y)
+                        && (current.iconOnly || !searching)) {
+                    closeSearch();
                     selectTab(index);
                     return;
                 }
@@ -1416,6 +1470,11 @@ public final class ClickGui {
 
     private void pressRow(Row row, float x, float y, int button, Context context) {
         boolean onChevron = row.chevron.width() > 0.0f && row.chevron.contains(x, y);
+
+        /* Using a result, whichever way, ends the search on the module's own category. */
+        if (shownResults && row.kind == RowKind.MODULE) {
+            leaveSearchFor(row);
+        }
 
         if (row.kind == RowKind.ACTION) {
             if (button == Input.MOUSE_LEFT) {
@@ -1609,31 +1668,8 @@ public final class ClickGui {
         screenW = state.windowWidth;
         screenH = state.windowHeight;
 
-        if (exiting) {
-            /* The exit owns the whole close, so the ordinary fade is held wide
-             * open underneath it the same way the reveal holds it. Only the last
-             * stretch takes the alpha down, and by then there is nothing left
-             * but the capsule collapsing - so the fade lands on that and not on
-             * a full-size menu. */
-            exitClock += deltaTime;
-            slide = 1.0f;
-            alpha = 1.0f - Ease.morph(Ease.window(exitClock, EXIT_POP_START + 0.04f, EXIT_END));
-            if (exitClock >= EXIT_END) {
-                exiting = false;
-                open = false;
-                closing = false;
-                slide = 0.0f;
-                alpha = 0.0f;
-            }
-        } else {
-            slide = Maths.approach(slide, open && !closing ? 1.0f : 0.0f, SLIDE_SPEED, deltaTime);
-            if (closing && slide < 0.02f) {
-                open = false;
-                closing = false;
-                slide = 0.0f;
-            }
-            alpha = Maths.clamp(Ease.outCubic(Maths.clamp(slide, 0.0f, 1.0f)), 0.0f, 1.0f);
-        }
+        slide = Maths.approach(slide, open ? 1.0f : 0.0f, SLIDE_SPEED, deltaTime);
+        alpha = Maths.clamp(Ease.outCubic(Maths.clamp(slide, 0.0f, 1.0f)), 0.0f, 1.0f);
         if (revealing) {
             /* The reveal owns every fade and every movement while it runs, so
              * the ordinary open is held at "fully arrived" underneath it. Two
@@ -1654,6 +1690,7 @@ public final class ClickGui {
             if (pageFade <= 0.0f) {
                 shownTab = tab;
                 shownSubcategory = subcategory;
+                shownResults = searching && !query.isEmpty();
                 refreshShown();
                 pageLeaving = false;
                 pageEnter = 0.0f;
@@ -1696,40 +1733,54 @@ public final class ClickGui {
             return;
         }
         float x = (float) Math.floor((screenW - width) * 0.5f);
-        /* No rise during the reveal or the exit: the capsule's spring is the
-         * arrival and its collapse is the departure, and sliding the whole menu
-         * underneath either would read as two of them. */
-        float rise = (revealing || exiting) ? 0.0f : (1.0f - alpha) * s(10.0f);
+        /* No rise during the reveal: the capsule's spring is the arrival, and
+         * sliding the whole menu underneath it would read as two of them. */
+        float rise = revealing ? 0.0f : (1.0f - alpha) * s(10.0f);
         float y = (float) Math.floor(s(TOP_MARGIN) - rise);
 
         bar = new Rect(x, y, width, s(TAB_BAR_HEIGHT));
 
-        /* Tab slots: the named ones split what the gear leaves. */
+        /* Tab slots: the named ones split what the gear and the search leave. */
         float inset = s(4.0f);
-        float gearWidth = s(GEAR_SLOT_WIDTH);
-        int named = namedTabs();
-        float slotWidth = named > 0 ? (width - inset * 2.0f - gearWidth) / named : 0.0f;
+        float iconWidth = s(ICON_SLOT_WIDTH);
+        float slotWidth = slotWidth(namedTabs());
+        float slotTop = bar.y() + s(3.0f);
+        float slotHeight = bar.height() - s(6.0f);
+        searchButton = new Rect(bar.right() - inset - iconWidth * 2.0f, slotTop, iconWidth, slotHeight);
 
         int slot = 0;
         for (int index = 0; index < tabs.size(); index++) {
             Tab current = tabs.get(index);
             if (current.iconOnly) {
-                current.bounds = new Rect(bar.right() - inset - gearWidth, bar.y() + s(3.0f), gearWidth,
-                        bar.height() - s(6.0f));
+                current.bounds = new Rect(bar.right() - inset - iconWidth, slotTop, iconWidth, slotHeight);
             } else {
-                current.bounds = new Rect(bar.x() + inset + slot * slotWidth, bar.y() + s(3.0f), slotWidth,
-                        bar.height() - s(6.0f));
+                current.bounds = new Rect(bar.x() + inset + slot * slotWidth, slotTop, slotWidth, slotHeight);
                 if (index == tab) {
                     indicator = Maths.approach(indicator, slot, TAB_SPEED, deltaTime);
                 }
                 slot++;
             }
-            boolean hovered = pointable() && current.bounds.contains(mouseX, mouseY);
+            /* Under the search field the categories are gone, and so is their pointer. */
+            boolean hovered = pointable() && current.bounds.contains(mouseX, mouseY)
+                    && (current.iconOnly || !searching);
             if (current.iconOnly) {
                 gearHover = Maths.approach(gearHover, hovered ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
             }
             current.hover = Maths.approach(current.hover, hovered ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
+            current.lift = Maths.approach(current.lift, index == tab && !current.iconOnly ? 1.0f : 0.0f, LIFT_SPEED,
+                    deltaTime);
         }
+
+        /* The field grows out of its button toward the bar's leading edge; the
+         * button's right edge stays put and becomes the field's close button. */
+        searchAnim = Maths.approach(searchAnim, searching ? 1.0f : 0.0f, SEARCH_SPEED, deltaTime);
+        float fieldLeft = Maths.lerp(searchButton.x(), bar.x() + inset, Ease.outCubic(searchAnim));
+        searchField = new Rect(fieldLeft, slotTop, searchButton.right() - fieldLeft, slotHeight);
+        searchClose = new Rect(searchField.right() - slotHeight, slotTop, slotHeight, slotHeight);
+        boolean overSearch = pointable() && !searching && searchButton.contains(mouseX, mouseY);
+        searchHover = Maths.approach(searchHover, overSearch ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
+        boolean overClose = pointable() && searching && searchClose.contains(mouseX, mouseY);
+        searchCloseHover = Maths.approach(searchCloseHover, overClose ? 1.0f : 0.0f, HOVER_SPEED, deltaTime);
         indicatorAlpha = Maths.approach(indicatorAlpha, tabs.get(tab).iconOnly ? 0.0f : 1.0f, 18.0f, deltaTime);
         selectorAlpha = Maths.approach(selectorAlpha, tabs.get(tab).iconOnly ? 0.0f : 1.0f, 18.0f, deltaTime);
 
@@ -1760,7 +1811,7 @@ public final class ClickGui {
 
         float cardY = bar.bottom() + s(PANEL_GAP);
         float header = s(HEADER_HEIGHT);
-        float maxContentHeight = 7.5f * (s(ROW_HEIGHT) + s(ROW_GAP));
+        float maxContentHeight = 7.0f * (s(ROW_HEIGHT) + s(ROW_GAP));
         float maxHeight = Math.min(header + maxContentHeight + s(8.0f), Math.max(header + s(40.0f), screenH - cardY - s(24.0f)));
         float wanted = header + content + s(8.0f);
         float height = Math.min(maxHeight, Math.max(header + s(40.0f), wanted));
@@ -1828,6 +1879,10 @@ public final class ClickGui {
         }
     }
 
+    private float slotWidth(int named) {
+        return named > 0 ? (bar.width() - s(4.0f) * 2.0f - s(ICON_SLOT_WIDTH) * 2.0f) / named : 0.0f;
+    }
+
     private int namedTabs() {
         int named = 0;
         for (Tab current : tabs) {
@@ -1864,10 +1919,10 @@ public final class ClickGui {
                     : new Rect(chevronCentre - s(14.0f), row.bounds.y(), s(28.0f), row.bounds.height());
 
             if (row.kind == RowKind.SLIDER) {
-                float sliderWidth = s(80.0f);
+                float sliderWidth = s(SLIDER_ROW_WIDTH);
                 float sliderHeight = s(SLIDER_TRACK);
                 float trackX = row.bounds.right() - s(PILL_MARGIN) - sliderWidth;
-                float trackY = row.bounds.centerY() + s(3.0f);
+                float trackY = row.bounds.centerY();
                 row.sliderControl = new Rect(trackX, trackY - sliderHeight * 0.5f, sliderWidth, sliderHeight);
                 if (row.sliderRow != null) {
                     row.sliderRow.control = row.sliderControl;
@@ -1902,6 +1957,8 @@ public final class ClickGui {
             boolean number = setting.setting != null && setting.setting.type == Setting.Type.NUMBER;
             if (number) {
                 setting.knob = Maths.approach(setting.knob, setting.setting.normalised(), 20.0f, deltaTime);
+            } else if (setting.setting != null && setting.setting.type == Setting.Type.BOOLEAN) {
+                setting.on = Maths.approach(setting.on, setting.setting.bool() ? 1.0f : 0.0f, ON_SPEED, deltaTime);
             }
 
             float height = settingHeight(setting);
@@ -2039,33 +2096,37 @@ public final class ClickGui {
         float saved = alpha;
         alpha *= reveal.barContent;
         float inset = s(4.0f);
-        float slotWidth = (bar.width() - inset * 2.0f - s(GEAR_SLOT_WIDTH)) / named;
+        float slotWidth = slotWidth(named);
+        float opened = Ease.outCubic(searchAnim);
 
-        /* Chip and underline of the active slot, interpolated so they slide. */
-        if (indicatorAlpha > 0.001f) {
-            Rect chip = new Rect(bar.x() + inset + indicator * slotWidth, bar.y() + s(3.0f), slotWidth,
-                    bar.height() - s(6.0f));
-            gfx.rect(chip, fade(TAB_CHIP_BG, indicatorAlpha), s(9.0f));
-
-            float underlineWidth = slotWidth * 0.78f;
-            float underlineHeight = s(2.5f);
-            gfx.rect(new Rect(chip.x() + (slotWidth - underlineWidth) * 0.5f, chip.bottom() - underlineHeight,
-                    underlineWidth, underlineHeight), accent(indicatorAlpha), underlineHeight * 0.5f);
+        /* The categories fade and drift aside as the search field takes their place. */
+        alpha = saved * reveal.barContent * (1.0f - opened);
+        float drift = -s(10.0f) * opened;
+        if (alpha > 0.002f) {
+            if (indicatorAlpha > 0.001f) {
+                drawGlassChip(slotWidth, inset, drift);
+            }
+            for (int index = 0; index < tabs.size(); index++) {
+                Tab current = tabs.get(index);
+                if (current.iconOnly) {
+                    continue;
+                }
+                Color colour = index == tab ? TEXT_PRIMARY : Color.mix(TEXT_MUTED, TEXT_PRIMARY, current.hover * 0.7f);
+                drawText(LABEL_FONT, current.label, current.bounds.centerX() + drift,
+                        current.bounds.centerY() - s(LABEL_BOX) * 0.5f, s(LABEL_BOX), fade(colour), Align.CENTER);
+            }
         }
 
-        for (int index = 0; index < tabs.size(); index++) {
-            Tab current = tabs.get(index);
+        alpha = saved * reveal.barContent;
+        drawSearch(opened);
+        for (Tab current : tabs) {
             if (current.iconOnly) {
                 /* The gear stays in the accent, as the design has it. */
                 float box = s(ICON_BOX);
                 Color colour = Color.mix(Theme.accent(), Color.WHITE, gearHover * 0.35f);
                 gfx.icon(current.icon, new Rect(current.bounds.centerX() - box * 0.5f,
                         current.bounds.centerY() - box * 0.5f, box, box), fade(colour));
-                continue;
             }
-            Color colour = index == tab ? TEXT_PRIMARY : Color.mix(TEXT_MUTED, TEXT_PRIMARY, current.hover * 0.7f);
-            drawText(LABEL_FONT, current.label, current.bounds.centerX(),
-                    current.bounds.centerY() - s(LABEL_BOX) * 0.5f, s(LABEL_BOX), fade(colour), Align.CENTER);
         }
         alpha = saved;
     }
@@ -2074,6 +2135,87 @@ public final class ClickGui {
      * category: uppercase and accent. Reusing that treatment rather than
      * inventing a splash style is what keeps the reveal looking like this menu
      * introducing itself instead of a loading screen bolted on in front of it. */
+    /*
+     * The selected category's glass: a lighter, translucent wash of the bar's own
+     * tone, lit from above, with a hairline rim and the faintest shadow. It is
+     * centred on its label in both directions, and between two categories it
+     * takes both their positions, widths and swells in proportion.
+     */
+    private void drawGlassChip(float slotWidth, float inset, float drift) {
+        float centre = 0.0f;
+        float width = 0.0f;
+        float lift = 0.0f;
+        int slot = 0;
+        for (Tab current : tabs) {
+            if (current.iconOnly) {
+                continue;
+            }
+            float weight = Math.max(0.0f, 1.0f - Math.abs(indicator - slot));
+            if (weight > 0.0f) {
+                float hug = textWidth(LABEL_FONT, current.label, s(LABEL_BOX)) + s(GLASS_PAD) * 2.0f;
+                centre += current.bounds.centerX() * weight;
+                width += Math.min(slotWidth - s(8.0f), hug) * weight;
+                lift += current.lift * weight;
+            }
+            slot++;
+        }
+
+        float swell = s(GLASS_SWELL) * lift;
+        float height = bar.height() - s(6.0f) + swell;
+        width += swell * 2.0f;
+        Rect chip = new Rect(centre - width * 0.5f + drift, bar.centerY() - height * 0.5f, width, height);
+        float radius = s(9.0f);
+        float presence = indicatorAlpha;
+        gfx.shadow(chip, fade(GLASS_SHADOW, presence * (0.6f + 0.4f * lift)), s(5.0f), radius);
+        Backdrop backdrop = Client.backdrop();
+        if (blurEnabled() && backdrop.valid()) {
+            /* Frosted: the blurred scene behind the menu, seen faintly through the glass. */
+            Rect uv = new Rect(chip.x() / screenW, 1.0f - chip.y() / screenH, chip.width() / screenW,
+                    -chip.height() / screenH);
+            gfx.image(chip, uv, backdrop.texture(), fade(Color.WHITE, 0.12f * presence), radius);
+        }
+        gfx.rectVertical(chip, fade(GLASS_TOP, presence), fade(GLASS_BOTTOM, presence), radius);
+        /* The reflection: a soft sheen over the upper half, gone by the middle. */
+        Rect sheen = new Rect(chip.x() + s(1.0f), chip.y() + s(1.0f), chip.width() - s(2.0f), chip.height() * 0.5f);
+        gfx.rectVertical(sheen, fade(GLASS_SHEEN, presence), fade(GLASS_SHEEN, 0.0f), radius - s(1.0f));
+        gfx.outline(chip, fade(GLASS_RIM, presence), Math.max(1.0f, s(1.0f)), radius);
+    }
+
+    private void drawSearch(float opened) {
+        float box = s(ICON_BOX);
+        /* The field is the bar itself, no fill of its own; only the idle button lights on hover. */
+        if (opened <= 0.002f && searchHover > 0.001f) {
+            gfx.rect(searchButton, fade(HOVER_WASH, searchHover), s(9.0f));
+        }
+        /* The magnifier travels from the middle of its button to the field's leading edge. */
+        float iconX = Maths.lerp(searchButton.centerX() - box * 0.5f, searchField.x() + s(10.0f), opened);
+        Color iconColour = Color.mix(TEXT_MUTED, TEXT_PRIMARY, Math.max(searchHover, opened * 0.6f));
+        gfx.icon(Icon.SEARCH, new Rect(iconX, searchField.centerY() - box * 0.5f, box, box), fade(iconColour));
+        if (opened <= 0.002f) {
+            return;
+        }
+
+        float textX = iconX + box + s(10.0f);
+        float textBox = s(LABEL_BOX);
+        float top = searchField.centerY() - textBox * 0.5f;
+        gfx.pushClip(new Rect(textX, searchField.y(), Math.max(0.0f, searchClose.x() - textX), searchField.height()));
+        if (query.isEmpty()) {
+            drawText(DESC_FONT, "Search modules", textX, top, textBox, fade(TEXT_FAINT, opened));
+        } else {
+            drawText(DESC_FONT, query, textX, top, textBox, fade(TEXT_PRIMARY, opened));
+        }
+        /* The caret is up from the first frame, so typing can start at once. */
+        if (searching && time % 1.0f < 0.55f) {
+            float caretX = textX + (query.isEmpty() ? 0.0f : textWidth(DESC_FONT, query, textBox)) + s(1.5f);
+            gfx.rect(new Rect(caretX, top + s(1.0f), Math.max(1.0f, s(1.2f)), textBox - s(2.0f)), accent(opened));
+        }
+        gfx.popClip();
+
+        float cross = s(12.0f);
+        gfx.icon(Icon.X, new Rect(searchClose.centerX() - cross * 0.5f, searchClose.centerY() - cross * 0.5f, cross,
+                cross), fade(Color.mix(TEXT_MUTED, TEXT_PRIMARY, searchCloseHover), opened));
+    }
+
     private void drawRevealLabel() {
         refreshBrand();
         float box = s(HEADING_BOX);
@@ -2111,7 +2253,7 @@ public final class ClickGui {
         if (subpage != null) {
             drawSubpageHeader(subpage);
         } else {
-            drawCardHeader(tabs.get(shownTab));
+            drawCardHeader(shownResults ? searchTab : tabs.get(shownTab));
         }
 
         /* The page fade is the handover between two categories, so it applies
@@ -2126,6 +2268,10 @@ public final class ClickGui {
         if (subpage == null) {
             for (Row row : shownRows) {
                 drawRow(row);
+            }
+            if (shownResults && shownRows.isEmpty()) {
+                drawText(DESC_FONT, "No modules match \"" + query + "\"", body.centerX(), body.y() + s(12.0f),
+                        s(DESC_BOX), fade(TEXT_FAINT), Align.CENTER);
             }
         } else if (subpage.kind == RowKind.CONFIGS) {
             drawConfigs();
@@ -2371,7 +2517,7 @@ public final class ClickGui {
                 limit -= s(PILL_WIDTH);
             }
             if (row.kind == RowKind.SLIDER) {
-                limit -= s(85.0f);
+                limit -= s(SLIDER_ROW_WIDTH + SLIDER_VALUE_WIDTH);
             }
             if (row.chevron.width() > 0.0f) {
                 limit -= s(28.0f);
@@ -2388,9 +2534,10 @@ public final class ClickGui {
         }
 
         if (row.kind == RowKind.SLIDER && row.setting != null) {
-            drawText(MICRO_FONT, formatNumber(row.setting), bounds.right() - s(PILL_MARGIN), bounds.centerY() - s(5.0f), s(MICRO_BOX), fade(CHIP_TEXT), Align.RIGHT);
             Rect track = row.sliderControl;
             if (track.width() > 0.0f) {
+                drawText(MICRO_FONT, formatNumber(row.setting), track.x() - s(12.0f),
+                        track.centerY() - s(MICRO_BOX) * 0.5f, s(MICRO_BOX), fade(CHIP_TEXT), Align.RIGHT);
                 gfx.rect(track, fade(TRACK_BG), track.height() * 0.5f);
                 float fill = track.width() * Maths.clamp(row.sliderRow != null ? row.sliderRow.knob : row.setting.normalised(), 0.0f, 1.0f);
                 if (fill > 0.5f) {
@@ -2446,7 +2593,7 @@ public final class ClickGui {
                 float pillWidth = s(32.0f);
                 float pillHeight = s(17.0f);
                 drawPill(new Rect(rightEdge - pillWidth, line.centerY() - pillHeight * 0.5f, pillWidth, pillHeight),
-                        value.bool() ? 1.0f : 0.0f);
+                        setting.on);
             }
             case NUMBER -> {
                 drawText(LABEL_FONT, value.name, labelX, line.y() + s(8.0f), labelBox, fade(TEXT_PRIMARY));

@@ -43,7 +43,7 @@ public class BlockIn extends Module implements ProgressBarSource {
     private boolean targetIsAdjacent;
 
     public BlockIn() {
-        super("BlockIn", "Surrounds you with blocks", Category.PLAYER, Subcategory.ADVANCED);
+        super("BlockIn", "Surrounds you with blocks", Category.PLAYER, Subcategory.MEDIUM);
         this.speed = addNumber("Speed", "", 10.0F, 1.0F, 30.0F, 0);
         this.randomization = addNumber("Randomization", "", 10.0F, 0.0F, 100.0F, 0);
         this.selectKeybind = addKey("Select Keybind", "", 0);

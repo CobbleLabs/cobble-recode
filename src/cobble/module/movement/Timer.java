@@ -20,7 +20,7 @@ public class Timer extends Module {
     private int berb;
 
     public Timer() {
-        super("Timer", "Speeds up or slows down the game tick", Category.MOVEMENT, Subcategory.EXTREME);
+        super("Timer", "Speeds up or slows down the game tick", Category.MOVEMENT, Subcategory.ADVANCED);
         this.speedSetting = addNumber("Speed", "", 1.0F, 0.0F, 10.0F, 2);
         this.hypixel = addBoolean("Hypixel", "", false);
         this.hypixelTimerSpeed = addNumber("Hypixel Timer Speed", "", 0.013F, 0.01F, 0.035F, 3);

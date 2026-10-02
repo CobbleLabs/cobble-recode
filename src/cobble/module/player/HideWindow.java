@@ -27,7 +27,7 @@ public class HideWindow extends Module {
 
     public HideWindow() {
         super("HideWindow", "Keeps a container open while the screen stays in game", Category.PLAYER,
-                Subcategory.ADVANCED);
+                Subcategory.BASIC);
         this.hideWindowSettings = new HideWindowSettings(this);
     }
 

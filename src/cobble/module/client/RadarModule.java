@@ -11,7 +11,7 @@ import cobble.ui.Client;
 
 public final class RadarModule extends Module {
     public RadarModule() {
-        super("Radar", "Everybody in a loaded chunk, and what they are carrying", Category.HUD, Subcategory.ADVANCED,
+        super("Radar", "Everybody in a loaded chunk, and what they are carrying", Category.HUD, Subcategory.MEDIUM,
                 Input.KEY_RIGHT_CONTROL);
         setIcon(Icon.RADIO);
     }
@@ -27,6 +27,10 @@ public final class RadarModule extends Module {
         ClickGuiModule menu = ModuleManager.get(ClickGuiModule.class);
         if (menu != null && menu.enabled()) {
             menu.setEnabled(false, context);
+        }
+        AltManagerModule alts = ModuleManager.get(AltManagerModule.class);
+        if (alts != null && alts.enabled()) {
+            alts.setEnabled(false, context);
         }
     }
 

@@ -14,8 +14,9 @@ import org.objectweb.asm.Type;
  * method handle per hook, which the client points at itself on start and at a
  * no-op on stop. Each bridge method traps anything its handler throws and
  * reports it through {@link #FAILED}, so a client bug can never unwind through
- * the game: an injection then returns as if it had not cancelled, and a
- * redirect performs the instruction it replaced.
+ * the game: an injection then returns as if it had not cancelled, one that
+ * takes the result hands it back unchanged, and a redirect performs the
+ * instruction it replaced.
  *
  * <p>The bridge outlives an injection, because nothing can be removed from a
  * loader. Its name carries a hash of the hook set, so a build with different
@@ -86,7 +87,9 @@ final class Bridge {
         mv.visitVarInsn(Opcodes.ALOAD, thrown);
         mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, HANDLE, "invokeExact", FAILED_DESCRIPTOR, false);
         Hook.At at = hook.at();
-        if (at.kind() == Hook.At.Kind.REDIRECT) {
+        if (hook.result()) {
+            mv.visitVarInsn(returned.getOpcode(Opcodes.ILOAD), 0);
+        } else if (at.kind() == Hook.At.Kind.REDIRECT) {
             load(mv, params);
             if (at.isField()) {
                 mv.visitFieldInsn(at.opcode(), at.owner(), at.name(), at.descriptor());

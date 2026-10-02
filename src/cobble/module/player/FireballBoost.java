@@ -30,7 +30,7 @@ public class FireballBoost extends Module {
     private int pitchRestoreTicks = 0;
 
     public FireballBoost() {
-        super("FireballBoost", "Throws a fireball at your feet to launch you", Category.PLAYER, Subcategory.ADVANCED);
+        super("FireballBoost", "Throws a fireball at your feet to launch you", Category.PLAYER, Subcategory.MEDIUM);
         this.boostDelay = addNumber("Boost Delay", "", 550.0F, 450.0F, 650.0F, 0);
     }
 

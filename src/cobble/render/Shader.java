@@ -17,6 +17,9 @@ public final class Shader {
     private final FloatBuffer matrix = BufferUtils.createFloatBuffer(16);
     private String name = "";
     private int program;
+    /* What the program looked like when linked, to tell it from one the game has made under the same name since. */
+    private int uniformCount;
+    private int attributeCount;
 
     public boolean compile(String programName, String vertexSource, String fragmentSource) {
         destroy();
@@ -43,6 +46,8 @@ public final class Shader {
             return false;
         }
         program = linked;
+        uniformCount = GL20.glGetProgrami(linked, GL20.GL_ACTIVE_UNIFORMS);
+        attributeCount = GL20.glGetProgrami(linked, GL20.GL_ACTIVE_ATTRIBUTES);
         Log.debug(SCOPE, "%s linked as program %d", name, program);
         return true;
     }
@@ -63,15 +68,18 @@ public final class Shader {
     }
 
     public void destroy() {
-        if (program != 0) {
+        if (valid()) {
             GL20.glDeleteProgram(program);
-            program = 0;
         }
+        program = 0;
         uniforms.clear();
     }
 
     public boolean valid() {
-        return program != 0 && GL20.glIsProgram(program);
+        return program != 0 && GL20.glIsProgram(program)
+                && GL20.glGetProgrami(program, GL20.GL_LINK_STATUS) == GL11.GL_TRUE
+                && GL20.glGetProgrami(program, GL20.GL_ACTIVE_UNIFORMS) == uniformCount
+                && GL20.glGetProgrami(program, GL20.GL_ACTIVE_ATTRIBUTES) == attributeCount;
     }
 
     public void bind() {

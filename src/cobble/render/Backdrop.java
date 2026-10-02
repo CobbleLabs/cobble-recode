@@ -60,12 +60,14 @@ public final class Backdrop {
         return true;
     }
 
+    /* As with the renderer: names that may have changed hands since a wipe are forgotten, not deleted. */
     public void destroy() {
+        boolean intact = down.valid() && up.valid() && tint.valid();
         releaseLevels();
-        if (emptyVertexArray != 0) {
+        if (intact && emptyVertexArray != 0) {
             GL30.glDeleteVertexArrays(emptyVertexArray);
-            emptyVertexArray = 0;
         }
+        emptyVertexArray = 0;
         down.destroy();
         up.destroy();
         tint.destroy();
@@ -77,10 +79,9 @@ public final class Backdrop {
 
     private void releaseLevels() {
         for (Level level : levels) {
-            if (level.framebuffer != 0) {
+            /* The framebuffer goes with its texture: if the texture is no longer ours, neither is it. */
+            if (Gl.holdsTexture(level.texture, level.width, level.height, GL11.GL_RGBA8)) {
                 GL30.glDeleteFramebuffers(level.framebuffer);
-            }
-            if (level.texture != 0) {
                 GL11.glDeleteTextures(level.texture);
             }
             level.framebuffer = 0;

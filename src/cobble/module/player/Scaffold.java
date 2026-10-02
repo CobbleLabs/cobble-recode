@@ -126,7 +126,7 @@ public class Scaffold extends Module {
     private final List<Scaffold$4> placedBlocks = new ArrayList<>();
 
     public Scaffold() {
-        super("Scaffold", "Places blocks under you as you walk", Category.PLAYER, Subcategory.EXTREME);
+        super("Scaffold", "Places blocks under you as you walk", Category.PLAYER, Subcategory.ADVANCED);
         this.rotation = addChoice("Rotation", "", List.of(this.rotationModes), 1);
         this.timeManipulation = addBoolean("Time Manipulation", "", false);
         this.lowTimer = addNumber("Low Timer", "", 0.4F, 0.1F, 0.8F, 1);

@@ -876,7 +876,7 @@ public class RenderUtils implements IMinecraft {
         if (var1 != null) {
             return var1;
         } else {
-            String var2 = "jade_icon_" + var0.hashCode();
+            String var2 = "cobble_icon_" + var0.hashCode();
             ResourceLocation var3 = loadRecoloredIcon(var0, var2, null);
             if (var3 != null) {
                 iconTextureCache.put(var0, var3);

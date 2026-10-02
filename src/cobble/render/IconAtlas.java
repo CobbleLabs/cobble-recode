@@ -11,6 +11,7 @@ import java.awt.image.DataBufferByte;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 
 /**
  * Lucide's icons ship as stroked SVG paths. They are rasterised once at 4x,
@@ -82,11 +83,17 @@ public final class IconAtlas {
 
     /** The pixels stay, so a lost context re-uploads without a re-rasterise. */
     public void destroy() {
-        if (texture != 0) {
+        /* A name the game has taken over since is left alone: deleting it would delete the game's texture. */
+        if (owned()) {
             GL11.glDeleteTextures(texture);
-            texture = 0;
         }
+        texture = 0;
         dirty = pixels != null;
+    }
+
+    /** True while the texture name still holds this atlas. */
+    public boolean owned() {
+        return Gl.holdsTexture(texture, atlasWidth, atlasHeight, GL30.GL_R8);
     }
 
     public boolean ready() {

@@ -61,7 +61,7 @@ public final class TriggerBot extends Module {
     private int hits;
 
     public TriggerBot() {
-        super("TriggerBot", "Attacks whatever the crosshair is already on", Category.COMBAT, Subcategory.ADVANCED);
+        super("TriggerBot", "Attacks whatever the crosshair is already on", Category.COMBAT, Subcategory.MEDIUM);
         setIcon(Icon.CROSSHAIR);
     }
 

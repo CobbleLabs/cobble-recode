@@ -1037,7 +1037,7 @@ public class InventoryManager extends Module {
     }
 
     private int findArmorUpgradeSlot(InventorySnapshot var1, int var2, ItemStack var3) {
-        return ArmorScorer.wnQdxGw(copyInventoryStacks(var1), var3, var2, this.durabilityCheck.bool());
+        return ArmorScorer.findUpgradeSlot(copyInventoryStacks(var1), var3, var2, this.durabilityCheck.bool());
     }
 
     private static boolean RuyJ(ItemStack var0, int var1) {

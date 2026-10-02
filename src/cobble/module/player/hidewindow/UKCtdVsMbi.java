@@ -9,7 +9,7 @@ public final class UKCtdVsMbi {
     }
 
     public static int ODZybV(FloatingWindowPosition var0, double var1, int var3) {
-        ResourceLocation var4 = RenderUtils.getIconTexture("/assets/jade/textures/gui/tv_off.png");
+        ResourceLocation var4 = RenderUtils.getIconTexture("/assets/cobble/textures/gui/tv_off.png");
         int var5 = SquareBounds.Yvhab2(16, var1);
         if (var4 == null) {
             return var5;

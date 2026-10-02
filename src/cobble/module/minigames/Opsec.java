@@ -24,7 +24,7 @@ public final class Opsec extends Module {
 
     public Opsec() {
         super("Opsec", "Adds ping in the Bed Wars lobby so it can't identify you", Category.MINIGAMES,
-                Subcategory.ADVANCED);
+                Subcategory.BASIC);
         this.pingBoost = addNumber("Ping Boost", "", 100.0F, 50.0F, 1000.0F, 0);
     }
 

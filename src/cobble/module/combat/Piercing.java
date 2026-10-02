@@ -15,7 +15,7 @@ public class Piercing extends Module implements PointedObjectOverrider {
 
     public Piercing() {
         super("Piercing", "Hits the target through blocks and other entities in reach", Category.COMBAT,
-                Subcategory.EXTREME);
+                Subcategory.ADVANCED);
     }
 
     @Override

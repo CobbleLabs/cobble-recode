@@ -11,11 +11,13 @@ import org.objectweb.asm.Type;
  * <p>An injection passes the patched object when {@code self} is set, then the
  * method's arguments when {@code args} is set, and returns void; a
  * cancellable one returns true to make the method return its default value
- * right away, and only sits at HEAD. A redirect replaces one instruction with
- * the handler, which takes the instruction's operands and leaves its result.
+ * right away, and only sits at HEAD. One that takes the {@code result} sits at
+ * RETURN, gets the value being returned ahead of the rest, and returns what the
+ * method returns instead. A redirect replaces one instruction with the
+ * handler, which takes the instruction's operands and leaves its result.
  */
 record Hook(String owner, String method, String descriptor, At at, String handler, boolean self, boolean args,
-            boolean cancellable) {
+            boolean cancellable, boolean result) {
     static final String MINECRAFT = "net/minecraft/client/Minecraft";
     static final String PLAYER = "net/minecraft/client/entity/EntityPlayerSP";
     static final String CLIENT_PLAYER = "net/minecraft/client/entity/AbstractClientPlayer";
@@ -35,6 +37,9 @@ record Hook(String owner, String method, String descriptor, At at, String handle
     static final String RENDER_MANAGER = "net/minecraft/client/renderer/entity/RenderManager";
     static final String GUI_CONTAINER = "net/minecraft/client/gui/inventory/GuiContainer";
     static final String GUI_SCREEN = "net/minecraft/client/gui/GuiScreen";
+    static final String BLOCK = "net/minecraft/block/Block";
+    static final String BLOCK_ACCESS = "net/minecraft/world/IBlockAccess";
+    static final String BLOCK_DISPATCHER = "net/minecraft/client/renderer/BlockRendererDispatcher";
 
     private static final String BLOCK_ACTION = "(Lnet/minecraft/util/BlockPos;Lnet/minecraft/util/EnumFacing;)Z";
     private static final String IS_POTION_ACTIVE = "(Lnet/minecraft/potion/Potion;)Z";
@@ -49,7 +54,7 @@ record Hook(String owner, String method, String descriptor, At at, String handle
      * packet, where vanilla sends its own. The frame hook runs after the world
      * and the game's HUD are drawn, right before the buffer swap. The motion
      * pair brackets the movement packet for silent rotations. The rest raise
-     * the module events where OpenJade's mixins did.
+     * the module events.
      */
     static final List<Hook> ALL = List.of(
             of(MINECRAFT, "runTick", "()V", At.HEAD, "tickStart"),
@@ -163,10 +168,13 @@ record Hook(String owner, String method, String descriptor, At at, String handle
                     "(Lnet/minecraft/world/World;Lnet/minecraft/client/gui/FontRenderer;Lnet/minecraft/entity/Entity;"
                             + "Lnet/minecraft/entity/Entity;Lnet/minecraft/client/settings/GameSettings;F)V",
                     At.RETURN, "renderInfoCached").withSelf(),
-            of(CLIENT_PLAYER, "getLocationCape", "()Lnet/minecraft/util/ResourceLocation;",
-                    At.redirect(Opcodes.INVOKEVIRTUAL, "net/minecraft/client/network/NetworkPlayerInfo",
-                            "getLocationCape", "()Lnet/minecraft/util/ResourceLocation;", 0),
-                    "capeTexture"),
+            /* OptiFine, which Lunar ships, answers with null while its capes are
+             * off and with its own downloaded cape when there is one, before it
+             * ever asks the player info, so the cape replaces whatever comes back. */
+            of(CLIENT_PLAYER, "getLocationCape", "()Lnet/minecraft/util/ResourceLocation;", At.RETURN,
+                    "capeTexture").withSelf().withResult(),
+            of(ENTITY_PLAYER, "isWearing", "(Lnet/minecraft/entity/player/EnumPlayerModelParts;)Z", At.RETURN,
+                    "partWorn").withSelf().withArgs().withResult(),
 
             of(GUI_CONTAINER, "drawScreen", "(IIF)V", At.RETURN, "containerDrawn").withSelf(),
             of(GUI_CONTAINER, "mouseClicked", "(III)V", At.HEAD, "containerClick").cancelling(),
@@ -203,35 +211,59 @@ record Hook(String owner, String method, String descriptor, At at, String handle
                             0),
                     "renderTickEnd").withArgs(),
             of(RENDERER, "renderWorldPass", "(IFJ)V",
-                    At.before(Opcodes.GETFIELD, RENDERER, "renderHand", "Z", 0), "renderWorldLast").withArgs());
+                    At.before(Opcodes.GETFIELD, RENDERER, "renderHand", "Z", 0), "renderWorldLast").withArgs(),
+
+            of(BLOCK_DISPATCHER, "renderBlock",
+                    "(Lnet/minecraft/block/state/IBlockState;Lnet/minecraft/util/BlockPos;L" + BLOCK_ACCESS
+                            + ";Lnet/minecraft/client/renderer/WorldRenderer;)Z",
+                    At.HEAD, "renderBlock").withArgs().cancelling(),
+            of(BLOCK, "shouldSideBeRendered",
+                    "(L" + BLOCK_ACCESS + ";Lnet/minecraft/util/BlockPos;Lnet/minecraft/util/EnumFacing;)Z",
+                    At.redirect(Opcodes.INVOKEVIRTUAL, BLOCK, "isOpaqueCube", "()Z", -1), "sideOccluded"),
+            of(BLOCK, "getMixedBrightnessForBlock", "(L" + BLOCK_ACCESS + ";Lnet/minecraft/util/BlockPos;)I",
+                    At.redirect(Opcodes.INVOKEINTERFACE, BLOCK_ACCESS, "getCombinedLight",
+                            "(Lnet/minecraft/util/BlockPos;I)I", -1),
+                    "blockLight"),
+            of(MINECRAFT, "isAmbientOcclusionEnabled", "()Z", At.HEAD, "ambientOcclusion").cancelling());
 
     Hook {
         if (cancellable && at.kind() != At.Kind.HEAD) {
             throw new IllegalArgumentException(handler + ": only a HEAD hook can cancel");
         }
+        if (result && (at.kind() != At.Kind.RETURN || Type.getReturnType(descriptor) == Type.VOID_TYPE)) {
+            throw new IllegalArgumentException(handler + ": only a RETURN hook of a method with a result can take it");
+        }
     }
 
     static Hook of(String owner, String method, String descriptor, At at, String handler) {
-        return new Hook(owner, method, descriptor, at, handler, false, false, false);
+        return new Hook(owner, method, descriptor, at, handler, false, false, false, false);
     }
 
     Hook withSelf() {
-        return new Hook(owner, method, descriptor, at, handler, true, args, cancellable);
+        return new Hook(owner, method, descriptor, at, handler, true, args, cancellable, result);
     }
 
     Hook withArgs() {
-        return new Hook(owner, method, descriptor, at, handler, self, true, cancellable);
+        return new Hook(owner, method, descriptor, at, handler, self, true, cancellable, result);
     }
 
     Hook cancelling() {
-        return new Hook(owner, method, descriptor, at, handler, self, args, true);
+        return new Hook(owner, method, descriptor, at, handler, self, args, true, result);
+    }
+
+    Hook withResult() {
+        return new Hook(owner, method, descriptor, at, handler, self, args, cancellable, true);
     }
 
     String handlerDescriptor() {
         if (at.kind() == At.Kind.REDIRECT) {
             return at.redirectDescriptor();
         }
+        String returned = Type.getReturnType(descriptor).getDescriptor();
         StringBuilder params = new StringBuilder("(");
+        if (result) {
+            params.append(returned);
+        }
         if (self) {
             params.append('L').append(owner).append(';');
         }
@@ -240,7 +272,7 @@ record Hook(String owner, String method, String descriptor, At at, String handle
                 params.append(type.getDescriptor());
             }
         }
-        return params.append(cancellable ? ")Z" : ")V").toString();
+        return params.append(')').append(result ? returned : cancellable ? "Z" : "V").toString();
     }
 
     /**

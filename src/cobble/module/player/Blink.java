@@ -34,7 +34,7 @@ public class Blink extends Module implements ProgressBarSource {
     private final ElapsedTimer WPA = new ElapsedTimer();
 
     public Blink() {
-        super("Blink", "Disable on", Category.PLAYER, Subcategory.EXTREME);
+        super("Blink", "Disable on", Category.PLAYER, Subcategory.ADVANCED);
         this.mode = addChoice("Mode", "", List.of(MODE_NAMES), 1);
         this.disableLagrange = addBoolean("Disable Lagrange", "", false);
         this.maxDuration = addBoolean("Max duration", "", false);

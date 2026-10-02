@@ -25,7 +25,7 @@ public class GhostHand extends Module implements PointedObjectOverrider {
     private final GhostHandSettings ghostHandSettings = new GhostHandSettings(this);
 
     public GhostHand() {
-        super("GhostHand", "Interacts with blocks behind entities and walls", Category.PLAYER, Subcategory.ADVANCED);
+        super("GhostHand", "Interacts with blocks behind entities and walls", Category.PLAYER, Subcategory.MEDIUM);
     }
 
     @Override

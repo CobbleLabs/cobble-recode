@@ -40,7 +40,7 @@ final class ApiModule {
     private static Subcategory subcategoryOf(LuaTable definition) {
         String wanted = Lua.fieldString(definition, "subcategory", "");
         if (wanted.isEmpty()) {
-            return Subcategory.GENERAL;
+            return Subcategory.ALL;
         }
         for (Subcategory subcategory : Subcategory.values()) {
             if (subcategory.displayName.equalsIgnoreCase(wanted)) {

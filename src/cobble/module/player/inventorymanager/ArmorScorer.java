@@ -89,7 +89,7 @@ public final class ArmorScorer {
         return var8;
     }
 
-    public static int wnQdxGw(ItemStack[] var0, ItemStack var1, int var2, boolean var3) {
+    public static int findUpgradeSlot(ItemStack[] var0, ItemStack var1, int var2, boolean var3) {
         double var4 = scoreArmor(var1, var2, var3) + 0.001;
         int var6 = -1;
 

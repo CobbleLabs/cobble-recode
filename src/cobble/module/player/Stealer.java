@@ -11,6 +11,7 @@ import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import cobble.util.SkywarsGameState;
 import net.minecraft.client.gui.inventory.GuiChest;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.ContainerChest;
 import net.minecraft.inventory.IInventory;
@@ -191,13 +192,15 @@ public class Stealer extends Module {
         return var1;
     }
 
-    private static boolean isUnnamedChest(IInventory var0) {
-        if (var0 != null && var0.hasCustomName()) {
-            String var1 = var0.getDisplayName() != null ? var0.getDisplayName().getUnformattedText() : "";
-            return var1 == null || var1.trim().isEmpty();
-        } else {
-            return true;
-        }
+    /*
+     * The client builds every chest it opens from the server's title, so the
+     * inventory always reports a custom name; an unnamed chest is one whose
+     * title is the game's own "Chest" or "Large Chest", in the client's language.
+     */
+    private static boolean isUnnamedChest(IInventory inventory) {
+        String title = inventory.getName().trim();
+        return title.isEmpty() || title.equals(I18n.format("container.chest"))
+                || title.equals(I18n.format("container.chestDouble"));
     }
 
     private static boolean isSurvivalMode() {

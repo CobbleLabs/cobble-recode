@@ -39,8 +39,10 @@ import cobble.event.VelocityEvent;
 import cobble.game.RotationEngine;
 import cobble.module.ModuleManager;
 import cobble.module.combat.AutoClicker;
+import cobble.module.combat.BlockHit;
 import cobble.module.combat.KeepSprint;
 import cobble.module.combat.Piercing;
+import cobble.module.combat.Reach;
 import cobble.module.minigames.AutoChest;
 import cobble.module.minigames.BedwarsUtils;
 import cobble.module.minigames.NukeDefend;
@@ -55,6 +57,8 @@ import cobble.module.render.Cape;
 import cobble.module.render.FreeLook;
 import cobble.module.render.Nametags;
 import cobble.module.render.NoCameraClip;
+import cobble.module.render.Xray;
+import cobble.render.GlCache;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.packet.PacketUtils;
@@ -65,6 +69,8 @@ import cobble.util.rotation.RotationHandler;
 import cobble.util.rotation.RotationUtils;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.List;
+import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -72,13 +78,14 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.multiplayer.PlayerControllerMP;
 import net.minecraft.client.multiplayer.WorldClient;
-import net.minecraft.client.network.NetworkPlayerInfo;
+import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.entity.RenderPlayer;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EnumPlayerModelParts;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -93,12 +100,15 @@ import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovementInputFromOptions;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import org.lwjgl.input.Mouse;
 
 /** The handlers the patched game methods call; see {@code cobble.boot.Hook} for where each one sits. */
 public final class Hooks {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    /* Sky and block light both at 15, packed the way getCombinedLight returns them. */
+    private static final int FULL_BRIGHT = 15 << 20 | 15 << 4;
     private static final EntityRotationOverride freeLookRotation = new EntityRotationOverride();
     private static boolean freeLookRotated;
     private static float blockDamageBefore;
@@ -355,6 +365,7 @@ public final class Hooks {
         if (keepSprint.enabled()) {
             keepSprint.applyPredictedSprintState(player);
         }
+        ModuleManager.get(BlockHit.class).livingUpdate(player);
     }
 
     public static void closeScreen() {
@@ -438,6 +449,7 @@ public final class Hooks {
                                     float partialTicks) {
         if (!FakePlayerRenderer.isRendering() && EventBus.hasListeners(RenderLivingPreEvent.class)) {
             EventBus.post(new RenderLivingPreEvent(entity, x, y, z, partialTicks));
+            GlCache.resync();
         }
     }
 
@@ -466,6 +478,7 @@ public final class Hooks {
                                     float yaw, float partialTicks) {
         if (!FakePlayerRenderer.isRendering() && EventBus.hasListeners(RenderPlayerPreEvent.class)) {
             EventBus.post(new RenderPlayerPreEvent(player, x, y, z, partialTicks, renderer.getMainModel()));
+            GlCache.resync();
         }
     }
 
@@ -473,6 +486,7 @@ public final class Hooks {
                                       double z, float yaw, float partialTicks) {
         if (!FakePlayerRenderer.isRendering() && EventBus.hasListeners(RenderPlayerPostEvent.class)) {
             EventBus.post(new RenderPlayerPostEvent(player, x, y, z, partialTicks, renderer.getMainModel()));
+            GlCache.resync();
         }
     }
 
@@ -484,14 +498,19 @@ public final class Hooks {
         }
     }
 
-    public static ResourceLocation capeTexture(NetworkPlayerInfo info) {
-        if (mc.thePlayer != null && info.getGameProfile().getId().equals(mc.thePlayer.getUniqueID())) {
-            ResourceLocation cape = Cape.texture();
-            if (cape != null) {
-                return cape;
+    public static ResourceLocation capeTexture(ResourceLocation cape, AbstractClientPlayer player) {
+        if (player == mc.thePlayer) {
+            ResourceLocation picked = Cape.texture();
+            if (picked != null) {
+                return picked;
             }
         }
-        return info.getLocationCape();
+        return cape;
+    }
+
+    /** The cape layer only draws for a player wearing the cape part, which the skin settings may switch off. */
+    public static boolean partWorn(boolean worn, EntityPlayer player, EnumPlayerModelParts part) {
+        return worn || part == EnumPlayerModelParts.CAPE && player == mc.thePlayer && Cape.selected();
     }
 
     public static void containerDrawn(GuiContainer gui) {
@@ -546,7 +565,7 @@ public final class Hooks {
     public static void pointedObject(float partialTicks) {
         for (PointedObjectOverrider overrider : List.<PointedObjectOverrider>of(ModuleManager.get(BedNuker.class),
                 ModuleManager.get(BridgeNuker.class), ModuleManager.get(GhostHand.class),
-                ModuleManager.get(Piercing.class))) {
+                ModuleManager.get(Piercing.class), ModuleManager.get(Reach.class))) {
             if (overrider.shouldOverridePointedObject()) {
                 overrider.applyPointedObjectOverride(partialTicks);
                 return;
@@ -592,6 +611,28 @@ public final class Hooks {
         return !ModuleManager.get(AntiDebuff.class).blocksBlindness(potion) && entity.isPotionActive(potion);
     }
 
+    /*
+     * The four below run on the chunk builder's worker threads as well as the
+     * client thread, so they only read Xray's snapshot. A hidden block is never
+     * built, every face of a kept one is, at full light and without ambient
+     * occlusion, which would shade it against the blocks it no longer shows.
+     */
+    public static boolean renderBlock(IBlockState state, BlockPos pos, IBlockAccess access, WorldRenderer renderer) {
+        return Xray.hides(state.getBlock());
+    }
+
+    public static boolean sideOccluded(Block neighbour) {
+        return !Xray.active() && neighbour.isOpaqueCube();
+    }
+
+    public static int blockLight(IBlockAccess access, BlockPos pos, int lightValue) {
+        return Xray.active() ? FULL_BRIGHT : access.getCombinedLight(pos, lightValue);
+    }
+
+    public static boolean ambientOcclusion() {
+        return Xray.active();
+    }
+
     public static boolean nauseaPotion(EntityPlayerSP player, Potion potion) {
         return !ModuleManager.get(AntiDebuff.class).blocksConfusion(potion) && player.isPotionActive(potion);
     }
@@ -607,8 +648,11 @@ public final class Hooks {
     }
 
     public static void renderWorldLast(int pass, float partialTicks, long finishTime) {
+        /* The world-time draws push and pop attributes and set state raw, so the
+         * cache is set right before the game goes on to draw its HUD over them. */
         if (EventBus.hasListeners(RenderWorldLastEvent.class)) {
             EventBus.post(new RenderWorldLastEvent(partialTicks));
+            GlCache.resync();
         }
     }
 }

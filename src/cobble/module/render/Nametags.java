@@ -42,7 +42,7 @@ import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
 public class Nametags extends Module {
-    private static final boolean VVzU = Boolean.getBoolean("jade.debugNametagGl");
+    private static final boolean VVzU = Boolean.getBoolean("cobble.debugNametagGl");
     private static final Comparator<NametagData> comparator = Nametags::compareByDistance;
     private static final String[] mRl4 = new String[]{"Hearts", "Health"};
     private static final int SKIN_SIZE = 10;
@@ -71,7 +71,7 @@ public class Nametags extends Module {
     private int ysuU = 0;
 
     public Nametags() {
-        super("Nametags", "Custom nametags with health, distance and armor", Category.VISUALS, Subcategory.ADVANCED);
+        super("Nametags", "Custom nametags with health, distance and armor", Category.VISUALS, Subcategory.MEDIUM);
         this.scale = addNumber("Scale", "", 1.0F, 0.1F, 2.0F, 1);
         this.autoScale = addBoolean("Auto Scale", "", false);
         this.background = addBoolean("Background", "", true);

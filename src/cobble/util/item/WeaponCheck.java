@@ -9,7 +9,7 @@ public final class WeaponCheck {
     private WeaponCheck() {
     }
 
-    /** Jade's default weapon selection: swords and sticks. */
+    /** The default weapon selection: swords and sticks. */
     public static boolean isHoldingEnabledWeapon(EntityLivingBase entity) {
         if (entity.getHeldItem() == null) {
             return false;

@@ -38,7 +38,7 @@ public class AutoFeed extends Module {
     private final Map<Integer, AutoFeed$1> rrGx = new HashMap<>();
 
     public AutoFeed() {
-        super("AutoFeed", "Stops attacks that would finish an enemy", Category.COMBAT, Subcategory.ADVANCED);
+        super("AutoFeed", "Stops attacks that would finish an enemy", Category.COMBAT, Subcategory.MEDIUM);
         this.minimumHealth = addNumber("Minimum health", "", 1.0F, 0.5F, 10.0F, 1);
         this.safetyMargin = addNumber("Safety margin", "", 0.5F, 0.0F, 3.0F, 1);
         this.onlyInBedwars = addBoolean("Only in Bedwars", "", true);

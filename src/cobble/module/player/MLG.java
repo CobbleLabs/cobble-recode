@@ -25,7 +25,7 @@ public class MLG extends Module {
     private final MlgState mlgState = new MlgState();
 
     public MLG() {
-        super("MLG", "Places water under you to cancel fall damage", Category.PLAYER, Subcategory.ADVANCED);
+        super("MLG", "Places water under you to cancel fall damage", Category.PLAYER, Subcategory.MEDIUM);
         this.pickUp = addBoolean("Pick Up", "", true);
         this.swapSlot = addBoolean("Swap Slot", "", true);
     }

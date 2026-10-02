@@ -72,7 +72,7 @@ public class Velocity extends Module {
     private long forwardHoldUntilMillis;
 
     public Velocity() {
-        super("Velocity", "Reset Conditions", Category.COMBAT, Subcategory.EXTREME);
+        super("Velocity", "Reset Conditions", Category.COMBAT, Subcategory.ADVANCED);
         this.mode = addChoice("Mode", "", List.of(VelocityMode.labels()), VelocityMode.JUMP_RESET.ordinal());
         this.resetChance = addNumber("Reset Chance", "", 100.0F, 0.0F, 100.0F, 0);
         this.delayChance = addNumber("Delay Chance", "", 100.0F, 0.0F, 100.0F, 0);
