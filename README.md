@@ -8,16 +8,18 @@
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.8.9-BDA4BD?style=flat-square&labelColor=171A21)
 ![Lunar Client](https://img.shields.io/badge/Lunar_Client-1.8.9-F2A8C8?style=flat-square&labelColor=171A21)
 ![Java](https://img.shields.io/badge/Java-17-FFD2A6?style=flat-square&labelColor=171A21&logo=openjdk&logoColor=white)
-![Platform](https://img.shields.io/badge/Windows-x64-BDA4BD?style=flat-square&labelColor=171A21)
+![Platform](https://img.shields.io/badge/Windows-x64-8FD3FF?style=flat-square&labelColor=171A21)
 ![Lua](https://img.shields.io/badge/Scripting-Lua-F2A8C8?style=flat-square&labelColor=171A21&logo=lua&logoColor=white)
 ![Modules](https://img.shields.io/badge/Modules-99-FFD2A6?style=flat-square&labelColor=171A21)
 
 **[cobble.vip](https://cobble.vip)**
 
-[Quick start](#quick-start) •
-[Modules](#modules) •
-[Scripting](#scripting) •
-[How it works](#how-it-works) •
+[Features](#features) ·
+[Getting started](#getting-started) ·
+[The client](#the-client) ·
+[Modules](#modules) ·
+[Scripting](#scripting) ·
+[Under the hood](#under-the-hood) ·
 [Building](#building)
 
 </div>
@@ -31,83 +33,40 @@ HUD and a Lua runtime, all from memory. When you are done, hold <kbd>End</kbd> a
 it leaves again, with Minecraft still running.
 
 <br>
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-#### One file, nothing installed
-
-The injector carries the DLL and the DLL carries the client. Nothing is added to
-your Minecraft or Lunar folders, and there is no jar to drop anywhere.
-
-</td>
-<td width="33%" valign="top">
-
-#### Hooks, not mixins
-
-80 bytecode hooks are woven into Lunar's own classes with ASM through JVMTI.
-A client bug can never unwind into the game, and unloading hands every class
-back untouched.
-
-</td>
-<td width="33%" valign="top">
-
-#### One draw call
-
-Panels, text, icons, shadows and ESP are signed-distance quads in a single
-batch, with a frosted Kawase blur behind the menu.
-
-</td>
-</tr>
-<tr>
-<td width="33%" valign="top">
-
-#### Rotations a mouse could make
-
-Every rotation is snapped to whole mouse counts at your sensitivity, so the
-deltas share the GCD a real mouse produces. Silent rotations correct your
-movement to match.
-
-</td>
-<td width="33%" valign="top">
-
-#### 99 modules
-
-Combat, player, movement, visuals, HUD and minigame tools, each filed as
-Basic, Medium or Advanced so the menu stays readable.
-
-</td>
-<td width="33%" valign="top">
-
-#### Lua scripting
-
-Scripts declare modules that look and save exactly like the built-in ones,
-reload in place, and each runs in its own interpreter.
-
-</td>
-</tr>
-</table>
-
+<img src="docs/assets/divider.svg" width="100%" alt="">
 <br>
 
-## Quick start
+## <img src="docs/assets/section-features.svg" height="30" align="top" alt=""> Features
 
-1. Open Lunar Client on **1.8.9** and join a world or a server.
+<img src="docs/assets/features.svg" width="100%" alt="One file, nothing installed. Hooks, not mixins. One draw call. Rotations a mouse could make. Clicks that read as human. Lua scripting.">
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Getting started
+
+> [!NOTE]
+> You need Windows x64 and Lunar Client on **1.8.9**. That is all; the client
+> brings everything else with it.
+
+1. Open Lunar Client on 1.8.9 and join a world or a server.
 2. Run **`cobble-injector.exe`** and pick the game window.
-3. Press <kbd>Insert</kbd> to open the menu.
+3. Press <kbd>Insert</kbd>. The menu opens at the top of the screen.
 
 | Key | What it does |
 | :-- | :-- |
 | <kbd>Insert</kbd> | Opens and closes the menu. Rebind it on the ClickGUI module. |
-| <kbd>End</kbd>, held for half a second | Unloads the client. The config is saved, and the same game can be injected again. |
+| <kbd>Insert</kbd> on the multiplayer screen | Opens the Alt Manager. |
+| <kbd>End</kbd>, held for half a second | Unloads the client. The config is saved and the same game can be injected again. |
 
-Everything the client keeps lives in **`%APPDATA%\cobble`**:
+Everything the client keeps lives in **`%APPDATA%\cobble`**, never in the game's
+folders:
 
 | Path | Holds |
 | :-- | :-- |
-| `cobble.cfg` | Every module, setting and bind, written on unload and read on the next injection |
-| `configs/` | Named configs saved from the menu |
+| `cobble.cfg` | Every module, setting, bind and HUD position, written on unload and read on the next injection |
+| `configs/` | Named configs from the menu |
 | `scripts/` | Lua scripts; the injector ships the examples here |
 | `cobble.scripts.cfg` | Which scripts are on, and what they stored |
 | `alts.json` | Accounts saved in the Alt Manager |
@@ -115,44 +74,102 @@ Everything the client keeps lives in **`%APPDATA%\cobble`**:
 | `cobble.log` | One log per session; every startup stage reports its timing or why it failed |
 
 > [!TIP]
-> If anything looks off, `cobble.log` says which hook was skipped and why, and
+> If something looks off, `cobble.log` says which hook was skipped and why, and
 > which handler threw.
 
 <br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
 
-## Modules
+## <img src="docs/assets/section-menu.svg" height="30" align="top" alt=""> The client
 
-The menu has a tab for **Combat**, **Player**, **Visuals**, **Other** and
-**Scripts**. Movement lives under Player, HUD under Visuals, and Minigames and
-Client under Other.
+### The menu
+
+One pill-shaped tab bar and one card, centred at the top of the screen and scaled
+with Minecraft's GUI scale. Each row carries the module's icon, name, keybind
+chip, description and a toggle; a row with settings opens its own page in place.
+A search field finds any module from any tab.
+
+| Tab | What lives there |
+| :-- | :-- |
+| **Combat** | Everything that fights |
+| **Player** | Inventory, building, packets, and the Movement modules |
+| **Visuals** | ESP, world overlays, and the HUD modules |
+| **Other** | Minigames, the client modules, and the utilities that fit nowhere else |
+| **Scripts** | Every Lua file found, with a switch and a reload for each |
+| **Settings** (the gear) | Configs, the accent colour, the backdrop blur, reloading, the data folder, Panic and Unload |
+
+**One accent drives the client.** The colour picked under Settings is what the
+menu, the HUD and the ESP draw with, and scripts can read it too. **Panic** turns
+every module off at once; **Unload** detaches the client without the key.
+
+### The HUD
+
+While the menu is open, the watermark, the module list and the notifications can
+be dragged anywhere and resized from their corner. Each one anchors to the screen
+edge it sits against, so dropped on the other side it mirrors and keeps growing
+away from that edge. The layout is saved with the config.
+
+### Alt Manager
+
+Switch accounts without restarting the game. Five ways in, plus a way back to the
+account the game was launched with:
+
+| Method | How |
+| :-- | :-- |
+| **Microsoft** | The OAuth flow, through your browser |
+| **Refresh** | A Microsoft refresh token |
+| **Token** | Minecraft access tokens, one or many |
+| **Cookie** | Browser cookies exported as Netscape `.txt` or JSON |
+| **Offline** | Any name, for offline-mode servers |
+
+### Radar
+
+A searchable list of everybody in a loaded chunk, and everything the client knows
+about one of them: gear, enchantments, effects and what they have been holding,
+next to a real 3D model of their skin that you can turn with the mouse.
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-modules.svg" height="30" align="top" alt=""> Modules
+
+<img src="docs/assets/modules.svg" width="100%" alt="99 modules: Combat 21, Player 29, Movement 7, Visuals 19, HUD 4, Minigames 12, Other 5, Client 2">
+
+Every module is filed as
+<img src="docs/assets/tier-basic.svg" alt="Basic" align="absmiddle">
+<img src="docs/assets/tier-medium.svg" alt="Medium" align="absmiddle"> or
+<img src="docs/assets/tier-advanced.svg" alt="Advanced" align="absmiddle">,
+so a tab can show only what you are after.
 
 <details>
 <summary><b>Combat</b> · 21 modules</summary>
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| AimAssist | Basic | Pulls your aim toward the nearest target |
-| AttributeSwap | Basic | Swaps to your best sword for the hit, then back |
-| AutoAim | Advanced | Aims bows and rods where the target will be |
-| AutoBlock | Medium | Blocks with the sword between hits, in custom, swap or predict timing |
-| AutoClicker | Basic | Clicks for you while you hold left |
-| AutoFeed | Medium | Stops attacks that would finish an enemy |
-| Backtrack | Advanced | Delays incoming packets so you hit where targets were |
-| BlockHit | Medium | Blocks between hits on the beat of your clicks |
-| Criticals | Medium | Hops on the hit so the next swings crit |
-| Displace | Advanced | Turns on the hit so the knockback throws them sideways |
-| Fisherman | Medium | Paces swings and forward movement on the nearest target to chain knockback |
-| HitSelect | Basic | Holds hits back until they land for more |
-| JumpReset | Basic | Jumps on the tick a hit lands so the knockback carries |
-| KeepSprint | Medium | Keeps sprinting through your own hits |
-| LagRange | Advanced | Lags your connection only while a target is in range |
-| Piercing | Advanced | Hits the target through blocks and other entities in reach |
-| Reach | Advanced | Hits players a little past vanilla's reach |
-| Reduce | Medium | Attacks back when hit to cut the knockback |
-| TriggerBot | Medium | Attacks whatever the crosshair is already on |
-| Velocity | Advanced | Cuts knockback with a jump reset, a delay or a hard reset |
-| WTap | Basic | W-taps every landed hit |
+| :-- | :-: | :-- |
+| **AimAssist** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Pulls your aim toward the nearest target |
+| **AttributeSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to your best sword for the hit, then back |
+| **AutoAim** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims bows and rods where the target will be |
+| **AutoBlock** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks with the sword between hits, in custom, swap or predict timing |
+| **AutoClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks for you while you hold left, on a human timing model |
+| **AutoFeed** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Stops attacks that would finish an enemy |
+| **Backtrack** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Delays incoming packets so you hit where targets were |
+| **BlockHit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks between hits on the beat of your clicks |
+| **Criticals** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hops on the hit so the next swings crit |
+| **Displace** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Turns on the hit so the knockback throws them sideways |
+| **Fisherman** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Paces swings and forward movement on the nearest target to chain knockback |
+| **HitSelect** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Holds hits back until they land for more |
+| **JumpReset** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Jumps on the tick a hit lands so the knockback carries |
+| **KeepSprint** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps sprinting through your own hits |
+| **LagRange** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Lags your connection only while a target is in range |
+| **Piercing** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits the target through blocks and other entities in reach |
+| **Reach** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits players a little past vanilla's reach |
+| **Reduce** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks back when hit to cut the knockback |
+| **TriggerBot** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks whatever the crosshair is already on |
+| **Velocity** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Cuts knockback with a jump reset, a delay or a hard reset |
+| **WTap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | W-taps every landed hit |
 
 </details>
 
@@ -161,36 +178,36 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| ArmorSwitch | Medium | Swaps between two armor sets |
-| AutoArmor | Basic | Puts on the best armor you carry |
-| AutoDeflect | Medium | Hits incoming fireballs back |
-| AutoRefill | Medium | Refills the hotbar with soup and pots |
-| AutoSwap | Basic | Moves to the next block stack when one runs out |
-| AutoTool | Basic | Swaps to the fastest tool for whatever you are breaking |
-| BedNuker | Advanced | Breaks beds within reach, through walls |
-| Blink | Advanced | Holds packets back, inbound, outbound or both, and lets them go at once |
-| BlockIn | Medium | Surrounds you with blocks |
-| BridgeAssist | Basic | Sneaks at the edge and aims at the face you are bridging off |
-| BridgeNuker | Advanced | Breaks the blocks enemies bridge with |
-| Buffer | Advanced | Holds incoming packets and plays them back later |
-| Clutch | Medium | Turns to a face within reach and blocks the fall |
-| DelayRemover | Basic | Removes the hit and jump delays |
-| FakeLag | Advanced | Delays inbound, outbound or both kinds of packets |
-| FastMine | Medium | Shortens the wait between blocks and speeds up the break |
-| FastPlace | Basic | Removes the four tick wait between right clicks |
-| FireballBoost | Medium | Throws a fireball at your feet to launch you |
-| FireballPearl | Medium | Throws an ender pearl and a fireball straight up |
-| Freecam | Basic | Moves the camera away from your body |
-| GhostHand | Medium | Interacts with blocks behind entities and walls |
-| HeadHitter | Medium | Places a block overhead so jumps hit the ceiling |
-| HideWindow | Basic | Keeps a container open while the screen stays in game |
-| InventoryManager | Basic | Sorts the inventory, equips armor and drops junk |
-| MLG | Medium | Places water under you to cancel fall damage |
-| NoItemRelease | Medium | Keeps using the item after you let go |
-| Scaffold | Advanced | Places blocks under you as you walk |
-| Stealer | Basic | Takes items out of chests |
-| ThrowPots | Medium | Uses the healing items on your hotbar |
+| :-- | :-: | :-- |
+| **ArmorSwitch** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Swaps between two armor sets |
+| **AutoArmor** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Puts on the best armor you carry, openly, gliding the cursor or silently |
+| **AutoDeflect** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hits incoming fireballs back |
+| **AutoRefill** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Refills the hotbar with soup and pots |
+| **AutoSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Moves to the next block stack when one runs out |
+| **AutoTool** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to the fastest tool for whatever you are breaking |
+| **BedNuker** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Breaks beds within reach, through walls |
+| **Blink** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Holds packets back, inbound, outbound or both, and lets them go at once |
+| **BlockIn** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Surrounds you with blocks |
+| **BridgeAssist** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Sneaks at the edge and aims at the face you are bridging off |
+| **BridgeNuker** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Breaks the blocks enemies bridge with |
+| **Buffer** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Holds incoming packets and plays them back later |
+| **Clutch** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Turns to a face within reach and blocks the fall |
+| **DelayRemover** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the hit and jump delays |
+| **FakeLag** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Delays inbound, outbound or both kinds of packets |
+| **FastMine** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Shortens the wait between blocks and speeds up the break |
+| **FastPlace** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the four tick wait between right clicks |
+| **FireballBoost** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws a fireball at your feet to launch you |
+| **FireballPearl** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws an ender pearl and a fireball straight up |
+| **Freecam** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Moves the camera away from your body |
+| **GhostHand** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Interacts with blocks behind entities and walls |
+| **HeadHitter** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places a block overhead so jumps hit the ceiling |
+| **HideWindow** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps a container open while the screen stays in game |
+| **InventoryManager** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Sorts the inventory, equips armor and drops junk |
+| **MLG** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places water under you to cancel fall damage |
+| **NoItemRelease** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps using the item after you let go |
+| **Scaffold** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places blocks under you as you walk |
+| **Stealer** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Takes items out of chests |
+| **ThrowPots** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Uses the healing items on your hotbar |
 
 </details>
 
@@ -199,14 +216,14 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| FastStop | Basic | Stops the slide when you let go of the keys |
-| InvMove | Basic | Walks while the inventory is open |
-| NoSlow | Medium | Walks at full speed while using items |
-| NullMove | Basic | The last key pressed wins when both directions are held |
-| Sprint | Basic | Keeps sprinting while moving |
-| Stasis | Advanced | Freezes your position on the server |
-| Timer | Advanced | Speeds up or slows down the game tick |
+| :-- | :-: | :-- |
+| **FastStop** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Stops the slide when you let go of the keys |
+| **InvMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Walks while the inventory is open |
+| **NoSlow** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Walks at full speed while using items |
+| **NullMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | The last key pressed wins when both directions are held |
+| **Sprint** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps sprinting while moving |
+| **Stasis** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Freezes your position on the server |
+| **Timer** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Speeds up or slows down the game tick |
 
 </details>
 
@@ -215,26 +232,26 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| AntiDebuff | Basic | Removes the blindness and nausea effects |
-| AntiInvis | Advanced | Shows invisible players |
-| BedPlates | Basic | Shows the blocks defending each bed |
-| BlockESP | Advanced | Highlights chosen blocks |
-| Cape | Basic | Gives you a cape, animated ones included |
-| Chams | Medium | Draws players through walls |
-| CuteVisuals | Basic | Heart and dot trail, and a burst when a bed goes |
-| ESP | Medium | Outlines, tracers and off-screen arrows for entities |
-| FreeLook | Basic | Looks around without turning your player |
-| Indicators | Basic | Points at incoming arrows, pearls and fireballs |
-| ItemESP | Medium | Highlights dropped items |
-| Nametags | Medium | Custom nametags with health, distance and armor |
-| NoCameraClip | Basic | Keeps the third person camera out of walls |
-| Pointers | Basic | Arrows around the crosshair toward nearby players |
-| TargetESP | Basic | Marks the current combat target |
-| TargetHud | Basic | A panel for whoever you are fighting |
-| Tracers | Medium | Lines from the crosshair to players |
-| Trajectories | Basic | Draws where the projectile in your hand lands |
-| Xray | Advanced | See ores through the ground |
+| :-- | :-: | :-- |
+| **AntiDebuff** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the blindness and nausea effects |
+| **AntiInvis** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Shows invisible players |
+| **BedPlates** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Shows the blocks defending each bed |
+| **BlockESP** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Highlights chosen blocks |
+| **Cape** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Gives you a cape, animated ones included |
+| **Chams** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Draws players through walls |
+| **CuteVisuals** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Heart and dot trail, and a burst when a bed goes |
+| **ESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Outlines, tracers and off-screen arrows for entities |
+| **FreeLook** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Looks around without turning your player |
+| **Indicators** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Points at incoming arrows, pearls and fireballs |
+| **ItemESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Highlights dropped items |
+| **Nametags** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Custom nametags with health, distance and armor |
+| **NoCameraClip** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps the third person camera out of walls |
+| **Pointers** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Arrows around the crosshair toward nearby players |
+| **TargetESP** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Marks the current combat target |
+| **TargetHud** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | A panel for whoever you are fighting |
+| **Tracers** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Lines from the crosshair to players |
+| **Trajectories** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Draws where the projectile in your hand lands |
+| **Xray** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | See ores through the ground |
 
 </details>
 
@@ -243,11 +260,11 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| Interface | Basic | Module list and active potion effects |
-| Notifications | Basic | Cards for what the client and the scripts have to say |
-| Radar | Medium | Everybody in a loaded chunk, and what they are carrying |
-| Watermark | Basic | The client's name in the theme's gradient |
+| :-- | :-: | :-- |
+| **Interface** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Module list and active potion effects |
+| **Notifications** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Cards for what the client and the scripts have to say |
+| **Radar** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Everybody in a loaded chunk, and what they are carrying |
+| **Watermark** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | The client's name in the theme's gradient |
 
 </details>
 
@@ -256,19 +273,19 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| ArmedAimbot | Advanced | Aims the gun in BedWars Armed mode |
-| AutoChest | Medium | Scroll up to deposit and down to steal |
-| AutoWho | Basic | Runs /who for you |
-| BedDefender | Medium | Covers your bed with blocks |
-| BedwarsUtils | Basic | BedWars alerts and utilities |
-| Deposit | Medium | Puts resources and items into nearby chests |
-| MurderMystery | Medium | Finds the murderer and the bow in Murder Mystery |
-| NukeDefend | Advanced | Replaces the blocks enemies break around your bed |
-| Opsec | Basic | Adds ping in the BedWars lobby so it can't identify you |
-| PartyDodger | Basic | Dodges enemies in the BedWars queue |
-| Quickbuy | Basic | Buys BedWars shop items with keybinds |
-| SkywarsUtils | Basic | Strength alerts and auto echo for SkyWars |
+| :-- | :-: | :-- |
+| **ArmedAimbot** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims the gun in BedWars Armed mode |
+| **AutoChest** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Scroll up to deposit and down to steal |
+| **AutoWho** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Runs /who for you |
+| **BedDefender** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Covers your bed with blocks |
+| **BedwarsUtils** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | BedWars alerts and utilities |
+| **Deposit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Puts resources and items into nearby chests |
+| **MurderMystery** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Finds the murderer and the bow in Murder Mystery |
+| **NukeDefend** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Replaces the blocks enemies break around your bed |
+| **Opsec** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Adds ping in the BedWars lobby so it can't identify you |
+| **PartyDodger** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Dodges enemies in the BedWars queue |
+| **Quickbuy** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Buys BedWars shop items with keybinds |
+| **SkywarsUtils** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Strength alerts and auto echo for SkyWars |
 
 </details>
 
@@ -277,12 +294,12 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| AntiBot | Basic | Filters out the server's fake players |
-| Anticheat | Medium | Tries to detect cheaters |
-| LagDetect | Basic | Detects packet loss |
-| NickBot | Advanced | Claims matching random nicknames from JSON rules |
-| Teams | Basic | Who counts as a teammate |
+| :-- | :-: | :-- |
+| **AntiBot** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Filters out the server's fake players |
+| **Anticheat** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Tries to detect cheaters |
+| **LagDetect** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Detects packet loss |
+| **NickBot** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Claims matching random nicknames from JSON rules |
+| **Teams** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Who counts as a teammate |
 
 </details>
 
@@ -291,20 +308,22 @@ Client under Other.
 <br>
 
 | Module | Tier | What it does |
-| :-- | :-- | :-- |
-| AltManager | Basic | Log in with another account |
-| ClickGUI | Basic | Opens the menu, so its bind lives with everything else |
+| :-- | :-: | :-- |
+| **AltManager** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Log in with another account |
+| **ClickGUI** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Opens the menu, so its bind lives with everything else |
 
 </details>
 
 <br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
 
-## Scripting
+## <img src="docs/assets/section-scripting.svg" height="30" align="top" alt=""> Scripting
 
 A script is a `.lua` file in `%APPDATA%\cobble\scripts`. It can declare modules
-that the rest of the client cannot tell from its own: same tabs, same menu rows,
-same `cobble.cfg`, same module list. The **Scripts** tab switches each file on
-and reloads it in place.
+that the rest of the client cannot tell from its own: same tabs, same rows, same
+`cobble.cfg`, same module list. The **Scripts** tab switches each file on and
+reloads it in place.
 
 ```lua
 cold.script { name = "Aura", version = "1.0", author = "you" }
@@ -332,22 +351,28 @@ function aura.onTick()
 end
 ```
 
-The API reaches the player, the entities around you, the world and its blocks,
-the inventory, the rotation engine, the input state, chat, notifications,
-persistent storage, HUD elements you can drag, and the same renderer the menu draws with,
-in 2D and in 3D. Every callback is stopped after 250 ms, because it all runs on
-the render thread.
+| The API reaches | |
+| :-- | :-- |
+| **The game** | the player, the entities around you, the world and its blocks, the inventory, the input state |
+| **Aim** | the rotation engine, with the same mouse-count snapping the modules get |
+| **The client** | chat, commands, notifications, the theme, friends, configs, sounds |
+| **Drawing** | HUD elements players can drag, and the menu's own renderer in 2D and in 3D |
+| **Memory** | storage that survives restarts |
 
-The scripts that ship with the client are the best tour:
-[`example.lua`](scripts/example.lua) walks through every part of the API,
-[`aura.lua`](scripts/aura.lua) is a complete rotation-gated aura, and
-[`selftest.lua`](scripts/selftest.lua) exercises everything and reports what
+Each script runs in its own interpreter, so one failing cannot reach another, and
+any callback is stopped after 250 ms because it all runs on the render thread.
+
+The shipped scripts are the best tour: [`example.lua`](scripts/example.lua) walks
+through the API, [`aura.lua`](scripts/aura.lua) is a complete rotation-gated aura,
+and [`selftest.lua`](scripts/selftest.lua) exercises everything and reports what
 failed. [`docs/lua-scripting.md`](docs/lua-scripting.md) explains how it is put
 together.
 
 <br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
 
-## How it works
+## <img src="docs/assets/section-internals.svg" height="30" align="top" alt=""> Under the hood
 
 ```mermaid
 flowchart LR
@@ -360,28 +385,79 @@ flowchart LR
     hooks --> client["Modules, menu, HUD, Lua"]
 ```
 
-- **Loading.** The DLL finds the game's JVM, defines a class loader that serves
-  the compiled client straight out of the DLL, and starts it beside Minecraft's
-  own classes. Nothing is extracted next to the game.
-- **Hooks.** Each hook names a method of Lunar's baked classes, with mixins and
-  OptiFine already applied, and a point in it: its head, its returns, around one
-  instruction, or in place of one. The patcher writes the call with ASM and the
-  classes are retransformed while the game runs.
-- **The bridge.** Game classes cannot see the client's loader, so a small class is
-  generated into the game's loader with one method handle per hook. Each call
-  traps anything the client throws: an injection then carries on as if it never
-  ran, and a redirect performs the instruction it replaced. A hook that keeps
-  failing is switched off and logged.
-- **Unloading.** The handles are pointed at no-ops, the classes are
-  retransformed back to the originals, input is handed back and the DLL frees
-  itself.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+#### Loading
+
+The DLL finds the game's JVM, defines a class loader that serves the compiled
+client straight out of the DLL, and starts it beside Minecraft's own classes.
+Nothing is extracted next to the game.
+
+</td>
+<td width="50%" valign="top">
+
+#### Hooks
+
+Each hook names a method of Lunar's baked classes, mixins and OptiFine already
+applied, and a point in it: its head, its returns, around one instruction, or in
+place of one. The patcher writes the call with ASM and the classes are
+retransformed while the game runs.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### The bridge
+
+Game classes cannot see the client's loader, so a small class is generated into
+the game's loader with one method handle per hook. Every call traps what the
+client throws: the game carries on as if the hook never ran, and a hook that keeps
+failing is switched off.
+
+</td>
+<td width="50%" valign="top">
+
+#### Unloading
+
+The handles are pointed at no-ops, every class is retransformed back to the
+original, the input is handed back and the DLL frees itself. The same game can be
+injected again right away.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### Rendering
+
+Every primitive is a quad carrying its own signed-distance shape, so a frame of
+menu, HUD and ESP is one draw call unless a clip or a texture breaks it. Text
+comes from a distance-field atlas, and the menu's backdrop is a Kawase blur.
+
+</td>
+<td width="50%" valign="top">
+
+#### Rotations
+
+A real mouse can only turn the player in whole counts of one step set by the
+sensitivity, and anticheats measure exactly that. The engine plans in degrees and
+snaps to that grid before anything reaches the player.
+
+</td>
+</tr>
+</table>
 
 `docs/` is a vault of everything in this project that took more than one try.
 Start at [`docs/MAP.md`](docs/MAP.md).
 
 <br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
 
-## Building
+## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
 
 You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer and a JDK 17 or
 newer. Configuring fetches the public jars into `infra/lib`; the MCP-named
@@ -410,7 +486,7 @@ src/cobble/        the Java client
   core/  event/      config, maths, logging; the event bus
   game/  hook/       views over Minecraft state; the hook handlers
   module/            modules, one package per category
-  render/  ui/       SDF renderer; menu, HUD, radar
+  render/  ui/       SDF renderer; menu, HUD, radar, alt manager
   script/            the Lua API
   util/              blocks, fonts, items, packets, raytracing, rotations, teams
 bootstrap/         cobble.dll: finds the JVM, loads the client, starts Boot
@@ -418,7 +494,7 @@ loader/            cobble-injector.exe
 assets/            fonts, icons, shaders, capes, the Lua prelude
 scripts/           example Lua scripts, embedded in the injector
 infra/             vendored C++ (Dear ImGui) and the jars the client compiles against
-docs/              notes on everything that was hard
+docs/              notes on everything that was hard, and the README's artwork
 tools/             build helpers
 legacy/            the old C++ payload and its tools
 ```
@@ -426,8 +502,10 @@ legacy/            the old C++ payload and its tools
 </details>
 
 <br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
 
-## Credits
+## <img src="docs/assets/section-credits.svg" height="30" align="top" alt=""> Credits
 
 The silent-rotation model, a server rotation kept apart from the camera and
 composed with your own mouse movement, comes from Rise, and so do the Interface
@@ -446,5 +524,7 @@ carry their own licence.
 <br>
 
 <div align="center">
+<img src="docs/assets/divider.svg" width="60%" alt="">
+<br>
 <sub>Use it where it is allowed. What you do with it on someone else's server is on you.</sub>
 </div>
