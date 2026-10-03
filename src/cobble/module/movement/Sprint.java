@@ -5,9 +5,15 @@ import cobble.game.Game;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
+import cobble.module.Setting;
 import cobble.module.Subcategory;
+import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.potion.Potion;
 
 public final class Sprint extends Module {
+    private final Setting cancelInvis = addBoolean("Cancel Invis",
+            "Don't sprint while invisible, so no sprint particles give you away", false);
+
     public Sprint() {
         super("Sprint", "Keeps sprinting while moving", Category.MOVEMENT, Subcategory.BASIC);
     }
@@ -23,6 +29,10 @@ public final class Sprint extends Module {
     public void onTick(Context context) {
         FrameState state = context.state;
         if (!state.inWorld || !state.player.valid || state.screenOpen || state.player.sneaking) {
+            return;
+        }
+        EntityPlayerSP player = mc.thePlayer;
+        if (cancelInvis.bool() && player.isPotionActive(Potion.invisibility) && !player.capabilities.allowFlying) {
             return;
         }
         // The game's view of the bindings, so scripted input counts exactly like a held key.

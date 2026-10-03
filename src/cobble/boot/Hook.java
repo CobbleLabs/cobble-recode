@@ -112,6 +112,9 @@ record Hook(String owner, String method, String descriptor, At at, String handle
             of(ENTITY, "setAngles", "(FF)V", At.HEAD, "turn").withSelf().withArgs().cancelling(),
             of(ENTITY, "moveFlying", "(FFF)V", At.HEAD, "moveFlying").withSelf().withArgs().cancelling(),
             of(LIVING, "jump", "()V", At.HEAD, "jump").withSelf().cancelling(),
+            of(LIVING, "moveEntityWithHeading", "(FF)V",
+                    At.redirect(Opcodes.INVOKEVIRTUAL, LIVING, "moveEntity", "(DDD)V", -1), "moveEntity"),
+            of(ENTITY, "getCollisionBorderSize", "()F", At.RETURN, "collisionBorder").withSelf().withResult(),
 
             of(PLAYER, "onUpdate", "()V",
                     At.before(Opcodes.INVOKESPECIAL, CLIENT_PLAYER, "onUpdate", "()V", 0), "preUpdate"),
@@ -141,6 +144,8 @@ record Hook(String owner, String method, String descriptor, At at, String handle
                     At.HEAD, "disconnect"),
             of(NET_HANDLER, "handleEntityVelocity", "(Lnet/minecraft/network/play/server/S12PacketEntityVelocity;)V",
                     At.HEAD, "velocity").withArgs().cancelling(),
+            of(NET_HANDLER, "handleExplosion", "(Lnet/minecraft/network/play/server/S27PacketExplosion;)V",
+                    At.HEAD, "explosion").withArgs(),
             of(WORLD, "spawnEntityInWorld", "(Lnet/minecraft/entity/Entity;)Z", At.RETURN, "entityJoined")
                     .withSelf().withArgs(),
 

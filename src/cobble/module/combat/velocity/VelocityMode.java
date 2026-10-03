@@ -3,7 +3,8 @@ package cobble.module.combat.velocity;
 public enum VelocityMode {
     JUMP_RESET("Jump Reset"),
     DELAY("Delay"),
-    HARD_RESET("Hard Reset");
+    HARD_RESET("Hard Reset"),
+    NORMAL("Normal");
 
     private final String label;
 

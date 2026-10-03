@@ -13,21 +13,38 @@ import cobble.module.Subcategory;
 import cobble.module.player.mlg.MlgState;
 import cobble.module.player.mlg.MlgUtils;
 import cobble.util.ClientUtils;
+import java.util.List;
+import net.minecraft.block.Block;
+import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.init.Items;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
+import net.minecraft.potion.Potion;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.DamageSource;
+import net.minecraft.util.MathHelper;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 
 public class MLG extends Module {
+    private static final int ANY_FALL = 0;
+    private static final int DAMAGE = 1;
+
     public Setting pickUp;
     public Setting swapSlot;
+    private final Setting trigger;
+    private final Setting minimumDamage;
     private final MlgState mlgState = new MlgState();
 
     public MLG() {
         super("MLG", "Places water under you to cancel fall damage", Category.PLAYER, Subcategory.MEDIUM);
         this.pickUp = addBoolean("Pick Up", "", true);
         this.swapSlot = addBoolean("Swap Slot", "", true);
+        this.trigger = addChoice("Trigger", "Which falls are worth a bucket", List.of("Any fall", "Damage", "Lethal"),
+                ANY_FALL);
+        this.minimumDamage = addNumber("Minimum damage", "Least damage, in half hearts, a fall must do", 5, 1, 20, 0)
+                .visibleWhen(() -> this.trigger.choice() == DAMAGE);
     }
 
     @Override
@@ -108,7 +125,41 @@ public class MLG extends Module {
     }
 
     private boolean LvPq() {
-        return MlgUtils.isFallingDangerously(mc.thePlayer);
+        if (!MlgUtils.isFallingDangerously(mc.thePlayer)) {
+            return false;
+        }
+        if (this.trigger.choice() == ANY_FALL) {
+            return true;
+        }
+        float damage = this.landingDamage(mc.thePlayer);
+        return this.trigger.choice() == DAMAGE ? damage >= this.minimumDamage.number()
+                : damage >= mc.thePlayer.getHealth();
+    }
+
+    /* What the fall will do on landing, after Jump Boost, Resistance and Feather Falling; nothing into water. */
+    private float landingDamage(EntityPlayerSP player) {
+        BlockPos below = new BlockPos(player.posX, player.posY, player.posZ);
+        while (below.getY() > 0) {
+            below = below.down();
+            Block block = mc.theWorld.getBlockState(below).getBlock();
+            if (block.getMaterial().isLiquid()) {
+                return 0.0f;
+            }
+            if (block.getMaterial().blocksMovement()) {
+                break;
+            }
+        }
+        float fall = player.fallDistance + (float) (player.posY - (below.getY() + 1));
+        if (player.isPotionActive(Potion.jump)) {
+            fall -= player.getActivePotionEffect(Potion.jump).getAmplifier() + 1;
+        }
+        float damage = Math.max(0, MathHelper.ceiling_float_int(fall - 3.0f));
+        if (player.isPotionActive(Potion.resistance)) {
+            damage *= (25 - (player.getActivePotionEffect(Potion.resistance).getAmplifier() + 1) * 5) / 25.0f;
+        }
+        int protection = Math.min(20,
+                EnchantmentHelper.getEnchantmentModifierDamage(player.getInventory(), DamageSource.fall));
+        return damage * (25 - protection) / 25.0f;
     }
 
 }

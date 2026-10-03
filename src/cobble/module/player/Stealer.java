@@ -10,6 +10,7 @@ import cobble.module.Setting;
 import cobble.module.Subcategory;
 import cobble.util.ClientUtils;
 import cobble.util.SkywarsGameState;
+import java.util.SplittableRandom;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.init.Items;
@@ -26,8 +27,12 @@ public class Stealer extends Module {
     private final Setting autoClose;
     private final Setting skipBadItems;
     private final Setting onlyInSkywars;
+    private final Setting shuffle;
+    private final SplittableRandom random = new SplittableRandom();
     private int clickDelayTicks;
     private boolean stealSessionStarted;
+    private int previousSlot = -1;
+    private int plannedSlot = -1;
 
     public Stealer() {
         super("Stealer", "Takes items out of chests", Category.PLAYER, Subcategory.BASIC);
@@ -37,6 +42,7 @@ public class Stealer extends Module {
         this.autoClose = addBoolean("Auto Close", "", false);
         this.skipBadItems = addBoolean("Skip bad items", "", true);
         this.onlyInSkywars = addBoolean("Only in Skywars", "", true);
+        this.shuffle = addBoolean("Shuffle", "Take items in a random order, moving to the nearest slot next", false);
     }
 
     @Override
@@ -74,12 +80,15 @@ public class Stealer extends Module {
                 if (this.clickDelayTicks > 0) {
                     this.clickDelayTicks--;
                 } else {
-                    int var4 = this.findNextStealSlot(var2, var3);
+                    int var4 = this.plannedSlot >= 0 && this.takes(var2, this.plannedSlot) ? this.plannedSlot
+                            : this.findNextStealSlot(var2, var3);
                     if (var4 < 0) {
                         this.AGfvX();
                     } else {
                         mc.playerController.windowClick(var2.windowId, var4, 0, 1, mc.thePlayer);
-                        this.clickDelayTicks = this.XKhj5();
+                        this.previousSlot = var4;
+                        this.plannedSlot = this.shuffle.bool() ? this.findNextStealSlot(var2, var3) : -1;
+                        this.clickDelayTicks = this.XKhj5() + travelTicks(var4, this.plannedSlot);
                     }
                 }
             }
@@ -89,23 +98,55 @@ public class Stealer extends Module {
     private void resetStealerState() {
         this.clickDelayTicks = 0;
         this.stealSessionStarted = false;
+        this.previousSlot = -1;
+        this.plannedSlot = -1;
     }
 
     private boolean isGameModeAllowed() {
         return !this.onlyInSkywars.bool() || SkywarsGameState.isFightInProgress();
     }
 
+    /* In order, or with Shuffle anywhere first and then the slot nearest the last one, jitter breaking ties. */
     private int findNextStealSlot(ContainerChest var1, IInventory var2) {
+        int best = -1;
+        double bestDistance = Double.MAX_VALUE;
         for (int var3 = 0; var3 < var2.getSizeInventory(); var3++) {
-            if (var1.getSlot(var3).getHasStack()) {
-                ItemStack var4 = var1.getSlot(var3).getStack();
-                if (this.hasInventoryRoom(var4) && this.MLzz(var4)) {
-                    return var3;
-                }
+            if (!this.takes(var1, var3)) {
+                continue;
+            }
+            if (!this.shuffle.bool()) {
+                return var3;
+            }
+            double distance = this.previousSlot < 0 ? this.random.nextDouble()
+                    : slotDistance(this.previousSlot, var3) + this.random.nextDouble();
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = var3;
             }
         }
 
-        return -1;
+        return best;
+    }
+
+    private boolean takes(ContainerChest var1, int slot) {
+        if (!var1.getSlot(slot).getHasStack()) {
+            return false;
+        }
+        ItemStack var4 = var1.getSlot(slot).getStack();
+        return this.hasInventoryRoom(var4) && this.MLzz(var4);
+    }
+
+    private static double slotDistance(int from, int to) {
+        return Math.hypot(from % 9 - to % 9, from / 9 - to / 9);
+    }
+
+    /* A short hop costs nothing; a long one about thirty milliseconds a slot, in whole ticks. */
+    private static int travelTicks(int from, int to) {
+        if (to < 0) {
+            return 0;
+        }
+        double distance = slotDistance(from, to);
+        return distance < 3.0 ? 0 : (int) Math.round(distance * 30.0 / 50.0);
     }
 
     private boolean MLzz(ItemStack var1) {

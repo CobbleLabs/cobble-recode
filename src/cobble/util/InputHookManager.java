@@ -10,19 +10,30 @@ public final class InputHookManager {
     /* LWJGL 2's event record: button, state, x, y, wheel, nanoseconds. */
     private static final int EVENT_SIZE = 1 + 1 + 4 + 4 + 4 + 8;
 
-    private static final ByteBuffer mouseButtons = mouseField("buttons");
-    private static final ByteBuffer mouseEvents = mouseField("readBuffer");
+    /* Mouse.create allocates both buffers again, and the game recreates the
+     * mouse with its window on every fullscreen toggle, so they are read on
+     * each use: a kept one would take events the game never looks at again. */
+    private static final Field mouseButtons = mouseField("buttons");
+    private static final Field mouseEvents = mouseField("readBuffer");
 
     private InputHookManager() {
     }
 
-    private static ByteBuffer mouseField(String name) {
+    private static Field mouseField(String name) {
         try {
             Field var0 = Mouse.class.getDeclaredField(name);
             var0.setAccessible(true);
-            return (ByteBuffer)var0.get(null);
+            return var0;
         } catch (ReflectiveOperationException var1) {
             throw new IllegalStateException("LWJGL Mouse." + name + " is unavailable", var1);
+        }
+    }
+
+    private static ByteBuffer current(Field field) {
+        try {
+            return (ByteBuffer) field.get(null);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("LWJGL Mouse." + field.getName() + " is unavailable", e);
         }
     }
 
@@ -32,7 +43,7 @@ public final class InputHookManager {
     }
 
     public static void setMouseButtonState(int var0, boolean var1) {
-        mouseButtons.put(var0, (byte)(var1 ? 1 : 0));
+        current(mouseButtons).put(var0, (byte)(var1 ? 1 : 0));
     }
 
     /**
@@ -43,7 +54,7 @@ public final class InputHookManager {
      * reporting the physical button. Client thread only, where poll and next run.
      */
     public static void queueMouseButton(int button, boolean pressed) {
-        ByteBuffer events = mouseEvents;
+        ByteBuffer events = current(mouseEvents);
         /* The same compact, append, flip that Mouse.poll does with what the window reported. */
         events.compact();
         if (events.remaining() >= EVENT_SIZE) {

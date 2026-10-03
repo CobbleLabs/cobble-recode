@@ -7,12 +7,14 @@ import cobble.event.ClickMouseEvent;
 import cobble.event.DisconnectEvent;
 import cobble.event.EntityJoinWorldEvent;
 import cobble.event.EventBus;
+import cobble.event.ExplosionEvent;
 import cobble.event.GameLoopEvent;
 import cobble.event.GuiOpenEvent;
 import cobble.event.JumpEvent;
 import cobble.event.LeftClickEvent;
 import cobble.event.LoadWorldEvent;
 import cobble.event.MouseEvent;
+import cobble.event.MoveEvent;
 import cobble.event.MoveFlyingEvent;
 import cobble.event.MoveInputEvent;
 import cobble.event.MoveStateUpdateEvent;
@@ -20,6 +22,7 @@ import cobble.event.PacketReceiveEvent;
 import cobble.event.PacketSendEvent;
 import cobble.event.Phase;
 import cobble.event.PlayerAttackEvent;
+import cobble.event.PostMoveEvent;
 import cobble.event.PostUpdateEvent;
 import cobble.event.PostWalkingUpdateEvent;
 import cobble.event.PrePlayerInteractEvent;
@@ -40,6 +43,7 @@ import cobble.game.RotationEngine;
 import cobble.module.ModuleManager;
 import cobble.module.combat.AutoClicker;
 import cobble.module.combat.BlockHit;
+import cobble.module.combat.HitBoxes;
 import cobble.module.combat.KeepSprint;
 import cobble.module.combat.Piercing;
 import cobble.module.combat.Reach;
@@ -94,6 +98,7 @@ import net.minecraft.network.play.client.C03PacketPlayer;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
 import net.minecraft.network.play.server.S02PacketChat;
 import net.minecraft.network.play.server.S12PacketEntityVelocity;
+import net.minecraft.network.play.server.S27PacketExplosion;
 import net.minecraft.potion.Potion;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.MathHelper;
@@ -294,6 +299,21 @@ public final class Hooks {
         return true;
     }
 
+    public static void moveEntity(EntityLivingBase entity, double x, double y, double z) {
+        if (entity != mc.thePlayer) {
+            entity.moveEntity(x, y, z);
+            return;
+        }
+        MoveEvent event = EventBus.post(new MoveEvent(x, y, z));
+        entity.moveEntity(event.getX(), event.getY(), event.getZ());
+        EventBus.post(new PostMoveEvent());
+    }
+
+    /* Every ray that picks an entity widens its box by this border, the crosshair's included. */
+    public static float collisionBorder(float border, Entity entity) {
+        return border + HitBoxes.expansion(entity);
+    }
+
     /** Vanilla's jump for the local player, with the motion, yaw and sprint the modules chose. */
     public static boolean jump(EntityLivingBase entity) {
         if (entity != mc.thePlayer) {
@@ -416,6 +436,12 @@ public final class Hooks {
 
     public static boolean velocity(S12PacketEntityVelocity packet) {
         return mc.isCallingFromMinecraftThread() && EventBus.post(new VelocityEvent(packet)).cancelled();
+    }
+
+    public static void explosion(S27PacketExplosion packet) {
+        if (mc.isCallingFromMinecraftThread()) {
+            EventBus.post(new ExplosionEvent(packet));
+        }
     }
 
     public static void entityJoined(World world, Entity entity) {
@@ -614,15 +640,16 @@ public final class Hooks {
     /*
      * The four below run on the chunk builder's worker threads as well as the
      * client thread, so they only read Xray's snapshot. A hidden block is never
-     * built, every face of a kept one is, at full light and without ambient
-     * occlusion, which would shade it against the blocks it no longer shows.
+     * built, every face of a kept one is (only those against air in cave
+     * mode), at full light and without ambient occlusion, which would shade it
+     * against the blocks it no longer shows.
      */
     public static boolean renderBlock(IBlockState state, BlockPos pos, IBlockAccess access, WorldRenderer renderer) {
         return Xray.hides(state.getBlock());
     }
 
     public static boolean sideOccluded(Block neighbour) {
-        return !Xray.active() && neighbour.isOpaqueCube();
+        return !Xray.drawsEveryFace() && neighbour.isOpaqueCube();
     }
 
     public static int blockLight(IBlockAccess access, BlockPos pos, int lightValue) {

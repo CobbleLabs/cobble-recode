@@ -467,7 +467,7 @@
   <text x="88" y="198" class="title">Cobble Recode</text>
   <text x="92" y="250" class="sub">A Java client that runs inside the game you already have open.</text>
   <rect x="92" y="300" width="118" height="36" rx="18" fill="#13151B" fill-opacity="0.92" stroke="#FFFFFF" stroke-opacity="0.09"/>
-  <text x="151" y="324" text-anchor="middle" class="pill">99 modules</text>
+  <text x="151" y="324" text-anchor="middle" class="pill">120 modules</text>
   <rect x="222.0" y="300" width="110" height="36" rx="18" fill="#13151B" fill-opacity="0.92" stroke="#FFFFFF" stroke-opacity="0.09"/>
   <text x="277" y="324" text-anchor="middle" class="pill">ASM hooks</text>
   <rect x="343.6" y="300" width="135" height="36" rx="18" fill="#13151B" fill-opacity="0.92" stroke="#FFFFFF" stroke-opacity="0.09"/>

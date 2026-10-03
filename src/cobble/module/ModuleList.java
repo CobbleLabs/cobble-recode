@@ -17,13 +17,16 @@ import cobble.module.combat.BlockHit;
 import cobble.module.combat.Criticals;
 import cobble.module.combat.Displace;
 import cobble.module.combat.Fisherman;
+import cobble.module.combat.HitBoxes;
 import cobble.module.combat.HitSelect;
 import cobble.module.combat.JumpReset;
 import cobble.module.combat.KeepSprint;
+import cobble.module.combat.KillAura;
 import cobble.module.combat.LagRange;
 import cobble.module.combat.Piercing;
 import cobble.module.combat.Reach;
 import cobble.module.combat.Reduce;
+import cobble.module.combat.RightClicker;
 import cobble.module.combat.TriggerBot;
 import cobble.module.combat.Velocity;
 import cobble.module.combat.WTap;
@@ -40,20 +43,29 @@ import cobble.module.minigames.PartyDodger;
 import cobble.module.minigames.Quickbuy;
 import cobble.module.minigames.SkywarsUtils;
 import cobble.module.movement.FastStop;
+import cobble.module.movement.Fly;
 import cobble.module.movement.InvMove;
+import cobble.module.movement.LongJump;
 import cobble.module.movement.NoSlow;
 import cobble.module.movement.NullMove;
+import cobble.module.movement.Parkour;
+import cobble.module.movement.SafeWalk;
+import cobble.module.movement.Speed;
 import cobble.module.movement.Sprint;
 import cobble.module.movement.Stasis;
+import cobble.module.movement.Step;
 import cobble.module.movement.Timer;
 import cobble.module.other.AntiBot;
 import cobble.module.other.Anticheat;
 import cobble.module.other.LagDetect;
 import cobble.module.other.NickBot;
 import cobble.module.other.Teams;
+import cobble.module.player.AntiAFK;
+import cobble.module.player.AntiFall;
 import cobble.module.player.ArmorSwitch;
 import cobble.module.player.AutoArmor;
 import cobble.module.player.AutoDeflect;
+import cobble.module.player.AutoFish;
 import cobble.module.player.AutoRefill;
 import cobble.module.player.AutoSwap;
 import cobble.module.player.AutoTool;
@@ -76,9 +88,13 @@ import cobble.module.player.HeadHitter;
 import cobble.module.player.HideWindow;
 import cobble.module.player.InventoryManager;
 import cobble.module.player.MLG;
+import cobble.module.player.NoFall;
 import cobble.module.player.NoItemRelease;
+import cobble.module.player.PotionSaver;
+import cobble.module.player.Regen;
 import cobble.module.player.Scaffold;
 import cobble.module.player.Stealer;
+import cobble.module.player.ThrowDebuff;
 import cobble.module.player.ThrowPots;
 import cobble.module.render.AntiDebuff;
 import cobble.module.render.AntiInvis;
@@ -88,12 +104,17 @@ import cobble.module.render.Cape;
 import cobble.module.render.Chams;
 import cobble.module.render.CuteVisuals;
 import cobble.module.render.Esp;
+import cobble.module.render.Explosions;
 import cobble.module.render.FreeLook;
+import cobble.module.render.Fullbright;
+import cobble.module.render.Health;
 import cobble.module.render.Indicators;
 import cobble.module.render.ItemESP;
 import cobble.module.render.Nametags;
 import cobble.module.render.NoCameraClip;
 import cobble.module.render.Pointers;
+import cobble.module.render.SpawnerFinder;
+import cobble.module.render.StorageESP;
 import cobble.module.render.TargetESP;
 import cobble.module.render.TargetHud;
 import cobble.module.render.Tracers;
@@ -119,28 +140,42 @@ final class ModuleList {
                 new Criticals(),
                 new Displace(),
                 new Fisherman(),
+                new HitBoxes(),
                 new HitSelect(),
                 new JumpReset(),
                 new KeepSprint(),
+                new KillAura(),
                 new LagRange(),
                 new Piercing(),
                 new Reach(),
                 new Reduce(),
+                new RightClicker(),
                 new TriggerBot(),
                 new Velocity(),
                 new WTap(),
 
                 new FastStop(),
+                new Fly(),
                 new InvMove(),
+                new LongJump(),
                 new NoSlow(),
                 new NullMove(),
+                new Parkour(),
+                new SafeWalk(),
+                new Speed(),
                 new Sprint(),
                 new Stasis(),
+                new Step(),
                 new Timer(),
 
                 new ArmorSwitch(),
+
+                new AntiFall(),
+
+                new AntiAFK(),
                 new AutoArmor(),
                 new AutoDeflect(),
+                new AutoFish(),
                 new AutoRefill(),
                 new AutoSwap(),
                 new AutoTool(),
@@ -164,8 +199,12 @@ final class ModuleList {
                 new InventoryManager(),
                 new MLG(),
                 new NoItemRelease(),
+                new NoFall(),
+                new PotionSaver(),
+                new Regen(),
                 new Scaffold(),
                 new Stealer(),
+                new ThrowDebuff(),
                 new ThrowPots(),
 
                 new AntiDebuff(),
@@ -177,12 +216,16 @@ final class ModuleList {
                 new Chams(),
                 new CuteVisuals(),
                 new Esp(),
+                new Explosions(),
                 new FreeLook(),
+                new Fullbright(),
                 new Indicators(),
                 new ItemESP(),
                 new Nametags(),
                 new NoCameraClip(),
                 new Pointers(),
+                new SpawnerFinder(),
+                new StorageESP(),
                 new TargetESP(),
                 new TargetHud(),
                 new Tracers(),
@@ -209,6 +252,7 @@ final class ModuleList {
 
                 new ClickGuiModule(),
                 new Interface(),
+                new Health(),
                 new Watermark(),
                 new Notifications(),
                 new RadarModule(),

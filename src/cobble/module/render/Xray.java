@@ -15,7 +15,9 @@ import net.minecraft.init.Blocks;
  * Builds the world without everything but the chosen blocks. The chunk
  * builder skips the rest, the kept blocks draw every face instead of only the
  * ones against air, and they are lit at full brightness: an ore buried in
- * stone has no light of its own and would otherwise come out black.
+ * stone has no light of its own and would otherwise come out black. Cave mode
+ * keeps the game's own face culling instead, so only blocks that touch air
+ * show: the ores a cave has opened up.
  *
  * <p>Chunks are built on the game's worker threads, so the hooks read one
  * immutable snapshot of what is shown rather than the settings.
@@ -24,6 +26,7 @@ public final class Xray extends Module {
     private record Choice(Setting setting, List<Block> blocks) {}
 
     private static volatile Set<Block> shown;
+    private static volatile boolean everyFace;
 
     private final List<Choice> choices = List.of(
             choice("Diamond", Blocks.diamond_ore, Blocks.diamond_block),
@@ -37,6 +40,7 @@ public final class Xray extends Module {
             choice("Spawners", Blocks.mob_spawner),
             choice("Lava", Blocks.lava, Blocks.flowing_lava),
             choice("Water", Blocks.water, Blocks.flowing_water));
+    private final Setting caveMode = addBoolean("Cave Mode", "Only show blocks that touch air", false);
 
     public Xray() {
         super("Xray", "See ores through the ground", Category.VISUALS, Subcategory.ADVANCED);
@@ -52,6 +56,11 @@ public final class Xray extends Module {
         return shown != null;
     }
 
+    /** Whether a kept block draws its faces against other blocks too. */
+    public static boolean drawsEveryFace() {
+        return everyFace;
+    }
+
     /** Whether the chunk builder should leave a block out. */
     public static boolean hides(Block block) {
         Set<Block> snapshot = shown;
@@ -60,6 +69,7 @@ public final class Xray extends Module {
 
     @Override
     public void onEnable(Context context) {
+        everyFace = !caveMode.bool();
         shown = selection();
         rebuild();
     }
@@ -67,12 +77,14 @@ public final class Xray extends Module {
     @Override
     public void onDisable(Context context) {
         shown = null;
+        everyFace = false;
         rebuild();
     }
 
     @Override
     protected void settingChanged(Setting setting) {
         if (enabled()) {
+            everyFace = !caveMode.bool();
             shown = selection();
             rebuild();
         }

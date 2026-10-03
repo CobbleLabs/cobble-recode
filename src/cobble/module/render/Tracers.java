@@ -14,6 +14,7 @@ import cobble.module.other.AntiBot;
 import cobble.util.ClientUtils;
 import cobble.util.render.RenderUtils;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
@@ -26,6 +27,8 @@ public class Tracers extends Module {
     public Setting offScreenOnly;
     public Setting hideTeammates;
     public Setting onlyInGame;
+    private final Setting colorByDistance;
+    private final Setting highlightFocusing;
     private boolean rVdeD;
     private final ArrayList<Entity> entitys = new ArrayList<>();
     private int entityCount = 0;
@@ -39,6 +42,10 @@ public class Tracers extends Module {
         this.offScreenOnly = addBoolean("Off-screen only", "", false);
         this.hideTeammates = addBoolean("Hide teammates", "", false);
         this.onlyInGame = addBoolean("Only in-game", "", false);
+        this.colorByDistance = addBoolean("Color by distance", "Red up close, green past the middle of the pack",
+                false);
+        this.highlightFocusing = addBoolean("Highlight if focusing",
+                "Thicken the tracer of anyone looking straight at you", false);
     }
 
     @Override
@@ -72,16 +79,60 @@ public class Tracers extends Module {
     public void onRenderWorldLast(RenderWorldLastEvent var1) {
         if (ClientUtils.isInWorld() && this.entityCount != 0) {
             int var2 = this.color.colour().argb();
+            double median = this.colorByDistance.bool() ? this.medianDistance() : 0.0;
+            boolean anyFocusing = this.highlightFocusing.bool() && this.anyFocusing();
 
             for (int var3 = 0; var3 < this.entityCount; var3++) {
                 Entity var4 = this.entitys.get(var3);
                 if (var4 != null && (!this.offScreenOnly.bool() || !RenderUtils.isEntityInView(var4))) {
-                    int var5 = this.applyTeamColor(var4, var2);
-                    RenderUtils.drawTracerToEntity(var4, var5, (float)this.lineWidth.number(), var1.partialTicks);
+                    int var5 = this.colorByDistance.bool()
+                            ? distanceColor(mc.thePlayer.getDistanceToEntity(var4), median)
+                            : this.applyTeamColor(var4, var2);
+                    float width = (float)this.lineWidth.number();
+                    if (anyFocusing) {
+                        width *= focusing(var4) ? 3.0f : 0.75f;
+                    }
+                    RenderUtils.drawTracerToEntity(var4, var5, width, var1.partialTicks);
 
                 }
             }
         }
+    }
+
+    private double medianDistance() {
+        double[] distances = new double[this.entityCount];
+        for (int index = 0; index < this.entityCount; index++) {
+            distances[index] = mc.thePlayer.getDistanceToEntity(this.entitys.get(index));
+        }
+        Arrays.sort(distances);
+        return Math.max(distances[distances.length / 2], 1.0);
+    }
+
+    /* Nearer than the middle of the pack runs from red to green in three-block steps; past it stays green and fades. */
+    private static int distanceColor(double distance, double median) {
+        float maximumHue = 0.35f;
+        double offset = Math.round(distance / 3.0) * 3L - median / 3.0;
+        float hue = distance > median ? maximumHue : (float) (maximumHue * (offset / median));
+        int alpha = distance > median ? Math.max(150, (int) (255.0 / (distance / median))) : 255;
+        return Color.hsv(hue, 1.0f, 1.0f, alpha / 255.0f).argb();
+    }
+
+    private boolean anyFocusing() {
+        for (int index = 0; index < this.entityCount; index++) {
+            if (focusing(this.entitys.get(index))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* Where their look lands at your distance is within five blocks of you, on the ground plane. */
+    private static boolean focusing(Entity entity) {
+        double distance = entity.getDistanceToEntity(mc.thePlayer);
+        double yaw = Math.toRadians(entity.rotationYaw + 90.0f);
+        double aimX = entity.posX + Math.cos(yaw) * distance;
+        double aimZ = entity.posZ + Math.sin(yaw) * distance;
+        return Math.hypot(aimX - mc.thePlayer.posX, aimZ - mc.thePlayer.posZ) < 5.0;
     }
 
     private int applyTeamColor(Entity var1, int var2) {

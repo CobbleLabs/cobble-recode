@@ -10,7 +10,7 @@
 ![Java](https://img.shields.io/badge/Java-17-FFD2A6?style=flat-square&labelColor=171A21&logo=openjdk&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows-x64-8FD3FF?style=flat-square&labelColor=171A21)
 ![Lua](https://img.shields.io/badge/Scripting-Lua-F2A8C8?style=flat-square&labelColor=171A21&logo=lua&logoColor=white)
-![Modules](https://img.shields.io/badge/Modules-99-FFD2A6?style=flat-square&labelColor=171A21)
+![Modules](https://img.shields.io/badge/Modules-120-FFD2A6?style=flat-square&labelColor=171A21)
 
 **[cobble.vip](https://cobble.vip)**
 
@@ -135,7 +135,7 @@ next to a real 3D model of their skin that you can turn with the mouse.
 
 ## <img src="docs/assets/section-modules.svg" height="30" align="top" alt=""> Modules
 
-<img src="docs/assets/modules.svg" width="100%" alt="99 modules: Combat 21, Player 29, Movement 7, Visuals 19, HUD 4, Minigames 12, Other 5, Client 2">
+<img src="docs/assets/modules.svg" width="100%" alt="120 modules: Combat 24, Player 36, Movement 13, Visuals 23, HUD 5, Minigames 12, Other 5, Client 2">
 
 Every module is filed as
 <img src="docs/assets/tier-basic.svg" alt="Basic" align="absmiddle">
@@ -144,7 +144,7 @@ Every module is filed as
 so a tab can show only what you are after.
 
 <details>
-<summary><b>Combat</b> · 21 modules</summary>
+<summary><b>Combat</b> · 24 modules</summary>
 <br>
 
 | Module | Tier | What it does |
@@ -160,28 +160,34 @@ so a tab can show only what you are after.
 | **Criticals** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hops on the hit so the next swings crit |
 | **Displace** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Turns on the hit so the knockback throws them sideways |
 | **Fisherman** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Paces swings and forward movement on the nearest target to chain knockback |
+| **HitBoxes** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Expands entities' hitboxes |
 | **HitSelect** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Holds hits back until they land for more |
 | **JumpReset** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Jumps on the tick a hit lands so the knockback carries |
 | **KeepSprint** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps sprinting through your own hits |
+| **KillAura** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Attacks entities around you without aiming at them |
 | **LagRange** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Lags your connection only while a target is in range |
 | **Piercing** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits the target through blocks and other entities in reach |
 | **Reach** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits players a little past vanilla's reach |
 | **Reduce** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks back when hit to cut the knockback |
+| **RightClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks right for you while you hold it |
 | **TriggerBot** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks whatever the crosshair is already on |
-| **Velocity** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Cuts knockback with a jump reset, a delay or a hard reset |
+| **Velocity** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Cuts knockback by a share, a jump reset, a delay or a hard reset, or raises it to kite |
 | **WTap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | W-taps every landed hit |
 
 </details>
 
 <details>
-<summary><b>Player</b> · 29 modules</summary>
+<summary><b>Player</b> · 36 modules</summary>
 <br>
 
 | Module | Tier | What it does |
 | :-- | :-: | :-- |
+| **AntiAFK** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps you from being kicked for idling |
+| **AntiFall** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Prevents you from falling into the void |
 | **ArmorSwitch** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Swaps between two armor sets |
 | **AutoArmor** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Puts on the best armor you carry, openly, gliding the cursor or silently |
 | **AutoDeflect** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hits incoming fireballs back |
+| **AutoFish** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Fishes for you |
 | **AutoRefill** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Refills the hotbar with soup and pots |
 | **AutoSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Moves to the next block stack when one runs out |
 | **AutoTool** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to the fastest tool for whatever you are breaking |
@@ -204,36 +210,46 @@ so a tab can show only what you are after.
 | **HideWindow** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps a container open while the screen stays in game |
 | **InventoryManager** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Sorts the inventory, equips armor and drops junk |
 | **MLG** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places water under you to cancel fall damage |
+| **NoFall** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Prevents fall damage |
 | **NoItemRelease** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps using the item after you let go |
+| **PotionSaver** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Saves your potion effects while standing still |
+| **Regen** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Regenerates health quicker |
 | **Scaffold** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places blocks under you as you walk |
 | **Stealer** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Takes items out of chests |
+| **ThrowDebuff** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws the debuff potions on your hotbar |
 | **ThrowPots** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Uses the healing items on your hotbar |
 
 </details>
 
 <details>
-<summary><b>Movement</b> · 7 modules</summary>
+<summary><b>Movement</b> · 13 modules</summary>
 <br>
 
 | Module | Tier | What it does |
 | :-- | :-: | :-- |
 | **FastStop** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Stops the slide when you let go of the keys |
-| **InvMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Walks while the inventory is open |
+| **Fly** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Flies where the keys point, rising with jump and sinking with sneak |
+| **InvMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Walks while a screen is open, and turns with the arrow keys |
+| **LongJump** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Jumps much further than normal |
 | **NoSlow** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Walks at full speed while using items |
 | **NullMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | The last key pressed wins when both directions are held |
+| **Parkour** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Jumps for you at the edge of blocks |
+| **SafeWalk** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Stops you from falling off edges |
+| **Speed** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Increases your movement speed |
 | **Sprint** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps sprinting while moving |
 | **Stasis** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Freezes your position on the server |
+| **Step** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Steps up full blocks |
 | **Timer** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Speeds up or slows down the game tick |
 
 </details>
 
 <details>
-<summary><b>Visuals</b> · 19 modules</summary>
+<summary><b>Visuals</b> · 23 modules</summary>
 <br>
 
 | Module | Tier | What it does |
 | :-- | :-: | :-- |
-| **AntiDebuff** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the blindness and nausea effects |
+| **AntiDebuff** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes blindness and nausea, and slowness if you let it |
 | **AntiInvis** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Shows invisible players |
 | **BedPlates** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Shows the blocks defending each bed |
 | **BlockESP** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Highlights chosen blocks |
@@ -241,12 +257,16 @@ so a tab can show only what you are after.
 | **Chams** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Draws players through walls |
 | **CuteVisuals** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Heart and dot trail, and a burst when a bed goes |
 | **ESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Outlines, tracers and off-screen arrows for entities |
+| **Explosions** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Shows the explosion radius of TNT |
 | **FreeLook** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Looks around without turning your player |
+| **Fullbright** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Lights up the dark |
 | **Indicators** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Points at incoming arrows, pearls and fireballs |
 | **ItemESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Highlights dropped items |
 | **Nametags** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Custom nametags with health, distance and armor |
 | **NoCameraClip** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps the third person camera out of walls |
 | **Pointers** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Arrows around the crosshair toward nearby players |
+| **SpawnerFinder** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Labels mob spawners through walls |
+| **StorageESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Highlights chests and other containers |
 | **TargetESP** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Marks the current combat target |
 | **TargetHud** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | A panel for whoever you are fighting |
 | **Tracers** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Lines from the crosshair to players |
@@ -256,11 +276,12 @@ so a tab can show only what you are after.
 </details>
 
 <details>
-<summary><b>HUD</b> · 4 modules</summary>
+<summary><b>HUD</b> · 5 modules</summary>
 <br>
 
 | Module | Tier | What it does |
 | :-- | :-: | :-- |
+| **Health** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Displays your health in the center of your screen |
 | **Interface** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Module list and active potion effects |
 | **Notifications** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Cards for what the client and the scripts have to say |
 | **Radar** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Everybody in a loaded chunk, and what they are carrying |
@@ -379,7 +400,7 @@ flowchart LR
     injector["cobble-injector.exe<br/>picks the game"] -->|LoadLibrary| dll["cobble.dll<br/>inside javaw.exe"]
     dll -->|finds the JVM| loader["MemoryLoader<br/>the client image, from memory"]
     loader --> boot["Boot"]
-    boot -->|JVMTI retransform| patcher["Patcher<br/>ASM, 80 hooks"]
+    boot -->|JVMTI retransform| patcher["Patcher<br/>ASM, 83 hooks"]
     patcher --> bridge["Bridge<br/>in the game's class loader"]
     bridge --> hooks["Hooks"]
     hooks --> client["Modules, menu, HUD, Lua"]

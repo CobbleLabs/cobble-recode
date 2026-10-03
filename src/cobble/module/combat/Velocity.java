@@ -1,16 +1,19 @@
 package cobble.module.combat;
 
+import cobble.event.ExplosionEvent;
 import cobble.event.PacketReceiveEvent;
 import cobble.event.PostWalkingUpdateEvent;
 import cobble.event.PreUpdateEvent;
 import cobble.event.Subscribe;
 import cobble.event.TickStartEvent;
+import cobble.event.VelocityEvent;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.Module;
 import cobble.module.ModuleManager;
 import cobble.module.Setting;
 import cobble.module.Subcategory;
+import cobble.module.combat.velocity.ScaledKnockback;
 import cobble.module.combat.velocity.TimeoutCondition;
 import cobble.module.combat.velocity.VelocityMode;
 import cobble.module.movement.Stasis;
@@ -54,6 +57,7 @@ public class Velocity extends Module {
     private final Setting restrictHeldItem;
     private final Setting delay;
     private final ItemList whitelistedItems;
+    private final ScaledKnockback normal;
     private PacketListenerRegistration TWo;
     private long inboundDelayMillis;
     private boolean delayApplied;
@@ -87,6 +91,7 @@ public class Velocity extends Module {
         this.requireLeftMouse = addBoolean("Require Left mouse", "", true);
         this.restrictHeldItem = addBoolean("Restrict held item", "", false);
         this.whitelistedItems = new ItemList();
+        this.normal = new ScaledKnockback(this, this::isNormalMode);
         this.DcLu8();
     }
 
@@ -106,6 +111,11 @@ public class Velocity extends Module {
         boolean var1 = this.ymnN();
         boolean var2 = this.isHardResetMode();
         boolean var3 = var2 && this.delay.bool();
+        boolean resets = !this.isNormalMode();
+        this.resetChance.setVisible(resets);
+        this.requireMouseDown.setVisible(resets);
+        this.requireMovingForward.setVisible(resets);
+        this.requireAim.setVisible(resets);
         this.delayChance.setVisible(var1 || var3);
         this.distanceToTarget.setVisible(var1 || var3);
         this.maximumDelay.setVisible(var1 || var3);
@@ -119,6 +129,7 @@ public class Velocity extends Module {
     @Override
     protected void settingChanged(Setting var1) {
         if (var1 == this.mode || var1 == this.delay && !this.delay.bool()) {
+            this.normal.reset();
             this.clearPendingReset();
             this.cancelInboundDelay();
         }
@@ -138,6 +149,7 @@ public class Velocity extends Module {
 
     @Override
     public void onDisable(Context context) {
+        this.normal.reset();
         this.clearPendingReset();
         this.cancelInboundDelay();
         if (this.jumpKeyHeld && !ClientUtils.isJumpKeyDown()) {
@@ -164,13 +176,32 @@ public class Velocity extends Module {
             return (int)this.maximumDelay.number() + "ms";
         } else if (var1 == VelocityMode.HARD_RESET) {
             return "Hard";
+        } else if (var1 == VelocityMode.NORMAL) {
+            return this.normal.suffix();
         } else {
             return (int)this.resetChance.number() == 100 ? "" : (int)this.resetChance.number() + "%";
         }
     }
 
     @Subscribe
+    public void onVelocity(VelocityEvent event) {
+        if (this.isNormalMode() && this.normal.velocity(event.packet)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @Subscribe
+    public void onExplosion(ExplosionEvent event) {
+        if (this.isNormalMode()) {
+            this.normal.explosion(event.packet);
+        }
+    }
+
+    @Subscribe
     public void onPreUpdate(PreUpdateEvent var1) {
+        if (this.isNormalMode()) {
+            this.normal.tick();
+        }
         int var2 = mc.thePlayer.hurtTime;
         boolean var3 = mc.thePlayer.onGround;
         this.tickPendingReset();
@@ -544,6 +575,10 @@ public class Velocity extends Module {
 
     private boolean isHardResetMode() {
         return this.getVelocityMode() == VelocityMode.HARD_RESET;
+    }
+
+    private boolean isNormalMode() {
+        return this.getVelocityMode() == VelocityMode.NORMAL;
     }
 
     private VelocityMode getVelocityMode() {
