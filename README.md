@@ -502,26 +502,6 @@ legacy/            the old C++ payload and its tools
 </details>
 
 <br>
-<img src="docs/assets/divider.svg" width="100%" alt="">
-<br>
-
-## <img src="docs/assets/section-credits.svg" height="30" align="top" alt=""> Credits
-
-The silent-rotation model, a server rotation kept apart from the camera and
-composed with your own mouse movement, comes from Rise, and so do the Interface
-and TargetHud. Several player and render modules began as ports of
-[Raven-b](https://codeberg.org/strangerrrrs/raven-bS). Their designs are theirs and
-their licences differ from this repository's, so **check them before you
-redistribute**.
-
-Built with [ASM](https://asm.ow2.io/) (BSD-3-Clause), [LuaJ](https://github.com/luaj/luaj)
-(MIT) and [Dear ImGui](https://github.com/ocornut/imgui) (MIT). The interface is
-set in [Geist](https://vercel.com/font) and
-[JetBrains Mono](https://www.jetbrains.com/lp/mono/) (OFL), with icons from
-[Lucide](https://lucide.dev/) (ISC). The HUD fonts in `assets/cobble/fonts` each
-carry their own licence.
-
-<br>
 
 <div align="center">
 <img src="docs/assets/divider.svg" width="60%" alt="">
