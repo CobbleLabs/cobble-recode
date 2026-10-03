@@ -340,7 +340,7 @@ public final class FontManager {
     }
 
     private static byte[] readFontData(String var0) {
-        try (InputStream var1 = Assets.open("/assets/jade/fonts/" + var0)) {
+        try (InputStream var1 = Assets.open("/assets/cobble/fonts/" + var0)) {
             if (var1 != null) {
                 ByteArrayOutputStream var20 = new ByteArrayOutputStream();
                 byte[] var4 = new byte[4096];

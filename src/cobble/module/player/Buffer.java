@@ -93,7 +93,7 @@ public class Buffer extends Module implements ProgressBarSource {
     private double knockbackMotionZ;
 
     public Buffer() {
-        super("Buffer", "Holds incoming packets and plays them back later", Category.PLAYER, Subcategory.EXTREME);
+        super("Buffer", "Holds incoming packets and plays them back later", Category.PLAYER, Subcategory.ADVANCED);
         this.disableOnInteract = addBoolean("Disable on interact", "", false);
         this.showProgressBar = addBoolean("Show progress bar", "", true);
         this.showKnockbackDirection = addBoolean("Show knockback direction", "", true);

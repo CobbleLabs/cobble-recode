@@ -92,7 +92,7 @@ public class BedNuker extends Module implements ProgressBarSource, PointedObject
     };
 
     public BedNuker() {
-        super("BedNuker", "Breaks beds within reach, through walls", Category.PLAYER, Subcategory.EXTREME);
+        super("BedNuker", "Breaks beds within reach, through walls", Category.PLAYER, Subcategory.ADVANCED);
         this.breakSpeed = addNumber("Break speed", "", 1.0F, 1.0F, 2.0F, 2);
         this.ignoreMiningFatigue = addBoolean("Ignore mining fatigue", "", false);
         this.groundSpoof = addBoolean("Ground spoof", "", false);

@@ -54,7 +54,7 @@ public class Freecam extends Module {
     private long ygd;
 
     public Freecam() {
-        super("Freecam", "Moves the camera away from your body", Category.PLAYER, Subcategory.ADVANCED);
+        super("Freecam", "Moves the camera away from your body", Category.PLAYER, Subcategory.BASIC);
         this.disableOnDamage = addBoolean("Disable on damage", "", true);
     }
 

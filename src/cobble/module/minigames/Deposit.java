@@ -120,7 +120,7 @@ public class Deposit extends Module {
     };
 
     public Deposit() {
-        super("Deposit", "Puts resources and items into nearby chests", Category.MINIGAMES, Subcategory.ADVANCED);
+        super("Deposit", "Puts resources and items into nearby chests", Category.MINIGAMES, Subcategory.MEDIUM);
         EventBus.register(this.gameModeTracker);
         this.smartMode = addBoolean("Smart mode", "", true);
         this.chests = addBoolean("Chests", "", true);

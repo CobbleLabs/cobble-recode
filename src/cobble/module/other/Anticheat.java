@@ -82,7 +82,7 @@ public class Anticheat extends Module {
     private long suppressUntil;
 
     public Anticheat() {
-        super("Anticheat", "Tries to detect cheaters", Category.OTHER, Subcategory.ADVANCED);
+        super("Anticheat", "Tries to detect cheaters", Category.OTHER, Subcategory.MEDIUM);
         this.flagInterval = addNumber("Flag interval", "", 20.0F, 0.0F, 60.0F, 0);
         this.addCheatersAsEnemy = addBoolean("Add cheaters as enemy", "", false);
         this.ignoreTeammates = addBoolean("Ignore teammates", "", false);

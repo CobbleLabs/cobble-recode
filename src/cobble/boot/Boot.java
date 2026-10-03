@@ -147,9 +147,17 @@ public final class Boot {
         return MethodType.fromMethodDescriptorString(hook.handlerDescriptor(), gameLoader);
     }
 
-    /** What a hook does while the client is not listening: nothing, or the instruction it replaced. */
+    /**
+     * What a hook does while the client is not listening: nothing, the result
+     * it was given, or the instruction it replaced.
+     */
     private static MethodHandle idle(Hook hook) throws ReflectiveOperationException {
         Hook.At at = hook.at();
+        if (hook.result()) {
+            MethodType type = type(hook);
+            return MethodHandles.dropArguments(MethodHandles.identity(type.returnType()), 1,
+                    type.parameterList().subList(1, type.parameterCount()));
+        }
         if (at.kind() != Hook.At.Kind.REDIRECT) {
             return MethodHandles.empty(type(hook));
         }

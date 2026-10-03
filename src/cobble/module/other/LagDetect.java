@@ -216,7 +216,7 @@ public class LagDetect extends Module {
             float var10 = var3 * 0.13F;
             var1.fill(new Float(var6 - var10 / 2.0F, var2 + var3 * 0.68F, var10, var10));
             var1.dispose();
-            resourceLocation = mc.getTextureManager().getDynamicTextureLocation("jade_lag_detect_alarm", new DynamicTexture(var0));
+            resourceLocation = mc.getTextureManager().getDynamicTextureLocation("cobble_lag_detect_alarm", new DynamicTexture(var0));
             return resourceLocation;
         }
     }

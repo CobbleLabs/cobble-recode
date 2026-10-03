@@ -14,7 +14,7 @@ public final class ShaderRegistry {
 
     public static String ITAJb(String var0) {
         String var1 = IjM.get(var0);
-        return var1 == null ? null : "/assets/jade/shaders/" + var1;
+        return var1 == null ? null : "/assets/cobble/shaders/" + var1;
     }
 
     public static InputStream openShaderStream(String var0) {

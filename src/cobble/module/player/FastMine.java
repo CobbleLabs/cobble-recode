@@ -28,7 +28,7 @@ public final class FastMine extends Module {
 
     public FastMine() {
         super("FastMine", "Shortens the wait between blocks and speeds up the break", Category.PLAYER,
-                Subcategory.ADVANCED);
+                Subcategory.MEDIUM);
         setIcon(Icon.ZAP);
     }
 

@@ -31,7 +31,7 @@ public class Tracers extends Module {
     private int entityCount = 0;
 
     public Tracers() {
-        super("Tracers", "Lines from the crosshair to players", Category.VISUALS, Subcategory.ADVANCED);
+        super("Tracers", "Lines from the crosshair to players", Category.VISUALS, Subcategory.MEDIUM);
         this.lineWidth = addNumber("Line Width", "", 1.0F, 1.0F, 5.0F, 0);
         this.maxDistance = addNumber("Max distance", "", 128.0F, 10.0F, 512.0F, 0);
         this.color = addColour("Color", "", Color.rgb(0x00FF00));

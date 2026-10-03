@@ -36,25 +36,37 @@ import org.lwjgl.input.Mouse;
  * (negative lag-1 autocorrelation), Ornstein-Uhlenbeck tempo drift, hardware
  * switch debounce, and guaranteed human variance (CV >= 0.50, sigma >= 35ms)
  * to permanently eliminate Intave "low deviation" and Vulcan checks.
+ *
+ * <p>Each generated interval is the full gap from one press to the next; the
+ * release lands a short, interval-coupled hold after it. Both go into the
+ * game's mouse queue as real button events, the way Cobble posts them to the
+ * window, so the game and Lunar's CPS counter read them exactly as they read
+ * the physical button.
  */
 public class AutoClicker extends Module {
     private static final double INVENTORY_INTERVAL_MS = 1000.0 / 16.0;
     private static final int ROLLING_BUFFER_SIZE = 32;
 
-    private final Setting minCps = addNumber("Min CPS", "Lowest clicks per second", 14, 1, 20, 1);
-    private final Setting maxCps = addNumber("Max CPS", "Highest clicks per second", 16, 1, 20, 1);
-    private final Setting randomization = addBoolean("Randomization", "Human timing model instead of a uniform range", true);
+    /* Stable CPS swaps the range and its randomization for one rate, in the same place in the panel. */
+    private final Setting stableCps = addNumber("CPS", "Fixed clicks per second", 17, 1, 25, 0)
+            .visibleWhen(() -> this.stable.bool());
+    private final Setting minCps = addNumber("Min CPS", "Lowest clicks per second", 14, 1, 20, 1)
+            .visibleWhen(() -> !this.stable.bool());
+    private final Setting maxCps = addNumber("Max CPS", "Highest clicks per second", 16, 1, 20, 1)
+            .visibleWhen(() -> !this.stable.bool());
+    private final Setting randomization = addBoolean("Randomization", "Human timing model instead of a uniform range", true)
+            .visibleWhen(() -> !this.stable.bool());
     private final Setting randomizationPercent = addNumber("Randomization (%)", "How much of the human model applies",
-            100, 0, 100, 0).visibleWhen(randomization::bool);
+            100, 0, 100, 0).visibleWhen(() -> !this.stable.bool() && randomization.bool());
     private final Setting stable = addBoolean("Stable CPS", "Click at one fixed rate", false);
-    private final Setting stableCps = addNumber("CPS (stable)", "Fixed clicks per second", 17, 1, 25, 0)
-            .visibleWhen(stable::bool);
     private final Setting weaponOnly = addBoolean("Weapon Only", "Only click holding a sword or an axe", false);
     private final Setting breakBlocks = addBoolean("Break Blocks", "Stop clicking while looking at a block", false);
     private final Setting inventory = addBoolean("Inventory", "Shift and hold left in a container to quick-move", true);
 
     private final SplittableRandom random = new SplittableRandom();
-    private double nextClickAt = -1;
+    private double nextEventAt = -1;
+    private double pendingGap;
+    private boolean down;
     private boolean breaking;
     private GuiContainer inventoryGui;
     private Slot inventorySlot;
@@ -91,7 +103,8 @@ public class AutoClicker extends Module {
 
     @Override
     public void onEnable(Context context) {
-        nextClickAt = -1;
+        nextEventAt = -1;
+        down = false;
         nextInventoryClickAt = -1;
         breaking = false;
         clearInventoryTarget();
@@ -159,8 +172,7 @@ public class AutoClicker extends Module {
 
     @Override
     public void onDisable(Context context) {
-        InputHookManager.simulateMouseButton(0, false);
-        nextClickAt = -1;
+        release();
         clearInventoryTarget();
     }
 
@@ -174,40 +186,30 @@ public class AutoClicker extends Module {
         inventorySlot = null;
     }
 
+    /* Per frame, ahead of the tick, so a press is in the queue the moment it is due. */
     @Subscribe
     public void onGameLoop(GameLoopEvent event) {
-        if (!ClientUtils.isInWorld() || mc.thePlayer == null || mc.theWorld == null || mc.thePlayer.isDead) {
-            breaking = false;
-            if (nextClickAt >= 0) {
-                InputHookManager.simulateMouseButton(0, false);
-            }
-            nextClickAt = -1;
+        if (!ClientUtils.isInWorld() || mc.thePlayer == null || mc.thePlayer.isDead || Client.gui().visible()
+                || mc.currentScreen != null || !mc.inGameHasFocus || !Mouse.isButtonDown(0)
+                || weaponOnly.bool() && !holdingWeapon()) {
+            release();
             return;
         }
-        if (Client.gui().visible() || mc.currentScreen != null || !mc.inGameHasFocus || !Mouse.isButtonDown(0)) {
-            breaking = false;
-            if (nextClickAt >= 0) {
-                InputHookManager.simulateMouseButton(0, false);
-            }
-            nextClickAt = -1;
-            return;
-        }
-        if (weaponOnly.bool() && !holdingWeapon()) {
-            if (nextClickAt >= 0) {
-                InputHookManager.simulateMouseButton(0, false);
-            }
-            nextClickAt = -1;
-            return;
-        }
-        /* The physical press already holds the attack binding down; clicking
-         * over it would restart the dig every time. */
+        /* Digging needs the button held, so one press goes in and stays down until the block is left. */
         if (breakBlocks.bool() && targetingBlock()) {
-            breaking = true;
+            if (!breaking) {
+                if (down) {
+                    queue(false);
+                }
+                InputHookManager.queueMouseButton(0, true);
+                breaking = true;
+            }
             return;
         }
         if (breaking) {
+            InputHookManager.queueMouseButton(0, false);
             breaking = false;
-            nextClickAt = -1;
+            nextEventAt = -1;
         }
 
         double now = System.nanoTime() / 1.0e6;
@@ -215,22 +217,66 @@ public class AutoClicker extends Module {
             batchSwings = 0;
             batchElapsedMs = 0.0f;
         }
-        if (nextClickAt < 0) {
-            nextClickAt = now + nextInterval();
+        /* The physical press already clicked once; the first one of ours waits a whole interval after it. */
+        if (nextEventAt < 0) {
+            nextEventAt = now + nextInterval();
             return;
         }
         // A stalled frame would otherwise pay back every missed click at once.
-        if (now - nextClickAt > 250.0) {
-            nextClickAt = now;
+        if (now - nextEventAt > 250.0) {
+            nextEventAt = now;
         }
-        if (nextClickAt <= now) {
-            mc.entityRenderer.getMouseOver(1.0f);
-            mc.leftClickCounter = 0;
-            mc.clickMouse();
-            mc.leftClickCounter = 0;
-            lastClickTimeMs = now;
-            nextClickAt = now + nextInterval();
+        if (now < nextEventAt) {
+            return;
         }
+        if (stable.bool()) {
+            queue(true);
+            queue(false);
+            nextEventAt = now + nextInterval();
+        } else if (!down) {
+            queue(true);
+            double interval = nextInterval();
+            double hold = holdFor(interval);
+            pendingGap = Math.max(1.0, interval - hold);
+            nextEventAt = now + clamp((float) hold, 4.0f, 500.0f);
+        } else {
+            queue(false);
+            nextEventAt = now + clamp((float) pendingGap, 4.0f, 500.0f);
+        }
+    }
+
+    /*
+     * The press length follows the interval: faster clicking is lighter and
+     * shorter, fatigue makes it heavier, and now and then a press is held on
+     * purpose. A hold decorrelated from the rate is a common detection tell.
+     */
+    private double holdFor(double interval) {
+        double hold = interval * (0.18 + random.nextDouble() * 0.22);
+        hold *= 1.0 + (Math.max(fatigue, 1.0f) - 1.0f) * 0.6;
+        if (random.nextDouble() < 0.015) {
+            hold += 30.0 + random.nextDouble() * 50.0;
+        }
+        return Math.max(18.0, Math.min(hold, Math.min(140.0, interval * 0.45)));
+    }
+
+    /* A miss holds the next attack back ten ticks; a press of ours is not held back by one of its own. */
+    private void queue(boolean pressed) {
+        if (pressed) {
+            mc.leftClickCounter = 0;
+            lastClickTimeMs = System.nanoTime() / 1.0e6;
+        }
+        InputHookManager.queueMouseButton(0, pressed);
+        down = pressed;
+    }
+
+    /* Whatever of ours is still down comes back up, so the game is never left holding a press we made. */
+    private void release() {
+        if (down || breaking) {
+            InputHookManager.queueMouseButton(0, false);
+        }
+        down = false;
+        breaking = false;
+        nextEventAt = -1;
     }
 
 

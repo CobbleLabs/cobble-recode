@@ -43,7 +43,7 @@ public class MurderMystery extends Module {
 
     public MurderMystery() {
         super("MurderMystery", "Finds the murderer and the bow in Murder Mystery", Category.MINIGAMES,
-                Subcategory.ADVANCED);
+                Subcategory.MEDIUM);
         this.murderWeapons = new ItemList();
 
         for (Item var4 : MurderWeapons.getDefaultWeapons()) {

@@ -40,7 +40,7 @@ public final class BuildLimits {
     }
 
     private static Map<String, BuildLimits$0> KoyvGr() {
-        InputStream var0 = Assets.open("/assets/jade/data/bedwars_build_limits.tsv");
+        InputStream var0 = Assets.open("/assets/cobble/data/bedwars_build_limits.tsv");
         if (var0 == null) {
             return Collections.emptyMap();
         } else {

@@ -73,7 +73,7 @@ public class BedDefender extends Module implements ProgressBarSource {
     private final Map<String, Integer> materialSlotCache = new HashMap<>();
 
     public BedDefender() {
-        super("BedDefender", "Covers your bed with blocks", Category.MINIGAMES, Subcategory.EXTREME);
+        super("BedDefender", "Covers your bed with blocks", Category.MINIGAMES, Subcategory.MEDIUM);
         this.onlyWhitelistedBed = addBoolean("Only Whitelisted Bed", "", false);
         this.swapSpeed = addNumber("Swap Speed", "", 100.0F, 0.0F, 100.0F, 0);
         this.aimSpeed = addNumber("Aim Speed", "", 100.0F, 0.0F, 100.0F, 0);

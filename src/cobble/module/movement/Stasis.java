@@ -112,7 +112,7 @@ public class Stasis extends Module implements ProgressBarSource {
     private boolean motionSaved;
 
     public Stasis() {
-        super("Stasis", "Freezes your position on the server", Category.MOVEMENT, Subcategory.EXTREME);
+        super("Stasis", "Freezes your position on the server", Category.MOVEMENT, Subcategory.ADVANCED);
         this.inputLock = new StasisInputLock();
         EventBus.register(this.inputLock);
         this.hypixelMode = addBoolean("Hypixel Mode", "", false);

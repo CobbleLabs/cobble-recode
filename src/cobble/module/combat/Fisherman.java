@@ -50,7 +50,7 @@ public class Fisherman extends Module {
     private PacketListenerRegistration blinkPacketListener;
 
     public Fisherman() {
-        super("Fisherman", "Item conditions", Category.COMBAT, Subcategory.ADVANCED);
+        super("Fisherman", "Item conditions", Category.COMBAT, Subcategory.MEDIUM);
         this.delay = addNumber("Delay", "", 0.0F, 0.0F, 500.0F, 0);
         this.blink = addBoolean("Blink", "", false);
         this.hasKnockback = addBoolean("Has knockback", "", false);

@@ -51,7 +51,7 @@ public class HeadHitter extends Module {
     private HeadHitter$2 EUnHs = HeadHitter$2.IDLE;
 
     public HeadHitter() {
-        super("HeadHitter", "Places a block overhead so jumps hit the ceiling", Category.PLAYER, Subcategory.ADVANCED);
+        super("HeadHitter", "Places a block overhead so jumps hit the ceiling", Category.PLAYER, Subcategory.MEDIUM);
         this.key = addKey("Key", "", 0);
         this.extend = addBoolean("Extend", "", false);
         this.speed = addNumber("Speed", "", 15.0F, 1.0F, 30.0F, 0);

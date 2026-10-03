@@ -16,6 +16,7 @@ import cobble.hook.Input;
 import cobble.hook.MenuScreen;
 import cobble.module.Context;
 import cobble.module.ModuleManager;
+import cobble.module.client.AltManagerModule;
 import cobble.module.client.ClickGuiModule;
 import cobble.module.client.RadarModule;
 import cobble.module.minigames.BedwarsSpawnTracker;
@@ -24,6 +25,7 @@ import cobble.render.Renderer;
 import cobble.render.StateGuard;
 import cobble.script.ScriptManager;
 import cobble.util.SkywarsGameState;
+import cobble.util.alt.AltAccounts;
 import cobble.util.rotation.RotationHandler;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -32,6 +34,7 @@ import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import net.minecraft.client.gui.GuiMultiplayer;
 
 /**
  * The client's lifetime and its two heartbeats. {@link #tick} runs inside the
@@ -54,6 +57,7 @@ public final class Client {
     private static Context lastContext;
     private static Hud hud;
     private static Radar radar;
+    private static AltManager altManager;
     private static volatile boolean running;
     private static boolean disabled;
     private static boolean renderReady;
@@ -73,6 +77,10 @@ public final class Client {
 
     public static Radar radar() {
         return radar;
+    }
+
+    public static AltManager altManager() {
+        return altManager;
     }
 
     public static Backdrop backdrop() {
@@ -108,6 +116,8 @@ public final class Client {
         gui = new ClickGui();
         hud = new Hud();
         radar = new Radar();
+        altManager = new AltManager();
+        AltAccounts.load(home.resolve("alts.json"));
 
         /* Layout lands after construction: panels and HUD elements read their
          * stored positions from the same document the modules just read. */
@@ -139,11 +149,7 @@ public final class Client {
         /* The pointer and the keyboard go back first; the frame that would
          * have closed the menu never runs again. */
         MenuScreen.hide();
-        /* Layout first: the panels and HUD elements write their sections into
-         * the live document, which saveConfig then carries to disk. */
-        gui.saveLayout(ModuleManager.config());
-        hud.saveLayout(ModuleManager.config());
-        ModuleManager.saveConfig(configPath);
+        save();
         /* After the config is written: the settings a script module owns are
          * saved with everything else, and unloading takes those modules away. */
         ScriptManager.shutdown();
@@ -190,6 +196,17 @@ public final class Client {
         } catch (RuntimeException thrown) {
             recover(thrown);
         }
+        if (ModuleManager.changesSettled()) {
+            save();
+        }
+    }
+
+    /* Layout first: the panels and HUD elements write their sections into
+     * the live document, which saveConfig then carries to disk. */
+    private static void save() {
+        gui.saveLayout(ModuleManager.config());
+        hud.saveLayout(ModuleManager.config());
+        ModuleManager.saveConfig(configPath);
     }
 
     /*
@@ -229,7 +246,22 @@ public final class Client {
         return true;
     }
 
+    /*
+     * The guard spans the whole frame, resource setup included: an upload binds
+     * its texture, and a binding left behind is one GlStateManager knows nothing
+     * about. It would skip the game's next bind of its own font texture as
+     * already done, and every vanilla string would sample our atlas instead.
+     */
     private static void renderFrame() {
+        guard.capture();
+        try {
+            drawFrame();
+        } finally {
+            guard.restore();
+        }
+    }
+
+    private static void drawFrame() {
         Renderer gfx = Renderer.instance();
         if (!renderReady) {
             if (!createRenderResources()) {
@@ -275,22 +307,18 @@ public final class Client {
         dispatchInput(context);
         ModuleManager.advanceAnimations(deltaTime);
 
-        guard.capture();
-        try {
-            if (gui.visible() && gui.blurEnabled()) {
-                backdrop.capture(state.windowWidth, state.windowHeight, gui.blurStrength(), Color.rgb(0x0A0D12, 0.35f));
-            }
-            gfx.beginFrame(state.windowWidth, state.windowHeight, time);
-            ModuleManager.render(context);
-            ScriptManager.render();
-            hud.render(context);
-            ScriptManager.renderHud(context, gui.interactive());
-            gui.render(context);
-            radar.render(context);
-            gfx.endFrame();
-        } finally {
-            guard.restore();
+        if (gui.visible() && gui.blurEnabled()) {
+            backdrop.capture(state.windowWidth, state.windowHeight, gui.blurStrength(), Color.rgb(0x0A0D12, 0.35f));
         }
+        gfx.beginFrame(state.windowWidth, state.windowHeight, time);
+        ModuleManager.render(context);
+        ScriptManager.render();
+        hud.render(context);
+        ScriptManager.renderHud(context, gui.interactive());
+        gui.render(context);
+        radar.render(context);
+        altManager.render(context);
+        gfx.endFrame();
         ScriptManager.endFrame();
     }
 
@@ -312,22 +340,34 @@ public final class Client {
     private static void dispatchInput(Context context) {
         ClickGuiModule guiModule = ModuleManager.get(ClickGuiModule.class);
         RadarModule radarModule = ModuleManager.get(RadarModule.class);
+        AltManagerModule altModule = ModuleManager.get(AltManagerModule.class);
         int guiKey = guiModule.key();
         int radarKey = radarModule.key();
 
         /* Either window owns the keyboard while it is up - both have a field
          * you type into, and a module bind that fired mid-search would be a
          * surprise. They are never up together: opening one closes the other. */
-        boolean overlayOwnsKeys = gui.interactive() || radar.interactive();
+        boolean overlayOwnsKeys = gui.interactive() || radar.interactive() || altManager.interactive();
         hud.setMenuOpen(gui.interactive());
 
         for (Input.Event event : Input.drain()) {
             int code = event.code();
+            /* A bind at eight and below is a mouse button, so a button press toggles like a key. */
+            if (event.kind() == Input.Event.Kind.MOUSE_BUTTON && event.action() == Input.PRESS
+                    && code != Input.MOUSE_LEFT && code != Input.MOUSE_RIGHT && !overlayOwnsKeys
+                    && !context.state.screenOpen) {
+                ModuleManager.handleKey(code, context);
+            }
             if (event.kind() == Input.Event.Kind.KEY && event.action() == Input.PRESS && code != 0) {
                 if (!overlayOwnsKeys) {
                     if (!context.state.screenOpen) {
                         ModuleManager.handleKey(code, context);
+                    } else if (code == guiKey && Game.mc().currentScreen instanceof GuiMultiplayer) {
+                        /* Where accounts get switched, the menu key opens the Alt Manager instead of the menu. */
+                        altModule.setEnabled(true, context);
                     }
+                } else if (altManager.interactive() && code == guiKey) {
+                    altModule.setEnabled(false, context);
                 } else if (gui.interactive() && !gui.capturingKey() && code == guiKey) {
                     guiModule.setEnabled(false, context);
                 } else if (radar.interactive() && code == radarKey) {
@@ -343,6 +383,7 @@ public final class Client {
             }
             gui.handleEvent(event, context);
             radar.handleEvent(event);
+            altManager.handleEvent(event);
             hud.handleEvent(event, context);
 
             /* Scripts see the input the game would have seen. While the menu

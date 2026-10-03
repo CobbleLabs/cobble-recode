@@ -123,7 +123,7 @@ public final class Esp extends Module {
     private final Map<Integer, Entry> entries = new HashMap<>();
 
     public Esp() {
-        super("ESP", "Outlines, tracers and off-screen arrows for entities", Category.VISUALS, Subcategory.ADVANCED);
+        super("ESP", "Outlines, tracers and off-screen arrows for entities", Category.VISUALS, Subcategory.MEDIUM);
         setIcon(Icon.EYE);
     }
 

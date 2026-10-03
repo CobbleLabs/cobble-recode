@@ -51,7 +51,7 @@ public class Reduce extends Module {
     private Setting whilstHoldingLeft;
 
     public Reduce() {
-        super("Reduce", "Attacks back when hit to cut the knockback", Category.COMBAT, Subcategory.ADVANCED);
+        super("Reduce", "Attacks back when hit to cut the knockback", Category.COMBAT, Subcategory.MEDIUM);
         this.onlyWhilstAgainstKbStick = addBoolean("Only whilst against KB Stick", "", false);
         this.notWhilstBlocking = addBoolean("Not whilst blocking", "", false);
         this.onlyWhilstHoldingWeapon = addBoolean("Only whilst holding weapon", "", false);

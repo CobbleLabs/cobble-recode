@@ -1,7 +1,10 @@
 package cobble.module;
 
+import cobble.module.client.AltManagerModule;
 import cobble.module.client.ClickGuiModule;
 import cobble.module.render.Interface;
+import cobble.module.render.Notifications;
+import cobble.module.render.Watermark;
 import cobble.module.client.RadarModule;
 import cobble.module.combat.AimAssist;
 import cobble.module.combat.AttributeSwap;
@@ -10,6 +13,8 @@ import cobble.module.combat.AutoBlock;
 import cobble.module.combat.AutoClicker;
 import cobble.module.combat.AutoFeed;
 import cobble.module.combat.Backtrack;
+import cobble.module.combat.BlockHit;
+import cobble.module.combat.Criticals;
 import cobble.module.combat.Displace;
 import cobble.module.combat.Fisherman;
 import cobble.module.combat.HitSelect;
@@ -17,6 +22,7 @@ import cobble.module.combat.JumpReset;
 import cobble.module.combat.KeepSprint;
 import cobble.module.combat.LagRange;
 import cobble.module.combat.Piercing;
+import cobble.module.combat.Reach;
 import cobble.module.combat.Reduce;
 import cobble.module.combat.TriggerBot;
 import cobble.module.combat.Velocity;
@@ -33,6 +39,7 @@ import cobble.module.minigames.Opsec;
 import cobble.module.minigames.PartyDodger;
 import cobble.module.minigames.Quickbuy;
 import cobble.module.minigames.SkywarsUtils;
+import cobble.module.movement.FastStop;
 import cobble.module.movement.InvMove;
 import cobble.module.movement.NoSlow;
 import cobble.module.movement.NullMove;
@@ -43,7 +50,11 @@ import cobble.module.other.AntiBot;
 import cobble.module.other.Anticheat;
 import cobble.module.other.LagDetect;
 import cobble.module.other.NickBot;
+import cobble.module.other.Teams;
+import cobble.module.player.ArmorSwitch;
+import cobble.module.player.AutoArmor;
 import cobble.module.player.AutoDeflect;
+import cobble.module.player.AutoRefill;
 import cobble.module.player.AutoSwap;
 import cobble.module.player.AutoTool;
 import cobble.module.player.BedNuker;
@@ -65,8 +76,10 @@ import cobble.module.player.HeadHitter;
 import cobble.module.player.HideWindow;
 import cobble.module.player.InventoryManager;
 import cobble.module.player.MLG;
+import cobble.module.player.NoItemRelease;
 import cobble.module.player.Scaffold;
 import cobble.module.player.Stealer;
+import cobble.module.player.ThrowPots;
 import cobble.module.render.AntiDebuff;
 import cobble.module.render.AntiInvis;
 import cobble.module.render.BedPlates;
@@ -85,6 +98,7 @@ import cobble.module.render.TargetESP;
 import cobble.module.render.TargetHud;
 import cobble.module.render.Tracers;
 import cobble.module.render.Trajectories;
+import cobble.module.render.Xray;
 import java.util.List;
 
 final class ModuleList {
@@ -101,6 +115,8 @@ final class ModuleList {
                 new AutoClicker(),
                 new AutoFeed(),
                 new Backtrack(),
+                new BlockHit(),
+                new Criticals(),
                 new Displace(),
                 new Fisherman(),
                 new HitSelect(),
@@ -108,11 +124,13 @@ final class ModuleList {
                 new KeepSprint(),
                 new LagRange(),
                 new Piercing(),
+                new Reach(),
                 new Reduce(),
                 new TriggerBot(),
                 new Velocity(),
                 new WTap(),
 
+                new FastStop(),
                 new InvMove(),
                 new NoSlow(),
                 new NullMove(),
@@ -120,7 +138,10 @@ final class ModuleList {
                 new Stasis(),
                 new Timer(),
 
+                new ArmorSwitch(),
+                new AutoArmor(),
                 new AutoDeflect(),
+                new AutoRefill(),
                 new AutoSwap(),
                 new AutoTool(),
                 new BedNuker(),
@@ -142,13 +163,16 @@ final class ModuleList {
                 new HideWindow(),
                 new InventoryManager(),
                 new MLG(),
+                new NoItemRelease(),
                 new Scaffold(),
                 new Stealer(),
+                new ThrowPots(),
 
                 new AntiDebuff(),
                 new AntiInvis(),
                 new BedPlates(),
                 new BlockESP(),
+                new Xray(),
                 new Cape(),
                 new Chams(),
                 new CuteVisuals(),
@@ -181,9 +205,13 @@ final class ModuleList {
                 new Anticheat(),
                 new LagDetect(),
                 new NickBot(),
+                new Teams(),
 
                 new ClickGuiModule(),
                 new Interface(),
-                new RadarModule());
+                new Watermark(),
+                new Notifications(),
+                new RadarModule(),
+                new AltManagerModule());
     }
 }

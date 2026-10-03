@@ -1,12 +1,10 @@
 package cobble.util.font;
 
+import cobble.render.Gl;
 import java.awt.image.BufferedImage;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.OpenGlHelper;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.GL11;
 
 public final class TextureUploader {
     public int upload(BufferedImage var1) {
@@ -24,15 +22,6 @@ public final class TextureUploader {
         }
 
         ((Buffer)var5).flip();
-        int var11 = GL11.glGenTextures();
-        GlStateManager.setActiveTexture(OpenGlHelper.defaultTexUnit);
-        GlStateManager.enableTexture2D();
-        GlStateManager.bindTexture(var11);
-        GL11.glTexParameteri(3553, 10241, 9729);
-        GL11.glTexParameteri(3553, 10240, 9729);
-        GL11.glTexParameteri(3553, 10242, 33071);
-        GL11.glTexParameteri(3553, 10243, 33071);
-        GL11.glTexImage2D(3553, 0, 6408, var2, var3, 0, 6408, 5121, var5);
-        return var11;
+        return Gl.uploadRgba(var2, var3, var5);
     }
 }

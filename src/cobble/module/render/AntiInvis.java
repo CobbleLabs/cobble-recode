@@ -22,7 +22,7 @@ public class AntiInvis extends Module {
     );
 
     public AntiInvis() {
-        super("AntiInvis", "Shows invisible players", Category.VISUALS, Subcategory.EXTREME);
+        super("AntiInvis", "Shows invisible players", Category.VISUALS, Subcategory.ADVANCED);
     }
 
     public boolean isForceVisibleTarget(EntityLivingBase var1) {

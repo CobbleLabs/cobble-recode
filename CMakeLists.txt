@@ -36,7 +36,7 @@ set(COLD_MCP_JAR "${COLD_LIB_DIR}/minecraft-1.8.9-mcp.jar" CACHE FILEPATH
     "Minecraft 1.8.9 client with MCP names")
 if(NOT EXISTS "${COLD_MCP_JAR}")
     message(FATAL_ERROR "missing ${COLD_MCP_JAR}: copy an MCP-named 1.8.9 client jar there "
-        "(JadeClient/lib ships one) or pass -DCOLD_MCP_JAR=<path>")
+        "or pass -DCOLD_MCP_JAR=<path>")
 endif()
 
 function(cold_fetch_jar url sha256)

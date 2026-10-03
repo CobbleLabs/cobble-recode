@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-label="Features">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171A21"/><stop offset="1" stop-color="#101217"/>
+    </linearGradient>
+    <radialGradient id="glow0" cx="0.12" cy="0.1" r="0.8"><stop offset="0" stop-color="#FFD2A6" stop-opacity="0.10"/><stop offset="1" stop-color="#FFD2A6" stop-opacity="0"/></radialGradient><radialGradient id="glow1" cx="0.12" cy="0.1" r="0.8"><stop offset="0" stop-color="#F2A8C8" stop-opacity="0.10"/><stop offset="1" stop-color="#F2A8C8" stop-opacity="0"/></radialGradient><radialGradient id="glow2" cx="0.12" cy="0.1" r="0.8"><stop offset="0" stop-color="#BDA4BD" stop-opacity="0.10"/><stop offset="1" stop-color="#BDA4BD" stop-opacity="0"/></radialGradient><radialGradient id="glow3" cx="0.12" cy="0.1" r="0.8"><stop offset="0" stop-color="#8FD3FF" stop-opacity="0.10"/><stop offset="1" stop-color="#8FD3FF" stop-opacity="0"/></radialGradient><radialGradient id="glow4" cx="0.12" cy="0.1" r="0.8"><stop offset="0" stop-color="#FFD2A6" stop-opacity="0.10"/><stop offset="1" stop-color="#FFD2A6" stop-opacity="0"/></radialGradient><radialGradient id="glow5" cx="0.12" cy="0.1" r="0.8"><stop offset="0" stop-color="#F2A8C8" stop-opacity="0.10"/><stop offset="1" stop-color="#F2A8C8" stop-opacity="0"/></radialGradient>
+  </defs>
+  <g font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif">
+    <rect x="1" y="1" width="405" height="260" rx="22" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <rect x="1" y="1" width="405" height="260" rx="22" fill="url(#glow0)"/>
+    <rect x="31" y="31" width="56" height="56" rx="16" fill="#FFD2A6" fill-opacity="0.12" stroke="#FFD2A6" stroke-opacity="0.28"/>
+    <g transform="translate(45 45) scale(1.1667)" fill="none" stroke="#FFD2A6" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+  <path d="m3.3 7 8.7 5 8.7-5" />
+  <path d="M12 22V12" /></g>
+    <text x="31" y="135" font-size="22" font-weight="700" fill="#FFFFFF">One file, nothing installed</text>
+    <text x="31" y="173" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">The injector carries the DLL and the DLL</text>
+    <text x="31" y="199" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">carries the client. Nothing lands in</text>
+    <text x="31" y="225" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">your Minecraft or Lunar folders.</text>
+    <rect x="438" y="1" width="405" height="260" rx="22" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <rect x="438" y="1" width="405" height="260" rx="22" fill="url(#glow1)"/>
+    <rect x="468" y="31" width="56" height="56" rx="16" fill="#F2A8C8" fill-opacity="0.12" stroke="#F2A8C8" stroke-opacity="0.28"/>
+    <g transform="translate(482 45) scale(1.1667)" fill="none" stroke="#F2A8C8" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2" />
+  <path d="M12 2v2" />
+  <path d="M17 20v2" />
+  <path d="M17 2v2" />
+  <path d="M2 12h2" />
+  <path d="M2 17h2" />
+  <path d="M2 7h2" />
+  <path d="M20 12h2" />
+  <path d="M20 17h2" />
+  <path d="M20 7h2" />
+  <path d="M7 20v2" />
+  <path d="M7 2v2" />
+  <rect x="4" y="4" width="16" height="16" rx="2" />
+  <rect x="8" y="8" width="8" height="8" rx="1" /></g>
+    <text x="468" y="135" font-size="22" font-weight="700" fill="#FFFFFF">Hooks, not mixins</text>
+    <text x="468" y="173" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">80 ASM hooks woven into Lunar's own</text>
+    <text x="468" y="199" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">classes while the game runs. Unloading</text>
+    <text x="468" y="225" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">hands every class back untouched.</text>
+    <rect x="875" y="1" width="405" height="260" rx="22" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <rect x="875" y="1" width="405" height="260" rx="22" fill="url(#glow2)"/>
+    <rect x="905" y="31" width="56" height="56" rx="16" fill="#BDA4BD" fill-opacity="0.12" stroke="#BDA4BD" stroke-opacity="0.28"/>
+    <g transform="translate(919 45) scale(1.1667)" fill="none" stroke="#BDA4BD" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+  <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+  <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></g>
+    <text x="905" y="135" font-size="22" font-weight="700" fill="#FFFFFF">One draw call</text>
+    <text x="905" y="173" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">Panels, text, icons and ESP are signed-</text>
+    <text x="905" y="199" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">distance quads in a single batch, with</text>
+    <text x="905" y="225" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">a frosted blur behind the menu.</text>
+    <rect x="1" y="297" width="405" height="260" rx="22" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <rect x="1" y="297" width="405" height="260" rx="22" fill="url(#glow3)"/>
+    <rect x="31" y="327" width="56" height="56" rx="16" fill="#8FD3FF" fill-opacity="0.12" stroke="#8FD3FF" stroke-opacity="0.28"/>
+    <g transform="translate(45 341) scale(1.1667)" fill="none" stroke="#8FD3FF" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <line x1="22" x2="18" y1="12" y2="12" />
+  <line x1="6" x2="2" y1="12" y2="12" />
+  <line x1="12" x2="12" y1="6" y2="2" />
+  <line x1="12" x2="12" y1="22" y2="18" /></g>
+    <text x="31" y="431" font-size="22" font-weight="700" fill="#FFFFFF">Rotations a mouse could make</text>
+    <text x="31" y="469" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">Snapped to whole mouse counts at your</text>
+    <text x="31" y="495" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">sensitivity, with your movement</text>
+    <text x="31" y="521" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">corrected under silent aim.</text>
+    <rect x="438" y="297" width="405" height="260" rx="22" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <rect x="438" y="297" width="405" height="260" rx="22" fill="url(#glow4)"/>
+    <rect x="468" y="327" width="56" height="56" rx="16" fill="#FFD2A6" fill-opacity="0.12" stroke="#FFD2A6" stroke-opacity="0.28"/>
+    <g transform="translate(482 341) scale(1.1667)" fill="none" stroke="#FFD2A6" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></g>
+    <text x="468" y="431" font-size="22" font-weight="700" fill="#FFFFFF">Clicks that read as human</text>
+    <text x="468" y="469" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">The AutoClicker times every click from</text>
+    <text x="468" y="495" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">a motor model, tuned against Intave's</text>
+    <text x="468" y="521" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">and Vulcan's click checks.</text>
+    <rect x="875" y="297" width="405" height="260" rx="22" fill="url(#card)" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <rect x="875" y="297" width="405" height="260" rx="22" fill="url(#glow5)"/>
+    <rect x="905" y="327" width="56" height="56" rx="16" fill="#F2A8C8" fill-opacity="0.12" stroke="#F2A8C8" stroke-opacity="0.28"/>
+    <g transform="translate(919 341) scale(1.1667)" fill="none" stroke="#F2A8C8" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" />
+  <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" /></g>
+    <text x="905" y="431" font-size="22" font-weight="700" fill="#FFFFFF">Lua scripting</text>
+    <text x="905" y="469" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">Scripts add modules that look and save</text>
+    <text x="905" y="495" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">like the built-in ones, reload in place</text>
+    <text x="905" y="521" font-size="16.5" fill="#FFFFFF" fill-opacity="0.62">and each run in their own interpreter.</text>
+  </g>
+</svg>

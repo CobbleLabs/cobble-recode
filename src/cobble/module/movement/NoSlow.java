@@ -22,7 +22,7 @@ public class NoSlow extends Module {
     public static Setting slow;
 
     public NoSlow() {
-        super("NoSlow", "Walks at full speed while using items", Category.MOVEMENT, Subcategory.ADVANCED);
+        super("NoSlow", "Walks at full speed while using items", Category.MOVEMENT, Subcategory.MEDIUM);
         swordMode = addChoice("Sword Mode", "", List.of(NoSlowMode.labels()), NoSlowMode.NONE.ordinal());
         foodMode = addChoice("Food Mode", "", List.of(NoSlowMode.labels()), NoSlowMode.NONE.ordinal());
         bowMode = addChoice("Bow Mode", "", List.of(NoSlowMode.labels()), NoSlowMode.NONE.ordinal());

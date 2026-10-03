@@ -30,7 +30,7 @@ public class FireballPearl extends Module {
 
     public FireballPearl() {
         super("FireballPearl", "Throws an ender pearl and a fireball straight up", Category.PLAYER,
-                Subcategory.ADVANCED);
+                Subcategory.MEDIUM);
         this.realRotations = addBoolean("Real Rotations", "", false);
     }
 

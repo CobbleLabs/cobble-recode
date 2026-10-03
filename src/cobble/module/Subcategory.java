@@ -1,11 +1,11 @@
 package cobble.module;
 
-/** The tier a module is filed under inside its tab. GENERAL is also the view that lists every tier. */
+/** The tier a module is filed under inside its tab. ALL is the view that lists every tier. */
 public enum Subcategory {
-    GENERAL("General"),
+    ALL("All"),
     BASIC("Basic"),
-    ADVANCED("Advanced"),
-    EXTREME("Extreme");
+    MEDIUM("Medium"),
+    ADVANCED("Advanced");
 
     public final String displayName;
 
@@ -14,6 +14,6 @@ public enum Subcategory {
     }
 
     public boolean shows(Module module) {
-        return this == GENERAL || module.subcategory == this;
+        return this == ALL || module.subcategory == this;
     }
 }

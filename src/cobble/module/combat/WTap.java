@@ -33,6 +33,10 @@ public final class WTap extends Module {
         super("WTap", "W-taps every landed hit", Category.COMBAT, Subcategory.BASIC);
     }
 
+    public boolean tapping() {
+        return tapping;
+    }
+
     // The binding is ours while tapping, so only the physical key says whether W is still held.
     private void endTap() {
         if (Game.bindingPhysicallyHeld("forward")) {

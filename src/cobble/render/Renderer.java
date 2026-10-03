@@ -137,26 +137,28 @@ public final class Renderer {
      * self-healing.
      */
     public boolean resourcesValid() {
-        return ready && GL11.glIsTexture(fonts.texture()) && GL11.glIsTexture(icons.texture()) && ui.valid();
+        return ready && fonts.owned() && icons.owned() && ui.valid();
     }
 
+    /*
+     * Buffers and samplers carry nothing to recognise them by, so they are only
+     * deleted while the atlases and the program are still ours: after a wipe
+     * their names may already be the game's, and they are just forgotten.
+     */
     public void destroy() {
+        boolean intact = resourcesValid();
         ui.destroy();
         fonts.destroy();
         icons.destroy();
-        if (crispSampler != 0) {
-            GL33.glDeleteSamplers(crispSampler);
-            crispSampler = 0;
-        }
-        if (vertexBuffer != 0) {
+        if (intact) {
+            if (crispSampler != 0) {
+                GL33.glDeleteSamplers(crispSampler);
+            }
             GL15.glDeleteBuffers(vertexBuffer);
-        }
-        if (indexBuffer != 0) {
             GL15.glDeleteBuffers(indexBuffer);
-        }
-        if (vertexArray != 0) {
             GL30.glDeleteVertexArrays(vertexArray);
         }
+        crispSampler = 0;
         vertexBuffer = indexBuffer = vertexArray = 0;
         ready = false;
     }

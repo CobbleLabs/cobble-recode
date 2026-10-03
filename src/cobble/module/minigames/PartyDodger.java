@@ -55,7 +55,7 @@ public class PartyDodger extends Module {
     private long chestRightClickAt = 0L;
 
     public PartyDodger() {
-        super("PartyDodger", "Dodges enemies in BedWars queue", Category.MINIGAMES, Subcategory.ADVANCED);
+        super("PartyDodger", "Dodges enemies in BedWars queue", Category.MINIGAMES, Subcategory.BASIC);
         this.gameMode = addChoice("Game Mode", "", List.of("4s", "3s"), 0);
         this.minPartySize = addNumber("Min Party Size", "", 2.0F, 2.0F, 4.0F, 0);
         this.dodgeMultiple2qs = addBoolean("Dodge Multiple 2qs", "", false);

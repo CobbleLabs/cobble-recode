@@ -1,31 +1,19 @@
 package cobble.util.team;
 
+import cobble.module.ModuleManager;
+import cobble.module.other.Teams;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 
 public final class TeamUtils {
     private TeamUtils() {
     }
 
+    /** Decided by the Teams module, which off means no teammates at all. */
     public static boolean isTeammate(Minecraft var0, Entity var1) {
-        return var1 instanceof EntityLivingBase && var0.thePlayer != null && isTeammateByDisplayName(var0, (EntityLivingBase)var1);
-    }
-
-    private static boolean isTeammateByDisplayName(Minecraft var0, EntityLivingBase var1) {
-        try {
-            if (var0.thePlayer.isOnSameTeam(var1)) {
-                return true;
-            } else {
-                String var2 = var1.getDisplayName().getUnformattedText().substring(0, 2);
-                String var3 = var0.thePlayer.getDisplayName().getUnformattedText();
-                return var3.startsWith(var2) || getOwnFormattedName(var0).startsWith(var2);
-            }
-        } catch (Exception var4) {
-            return false;
-        }
+        return ModuleManager.get(Teams.class).isTeammate(var1);
     }
 
     public static String getOwnFormattedName(Minecraft var0) {

@@ -61,7 +61,7 @@ public class Backtrack extends Module {
     private long reachDisplayUntil;
 
     public Backtrack() {
-        super("Backtrack", "Delays incoming packets so you hit where targets were", Category.COMBAT, Subcategory.EXTREME);
+        super("Backtrack", "Delays incoming packets so you hit where targets were", Category.COMBAT, Subcategory.ADVANCED);
     }
 
     @Override
@@ -270,8 +270,12 @@ public class Backtrack extends Module {
     }
 
     /**
-     * Draws OpenRise bounding box faces (alpha 50) and a clean wireframe outline (alpha 180),
-     * strictly protected against OpenGL matrix/attrib stack underflows.
+     * Draws OpenRise bounding box faces (alpha 50) and a clean wireframe outline (alpha 180).
+     *
+     * <p>Every state change goes through GlStateManager and is undone the same
+     * way, so the game's cached idea of the GL state stays true. Saving and
+     * restoring everything with glPushAttrib behind its back left the game's
+     * text drawing as solid blocks.
      */
     public static void drawBoundingBox(AxisAlignedBB box, Color c) {
         if (mc.getRenderManager() == null) {
@@ -284,19 +288,19 @@ public class Backtrack extends Module {
 
         AxisAlignedBB bb = box.offset(-vx, -vy, -vz);
 
-        GL11.glPushMatrix();
-        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        GlStateManager.pushMatrix();
         try {
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            GL11.glDisable(GL11.GL_TEXTURE_2D);
-            GL11.glDisable(GL11.GL_LIGHTING);
-            GL11.glDisable(GL11.GL_CULL_FACE);
-            GL11.glDepthMask(false);
-            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GlStateManager.enableBlend();
+            GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE,
+                    GL11.GL_ZERO);
+            GlStateManager.disableTexture2D();
+            GlStateManager.disableLighting();
+            GlStateManager.disableCull();
+            GlStateManager.depthMask(false);
+            GlStateManager.disableDepth();
 
             // 1. Solid / translucent box faces (alpha 50 / 255 as in OpenRise)
-            GL11.glColor4f(c.r(), c.g(), c.b(), 50.0f / 255.0f);
+            GlStateManager.color(c.r(), c.g(), c.b(), 50.0f / 255.0f);
             GL11.glBegin(GL11.GL_QUADS);
 
             // Front face (+Z)
@@ -338,7 +342,7 @@ public class Backtrack extends Module {
             GL11.glEnd();
 
             // 2. Wireframe outline (alpha 180 / 255) using direct GL lines
-            GL11.glColor4f(c.r(), c.g(), c.b(), 180.0f / 255.0f);
+            GlStateManager.color(c.r(), c.g(), c.b(), 180.0f / 255.0f);
             GL11.glLineWidth(1.5f);
             GL11.glEnable(GL11.GL_LINE_SMOOTH);
             GL11.glBegin(GL11.GL_LINES);
@@ -362,12 +366,16 @@ public class Backtrack extends Module {
             GL11.glVertex3d(bb.minX, bb.minY, bb.maxZ); GL11.glVertex3d(bb.minX, bb.maxY, bb.maxZ);
 
             GL11.glEnd();
-            GL11.glDisable(GL11.GL_LINE_SMOOTH);
         } finally {
-            GL11.glDepthMask(true);
-            GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-            GL11.glPopAttrib();
-            GL11.glPopMatrix();
+            GL11.glDisable(GL11.GL_LINE_SMOOTH);
+            GL11.glLineWidth(1.0f);
+            GlStateManager.enableDepth();
+            GlStateManager.depthMask(true);
+            GlStateManager.enableCull();
+            GlStateManager.enableTexture2D();
+            GlStateManager.disableBlend();
+            GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
+            GlStateManager.popMatrix();
         }
     }
 

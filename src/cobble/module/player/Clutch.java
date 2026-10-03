@@ -205,7 +205,7 @@ public final class Clutch extends Module {
     }
 
     public Clutch() {
-        super("Clutch", "Turns to a face within reach and blocks the fall", Category.PLAYER, Subcategory.ADVANCED);
+        super("Clutch", "Turns to a face within reach and blocks the fall", Category.PLAYER, Subcategory.MEDIUM);
         setIcon(Icon.BOX);
     }
 

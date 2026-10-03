@@ -1,286 +1,530 @@
-# Cobble Recode
+<div align="center">
 
-[cobble.vip](https://cobble.vip)
+<img src="docs/assets/banner.svg" alt="Cobble Recode" width="100%">
 
-An injectable Minecraft utility for **Lunar Client 1.8.9**, written in C++ with a
-JNI bridge into the running game. Two artefacts: a payload DLL that does
-everything, and an injector that maps it into a live `javaw.exe`.
+<br>
+<br>
 
-Nothing is added to Minecraft's world rendering. Every pixel the client draws —
-panels, text, icons, shadows, the ESP — is a signed-distance field evaluated in
-one batched shader pass over the finished frame.
+![Minecraft](https://img.shields.io/badge/Minecraft-1.8.9-BDA4BD?style=flat-square&labelColor=171A21)
+![Lunar Client](https://img.shields.io/badge/Lunar_Client-1.8.9-F2A8C8?style=flat-square&labelColor=171A21)
+![Java](https://img.shields.io/badge/Java-17-FFD2A6?style=flat-square&labelColor=171A21&logo=openjdk&logoColor=white)
+![Platform](https://img.shields.io/badge/Windows-x64-8FD3FF?style=flat-square&labelColor=171A21)
+![Lua](https://img.shields.io/badge/Scripting-Lua-F2A8C8?style=flat-square&labelColor=171A21&logo=lua&logoColor=white)
+![Modules](https://img.shields.io/badge/Modules-99-FFD2A6?style=flat-square&labelColor=171A21)
 
-The client was originally built for 1.21.11 Fabric and was ported to Lunar's
-1.8.9 runtime: Lunar ships deobfuscated **MCP names**, renders through LWJGL 2
-on a legacy compatibility GL context, and presents with `wglSwapBuffers` rather
-than GLFW. See the *Lunar 1.8.9 port* section below and
-`docs/lunar-1-8-9-port.md` for what that changed.
+**[cobble.vip](https://cobble.vip)**
 
+[Features](#features) ·
+[Getting started](#getting-started) ·
+[The client](#the-client) ·
+[Modules](#modules) ·
+[Scripting](#scripting) ·
+[Under the hood](#under-the-hood) ·
+[Building](#building)
+
+</div>
+
+<br>
+
+Cobble Recode is a client for **Lunar Client on Minecraft 1.8.9**. It is not a mod
+and it is not a launcher. You start the game the way you always do, run one small
+executable, and the client loads straight into the running game: modules, menu,
+HUD and a Lua runtime, all from memory. When you are done, hold <kbd>End</kbd> and
+it leaves again, with Minecraft still running.
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-features.svg" height="30" align="top" alt=""> Features
+
+<img src="docs/assets/features.svg" width="100%" alt="One file, nothing installed. Hooks, not mixins. One draw call. Rotations a mouse could make. Clicks that read as human. Lua scripting.">
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Getting started
+
+> [!NOTE]
+> You need Windows x64 and Lunar Client on **1.8.9**. That is all; the client
+> brings everything else with it.
+
+1. Open Lunar Client on 1.8.9 and join a world or a server.
+2. Run **`cobble-injector.exe`** and pick the game window.
+3. Press <kbd>Insert</kbd>. The menu opens at the top of the screen.
+
+| Key | What it does |
+| :-- | :-- |
+| <kbd>Insert</kbd> | Opens and closes the menu. Rebind it on the ClickGUI module. |
+| <kbd>Insert</kbd> on the multiplayer screen | Opens the Alt Manager. |
+| <kbd>End</kbd>, held for half a second | Unloads the client. The config is saved and the same game can be injected again. |
+
+Everything the client keeps lives in **`%APPDATA%\cobble`**, never in the game's
+folders:
+
+| Path | Holds |
+| :-- | :-- |
+| `cobble.cfg` | Every module, setting, bind and HUD position, written on unload and read on the next injection |
+| `configs/` | Named configs from the menu |
+| `scripts/` | Lua scripts; the injector ships the examples here |
+| `cobble.scripts.cfg` | Which scripts are on, and what they stored |
+| `alts.json` | Accounts saved in the Alt Manager |
+| `fonts/` | Extra `.ttf` and `.otf` fonts for the HUD |
+| `cobble.log` | One log per session; every startup stage reports its timing or why it failed |
+
+> [!TIP]
+> If something looks off, `cobble.log` says which hook was skipped and why, and
+> which handler threw.
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-menu.svg" height="30" align="top" alt=""> The client
+
+### The menu
+
+One pill-shaped tab bar and one card, centred at the top of the screen and scaled
+with Minecraft's GUI scale. Each row carries the module's icon, name, keybind
+chip, description and a toggle; a row with settings opens its own page in place.
+A search field finds any module from any tab.
+
+| Tab | What lives there |
+| :-- | :-- |
+| **Combat** | Everything that fights |
+| **Player** | Inventory, building, packets, and the Movement modules |
+| **Visuals** | ESP, world overlays, and the HUD modules |
+| **Other** | Minigames, the client modules, and the utilities that fit nowhere else |
+| **Scripts** | Every Lua file found, with a switch and a reload for each |
+| **Settings** (the gear) | Configs, the accent colour, the backdrop blur, reloading, the data folder, Panic and Unload |
+
+**One accent drives the client.** The colour picked under Settings is what the
+menu, the HUD and the ESP draw with, and scripts can read it too. **Panic** turns
+every module off at once; **Unload** detaches the client without the key.
+
+### The HUD
+
+While the menu is open, the watermark, the module list and the notifications can
+be dragged anywhere and resized from their corner. Each one anchors to the screen
+edge it sits against, so dropped on the other side it mirrors and keeps growing
+away from that edge. The layout is saved with the config.
+
+### Alt Manager
+
+Switch accounts without restarting the game. Five ways in, plus a way back to the
+account the game was launched with:
+
+| Method | How |
+| :-- | :-- |
+| **Microsoft** | The OAuth flow, through your browser |
+| **Refresh** | A Microsoft refresh token |
+| **Token** | Minecraft access tokens, one or many |
+| **Cookie** | Browser cookies exported as Netscape `.txt` or JSON |
+| **Offline** | Any name, for offline-mode servers |
+
+### Radar
+
+A searchable list of everybody in a loaded chunk, and everything the client knows
+about one of them: gear, enchantments, effects and what they have been holding,
+next to a real 3D model of their skin that you can turn with the mouse.
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-modules.svg" height="30" align="top" alt=""> Modules
+
+<img src="docs/assets/modules.svg" width="100%" alt="99 modules: Combat 21, Player 29, Movement 7, Visuals 19, HUD 4, Minigames 12, Other 5, Client 2">
+
+Every module is filed as
+<img src="docs/assets/tier-basic.svg" alt="Basic" align="absmiddle">
+<img src="docs/assets/tier-medium.svg" alt="Medium" align="absmiddle"> or
+<img src="docs/assets/tier-advanced.svg" alt="Advanced" align="absmiddle">,
+so a tab can show only what you are after.
+
+<details>
+<summary><b>Combat</b> · 21 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **AimAssist** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Pulls your aim toward the nearest target |
+| **AttributeSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to your best sword for the hit, then back |
+| **AutoAim** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims bows and rods where the target will be |
+| **AutoBlock** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks with the sword between hits, in custom, swap or predict timing |
+| **AutoClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks for you while you hold left, on a human timing model |
+| **AutoFeed** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Stops attacks that would finish an enemy |
+| **Backtrack** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Delays incoming packets so you hit where targets were |
+| **BlockHit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks between hits on the beat of your clicks |
+| **Criticals** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hops on the hit so the next swings crit |
+| **Displace** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Turns on the hit so the knockback throws them sideways |
+| **Fisherman** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Paces swings and forward movement on the nearest target to chain knockback |
+| **HitSelect** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Holds hits back until they land for more |
+| **JumpReset** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Jumps on the tick a hit lands so the knockback carries |
+| **KeepSprint** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps sprinting through your own hits |
+| **LagRange** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Lags your connection only while a target is in range |
+| **Piercing** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits the target through blocks and other entities in reach |
+| **Reach** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits players a little past vanilla's reach |
+| **Reduce** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks back when hit to cut the knockback |
+| **TriggerBot** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks whatever the crosshair is already on |
+| **Velocity** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Cuts knockback with a jump reset, a delay or a hard reset |
+| **WTap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | W-taps every landed hit |
+
+</details>
+
+<details>
+<summary><b>Player</b> · 29 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **ArmorSwitch** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Swaps between two armor sets |
+| **AutoArmor** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Puts on the best armor you carry, openly, gliding the cursor or silently |
+| **AutoDeflect** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hits incoming fireballs back |
+| **AutoRefill** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Refills the hotbar with soup and pots |
+| **AutoSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Moves to the next block stack when one runs out |
+| **AutoTool** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to the fastest tool for whatever you are breaking |
+| **BedNuker** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Breaks beds within reach, through walls |
+| **Blink** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Holds packets back, inbound, outbound or both, and lets them go at once |
+| **BlockIn** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Surrounds you with blocks |
+| **BridgeAssist** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Sneaks at the edge and aims at the face you are bridging off |
+| **BridgeNuker** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Breaks the blocks enemies bridge with |
+| **Buffer** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Holds incoming packets and plays them back later |
+| **Clutch** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Turns to a face within reach and blocks the fall |
+| **DelayRemover** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the hit and jump delays |
+| **FakeLag** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Delays inbound, outbound or both kinds of packets |
+| **FastMine** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Shortens the wait between blocks and speeds up the break |
+| **FastPlace** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the four tick wait between right clicks |
+| **FireballBoost** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws a fireball at your feet to launch you |
+| **FireballPearl** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws an ender pearl and a fireball straight up |
+| **Freecam** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Moves the camera away from your body |
+| **GhostHand** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Interacts with blocks behind entities and walls |
+| **HeadHitter** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places a block overhead so jumps hit the ceiling |
+| **HideWindow** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps a container open while the screen stays in game |
+| **InventoryManager** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Sorts the inventory, equips armor and drops junk |
+| **MLG** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places water under you to cancel fall damage |
+| **NoItemRelease** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps using the item after you let go |
+| **Scaffold** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places blocks under you as you walk |
+| **Stealer** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Takes items out of chests |
+| **ThrowPots** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Uses the healing items on your hotbar |
+
+</details>
+
+<details>
+<summary><b>Movement</b> · 7 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **FastStop** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Stops the slide when you let go of the keys |
+| **InvMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Walks while the inventory is open |
+| **NoSlow** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Walks at full speed while using items |
+| **NullMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | The last key pressed wins when both directions are held |
+| **Sprint** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps sprinting while moving |
+| **Stasis** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Freezes your position on the server |
+| **Timer** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Speeds up or slows down the game tick |
+
+</details>
+
+<details>
+<summary><b>Visuals</b> · 19 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **AntiDebuff** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Removes the blindness and nausea effects |
+| **AntiInvis** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Shows invisible players |
+| **BedPlates** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Shows the blocks defending each bed |
+| **BlockESP** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Highlights chosen blocks |
+| **Cape** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Gives you a cape, animated ones included |
+| **Chams** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Draws players through walls |
+| **CuteVisuals** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Heart and dot trail, and a burst when a bed goes |
+| **ESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Outlines, tracers and off-screen arrows for entities |
+| **FreeLook** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Looks around without turning your player |
+| **Indicators** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Points at incoming arrows, pearls and fireballs |
+| **ItemESP** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Highlights dropped items |
+| **Nametags** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Custom nametags with health, distance and armor |
+| **NoCameraClip** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps the third person camera out of walls |
+| **Pointers** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Arrows around the crosshair toward nearby players |
+| **TargetESP** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Marks the current combat target |
+| **TargetHud** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | A panel for whoever you are fighting |
+| **Tracers** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Lines from the crosshair to players |
+| **Trajectories** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Draws where the projectile in your hand lands |
+| **Xray** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | See ores through the ground |
+
+</details>
+
+<details>
+<summary><b>HUD</b> · 4 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **Interface** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Module list and active potion effects |
+| **Notifications** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Cards for what the client and the scripts have to say |
+| **Radar** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Everybody in a loaded chunk, and what they are carrying |
+| **Watermark** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | The client's name in the theme's gradient |
+
+</details>
+
+<details>
+<summary><b>Minigames</b> · 12 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **ArmedAimbot** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims the gun in BedWars Armed mode |
+| **AutoChest** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Scroll up to deposit and down to steal |
+| **AutoWho** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Runs /who for you |
+| **BedDefender** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Covers your bed with blocks |
+| **BedwarsUtils** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | BedWars alerts and utilities |
+| **Deposit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Puts resources and items into nearby chests |
+| **MurderMystery** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Finds the murderer and the bow in Murder Mystery |
+| **NukeDefend** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Replaces the blocks enemies break around your bed |
+| **Opsec** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Adds ping in the BedWars lobby so it can't identify you |
+| **PartyDodger** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Dodges enemies in the BedWars queue |
+| **Quickbuy** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Buys BedWars shop items with keybinds |
+| **SkywarsUtils** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Strength alerts and auto echo for SkyWars |
+
+</details>
+
+<details>
+<summary><b>Other</b> · 5 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **AntiBot** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Filters out the server's fake players |
+| **Anticheat** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Tries to detect cheaters |
+| **LagDetect** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Detects packet loss |
+| **NickBot** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Claims matching random nicknames from JSON rules |
+| **Teams** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Who counts as a teammate |
+
+</details>
+
+<details>
+<summary><b>Client</b> · 2 modules</summary>
+<br>
+
+| Module | Tier | What it does |
+| :-- | :-: | :-- |
+| **AltManager** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Log in with another account |
+| **ClickGUI** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Opens the menu, so its bind lives with everything else |
+
+</details>
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-scripting.svg" height="30" align="top" alt=""> Scripting
+
+A script is a `.lua` file in `%APPDATA%\cobble\scripts`. It can declare modules
+that the rest of the client cannot tell from its own: same tabs, same rows, same
+`cobble.cfg`, same module list. The **Scripts** tab switches each file on and
+reloads it in place.
+
+```lua
+cold.script { name = "Aura", version = "1.0", author = "you" }
+
+local aura = cold.module {
+    name = "ScriptAura",
+    category = "combat",
+    subcategory = "advanced",
+    icon = "swords",
+    settings = {
+        { name = "Range", type = "number", value = 3.0, min = 1.0, max = 6.0, decimals = 2 },
+    },
+}
+
+function aura.onTick()
+    local target = cold.entities.target({ range = aura.settings.Range, players = true }, "distance")
+    if not target then return end
+
+    local yaw, pitch = cold.rotation.aimAt(target:aimPoint(0.12))
+    cold.rotation.set(yaw, pitch, { speed = 180, silent = true, priority = 5 })
+
+    -- Swing only once the rotation the server holds covers the target.
+    local sentYaw = cold.rotation.sent()
+    if math.abs(cold.util.angleDiff(sentYaw, yaw)) < 4 then target:attack() end
+end
 ```
-dist/
-  cobble-injector.exe    the loader: process picker + LoadLibrary injection,
-                         with the payload DLL and the example scripts baked in.
-                         Send only this file - it extracts the rest beside
-                         itself on first run (temp dir fallback)
-  cobble.dll             extracted payload: modules, UI, JNI bridge, assets
-  cobble.cfg             written on unload, read on the next injection
-  cobble.scripts.cfg     which scripts are on, and what they stored
-  cobble.log             per-session diagnostic log
-  scripts/               Lua scripts, read at startup and reloadable in place
+
+| The API reaches | |
+| :-- | :-- |
+| **The game** | the player, the entities around you, the world and its blocks, the inventory, the input state |
+| **Aim** | the rotation engine, with the same mouse-count snapping the modules get |
+| **The client** | chat, commands, notifications, the theme, friends, configs, sounds |
+| **Drawing** | HUD elements players can drag, and the menu's own renderer in 2D and in 3D |
+| **Memory** | storage that survives restarts |
+
+Each script runs in its own interpreter, so one failing cannot reach another, and
+any callback is stopped after 250 ms because it all runs on the render thread.
+
+The shipped scripts are the best tour: [`example.lua`](scripts/example.lua) walks
+through the API, [`aura.lua`](scripts/aura.lua) is a complete rotation-gated aura,
+and [`selftest.lua`](scripts/selftest.lua) exercises everything and reports what
+failed. [`docs/lua-scripting.md`](docs/lua-scripting.md) explains how it is put
+together.
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-internals.svg" height="30" align="top" alt=""> Under the hood
+
+```mermaid
+flowchart LR
+    injector["cobble-injector.exe<br/>picks the game"] -->|LoadLibrary| dll["cobble.dll<br/>inside javaw.exe"]
+    dll -->|finds the JVM| loader["MemoryLoader<br/>the client image, from memory"]
+    loader --> boot["Boot"]
+    boot -->|JVMTI retransform| patcher["Patcher<br/>ASM, 80 hooks"]
+    patcher --> bridge["Bridge<br/>in the game's class loader"]
+    bridge --> hooks["Hooks"]
+    hooks --> client["Modules, menu, HUD, Lua"]
 ```
 
-Everything the client owns lives in `%APPDATA%\cobble`; a previous cold.wtf
-install's configs and scripts are picked up from `%APPDATA%\coldwtf` on the
-first run of the new build.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Build
+#### Loading
 
-Needs Windows x64, the MSVC C++ toolchain, CMake 3.21+ and a JDK 17+ with
-`jni.h`. Configuring fetches the public jars into `infra/lib`; the MCP-named
-`minecraft-1.8.9-mcp.jar` has to be copied there by hand.
+The DLL finds the game's JVM, defines a class loader that serves the compiled
+client straight out of the DLL, and starts it beside Minecraft's own classes.
+Nothing is extracted next to the game.
+
+</td>
+<td width="50%" valign="top">
+
+#### Hooks
+
+Each hook names a method of Lunar's baked classes, mixins and OptiFine already
+applied, and a point in it: its head, its returns, around one instruction, or in
+place of one. The patcher writes the call with ASM and the classes are
+retransformed while the game runs.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### The bridge
+
+Game classes cannot see the client's loader, so a small class is generated into
+the game's loader with one method handle per hook. Every call traps what the
+client throws: the game carries on as if the hook never ran, and a hook that keeps
+failing is switched off.
+
+</td>
+<td width="50%" valign="top">
+
+#### Unloading
+
+The handles are pointed at no-ops, every class is retransformed back to the
+original, the input is handed back and the DLL frees itself. The same game can be
+injected again right away.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### Rendering
+
+Every primitive is a quad carrying its own signed-distance shape, so a frame of
+menu, HUD and ESP is one draw call unless a clip or a texture breaks it. Text
+comes from a distance-field atlas, and the menu's backdrop is a Kawase blur.
+
+</td>
+<td width="50%" valign="top">
+
+#### Rotations
+
+A real mouse can only turn the player in whole counts of one step set by the
+sensitivity, and anticheats measure exactly that. The engine plans in degrees and
+snaps to that grid before anything reaches the player.
+
+</td>
+</tr>
+</table>
+
+`docs/` is a vault of everything in this project that took more than one try.
+Start at [`docs/MAP.md`](docs/MAP.md).
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
+
+You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer and a JDK 17 or
+newer. Configuring fetches the public jars into `infra/lib`; the MCP-named
+`minecraft-1.8.9-mcp.jar` has no public source and has to be copied there by hand.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build.ps1
+```
+
+`build.ps1` finds CMake and a JDK on its own, installing them when it has to
+(pass `-NoAutoInstall` to fail instead), then configures and builds. The output is
+`dist/cobble-injector.exe`, the only file anyone needs. The two steps by hand:
 
 ```bash
 cmake -S . -B build/native -A x64 -DCOLD_JAVA_HOME="<path to JDK>"
 cmake --build build/native --config Release
 ```
 
-`build.ps1` wraps both steps and finds or installs CMake.
+<details>
+<summary><b>Repository layout</b></summary>
+<br>
 
 ```
-src/cobble/      the Java client
-  boot/            entry points the DLL calls by name, class patcher
-  core/ event/     config, maths, logging; the event bus
-  game/ hook/      views over Minecraft state; the bytecode hook handlers
-  module/          modules, one package per menu category
-  render/ ui/      SDF renderer; menu, HUD, radar
-  script/          the Lua API
-  util/            block, font, item, packet, raytrace, render, rotation, team
-bootstrap/       cobble.dll: finds the JVM, defines MemoryLoader, starts Boot
-loader/          cobble-injector.exe
-infra/ext/       vendored C++ (Dear ImGui)
-infra/lib/       jars the client compiles against (not in git)
-assets/          fonts, icons, shaders, the Lua prelude
-scripts/         example Lua scripts, copied to dist/scripts
-docs/            notes, most of them from the C++ payload era
-tools/           Widen.java (used by CMake), crop.ps1
-legacy/          the old C++ payload, the 1.21 test env and their tools
-dist/            build output
+src/cobble/        the Java client
+  boot/              entry points the DLL calls, hooks, patcher, bridge
+  core/  event/      config, maths, logging; the event bus
+  game/  hook/       views over Minecraft state; the hook handlers
+  module/            modules, one package per category
+  render/  ui/       SDF renderer; menu, HUD, radar, alt manager
+  script/            the Lua API
+  util/              blocks, fonts, items, packets, raytracing, rotations, teams
+bootstrap/         cobble.dll: finds the JVM, loads the client, starts Boot
+loader/            cobble-injector.exe
+assets/            fonts, icons, shaders, capes, the Lua prelude
+scripts/           example Lua scripts, embedded in the injector
+infra/             vendored C++ (Dear ImGui) and the jars the client compiles against
+docs/              notes on everything that was hard, and the README's artwork
+tools/             build helpers
+legacy/            the old C++ payload and its tools
 ```
 
-## Use
+</details>
 
-Start Lunar Client on the 1.8.9 version, get into a world, then:
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
 
-```
-dist\cobble-injector.exe            # pick a window with the arrow keys
-dist\cobble-injector.exe <pid>      # or name the process directly
-```
+## <img src="docs/assets/section-credits.svg" height="30" align="top" alt=""> Credits
 
-The payload finds the JVM itself, waits for the game if it is still starting,
-and installs its frame hook. Watch `dist/cobble.log` if anything looks wrong —
-every startup stage reports success, timing, and the reason on failure.
+The silent-rotation model, a server rotation kept apart from the camera and
+composed with your own mouse movement, comes from Rise, and so do the Interface
+and TargetHud. Several player and render modules began as ports of
+[Raven-b](https://codeberg.org/strangerrrrs/raven-bS). Their designs are theirs and
+their licences differ from this repository's, so **check them before you
+redistribute**.
 
-- **Right Shift** opens the menu. Left click toggles a module, right click folds
-  its settings open, and dragging a header moves the panel. The **Scripts**
-  screen lists what is in `dist/scripts`: the dot switches one on, the arrow
-  reloads it.
-- **End**, held for half a second, unloads the client cleanly: hooks removed,
-  input handed back, config saved, DLL freed. Minecraft keeps running, and the
-  same process can be injected again — the config is read back on the way in.
+Built with [ASM](https://asm.ow2.io/) (BSD-3-Clause), [LuaJ](https://github.com/luaj/luaj)
+(MIT) and [Dear ImGui](https://github.com/ocornut/imgui) (MIT). The interface is
+set in [Geist](https://vercel.com/font) and
+[JetBrains Mono](https://www.jetbrains.com/lp/mono/) (OFL), with icons from
+[Lucide](https://lucide.dev/) (ISC). The HUD fonts in `assets/cobble/fonts` each
+carry their own licence.
 
-The overlay draws through a `#version 330 compatibility` shader over Lunar's
-legacy context; on 1.21 the geometry could be expanded by a compute shader, but
-that path is inert here and the CPU expansion is what runs.
+<br>
 
-One behaviour worth knowing: the overlay lives in the frame hook, so while the
-game window is **minimised** Minecraft stops rendering and the client stops with
-it. It resumes the moment the window is restored.
-
-## Lunar 1.8.9 port notes
-
-- **Names.** Lunar's 1.8.9 runtime is not obfuscated: `legacy/tools/mappings.def.mjs`
-  is written directly in MCP names (`net/minecraft/client/Minecraft`,
-  `theMinecraft`, `posX`, `windowClick`), and `legacy/tools/genmappings.mjs` is a
-  pass-through that lays the tables out and checks id uniqueness.
-- **Frame hook.** `hooks/Hooks.cpp` detours `wglSwapBuffers` in `opengl32.dll`,
-  which is what LWJGL 2's `Display` calls to present. The window handle comes
-  from the `HDC` the hook receives; input is a `WndProc` subclass chain, not
-  GLFW callbacks.
-- **Rendering.** Lunar runs a legacy compatibility context, so the shaders are
-  `#version 330 compatibility` and the state guard pushes/pops the fixed-function
-  matrix stacks (which cannot be read back — only saved on the driver's own
-  stack). Frame matrices come from `ScaledResolution`, `ActiveRenderInfo` and
-  `Timer.renderPartialTicks`.
-- **Modules.** The 1.21-only combat modules (crystals, anchors, mace, inventory
-  totems) are out of the build; everything else runs on 1.8.9 semantics —
-  `windowClick` with an integer mode covers the inventory-swap trick.
-- **Not ported (yet).** The GPU compute path, the silent-rotation ordering
-  guarantees and the scripted test environment were built against 1.21 and are
-  not verified here.
-
-## Modules
-
-| Module | Category | What it does |
-| --- | --- | --- |
-| TriggerBot | Combat | Attacks whatever the crosshair is already on |
-| Displace | Combat | Turns on the hit so the knockback throws them sideways, into the void when there is one |
-| JumpReset | Combat | Jumps on the tick a hit lands so the knockback carries |
-| AutoTool | Player | Swaps to the fastest tool for whatever is under the crosshair |
-| BridgeAssist | Player | Sneaks at the edge and aims at the face you are bridging off |
-| Clutch | Player | Turns to a face within reach and blocks the fall, by hand or on its own |
-| FastMine | Player | Shortens the wait between blocks and speeds up the break |
-| FastPlace | Player | Removes the four tick wait between right clicks |
-| ESP | Render | Boxes flat or in 3D, tracers, off-screen arrows, health, name and distance |
-| TargetHud | Render | Panel for whoever the combat modules are hitting, with a lagging damage bar |
-| Trajectories | Render | Draws where the projectile in your hand lands, and what stops it |
-| CuteVisuals | Render | Heart and dot trail, and a burst when a bed goes |
-| ClickGUI | Client | The menu, so its bind lives in the same list as everything else |
-| HUD | Client | Watermark, frame rate, latency, module list, target panel, speed/XYZ, notifications |
-| Radar | Client | Everybody in a loaded chunk: gear, enchantments, effects, a running item history and a skin you can turn |
-
-The Player category and the four Render modules below ESP are ports of
-[Raven-b](https://codeberg.org/strangerrrrs/raven-bS) - a 1.8.9 Forge client -
-and of two of its scripts. What was ported is the behaviour, not the code: the
-originals are mixins over 1.8 internals and this is a native payload on 1.8.9,
-so every one of them was rebuilt on what the JNI bridge can actually reach.
-Where that changed something, the module says so in its own header comment.
-Licensing of anything derived from that source is on you.
-
-**There is one colour.** Every module draws in the ClickGUI accent or a step
-along it, and no module carries a colour setting of its own - a per-module
-picker is how a client ends up with six hues that were each reasonable alone
-and a mess together, and it makes the accent setting a lie. Where a module has
-something to say that colour is the right way to say it - how much health a
-target has left, whether you are ahead in a fight - it uses the theme's own
-semantic colours, which move with the theme and are still not pickers. See
-`ui::accentShade`.
-
-Everything that touches rotation goes through one engine that quantises to whole
-mouse counts and applies once per client tick. Everything that acts on the world
-does so only after the rotation the server *already holds* covers the target.
-Both properties are what a modern anticheat actually measures; see
-`docs/grim-rotation-ordering.md` and `docs/mouse-grid-rotations.md`.
-
-**Silent rotations** are the default for Scaffold and available on KillAura. The
-aim goes into the player only on the frame before the client tick, so the
-movement packet carries it, and a second hook takes it back before the world is
-drawn — the server sees the rotation, the camera never does. No mixins and no
-bytecode injection are involved; it falls out of the order Minecraft does things
-in. `docs/silent-rotations-without-bytecode.md` has the whole thing,
-including the two ways of getting it wrong that cost the most time.
-
-Scaffold searches **behind** the direction of travel, not straight down: by the
-time a placement reaches the server the player has already left the cell they
-were standing in. Telly does not even choose a cell first, it casts from yaws on
-the 45 degree grid and takes the block the ray landed on, so the rotation and
-the placement agree by construction. It has three aim styles — Normal points at the hit vector,
-**Telly** is a three-phase cycle, winding up on the ground with the yaw
-untouched, snapping the yaw onto the direction of travel for the tick the jump
-goes out, then aiming for real while airborne. **Watchdog** is
-Rise's `applyNewWatchdogRotations`, aiming half a block off the block centre
-along the player's side axis and subtracting a movement-dependent yaw offset.
-The block about to be placed is outlined as an actual projected cube, faces and
-all, rather than the screen rectangle that contains it.
-`docs/scaffold-placement-search.md` has the details.
-
-## Scripting
-
-Everything in the table above can also be written in Lua. `dist/scripts/*.lua`
-is read at startup and reloadable from the menu; a script declares modules that
-the rest of the client cannot tell from the C++ ones — same categories, same
-menu cards, same `cobble.cfg`, same array list.
-
-```lua
-cold.script { name = "Aura", version = "1.0", author = "you" }
-
-local aura = cold.module {
-    name = "ScriptAura", subcategory = "extreme", icon = "swords",
-    settings = { { name = "Range", type = "number", value = 3.0, min = 1, max = 6, decimals = 2 } },
-}
-
-function aura.onTick()
-    local target = cold.entities.target { range = aura.settings.Range }
-    if not target then return end
-    local yaw, pitch = cold.rotation.aimAt(target:aimPoint(0.12))
-    cold.rotation.set(yaw, pitch, { silent = true, priority = 5 })
-
-    -- Only swing once the rotation the server holds actually covers the target.
-    local sentYaw = cold.rotation.sent()
-    if math.abs(cold.util.angleDiff(sentYaw, yaw)) < 4 then target:attack() end
-end
-```
-
-The Lua surface keeps the `cold.*` namespace from the previous build, so scripts
-written for it run unchanged. It covers the player, the entities the frame
-captured and their status effects, the world and its blocks by name, the
-inventory by registry id, the rotation engine (quantised to whole mouse counts
-for a script exactly as for a module), the interaction queue, the movement
-bindings, the input state, and the same signed-distance renderer the HUD and the
-menu draw with — in two dimensions and in three, projected with the frame's own
-matrices.
-
-On top of that: HUD elements of your own that the player drags where they like
-and that stay there, client-side chat and the actionbar, on-screen
-notifications, the client's theme and friends list, JSON storage, and
-twenty-four events covering the tick, the frame, every kind of input, world and
-screen changes, entity spawns and deaths, health, held slot, module toggles and
-status effects. Event names are matched loosely enough that a script written for
-another client mostly reads the same.
-
-Each script is its own interpreter, so one erroring cannot reach another;
-callbacks are stopped after 250 ms and states are capped at 64 MB, because all
-of it runs on the render thread. **[`scripts/README.md`](scripts/README.md)** is
-the full reference, `scripts/selftest.lua` exercises every part of it and says
-what failed, and the files beside them are worked examples;
-`docs/lua-scripting.md` is how it is put together.
-
-## Test environment
-
-`legacy/testenv/` is a Loom workspace that was built against 1.21.11 Fabric. It is not
-part of the 1.8.9 port — the control-channel smoke suite below has not been
-rewired to Lunar. It is kept for reference and for a future 1.21 build.
-
-The payload exposes a file-driven control channel next to the DLL — drop
-commands in `cobble.control`, read `cobble.control.out` — but the smoke suite
-that drives it asserts 1.21 behaviours and has not been rewired to Lunar.
-
-Other tools:
-
-| Command | Purpose |
-| --- | --- |
-| `legacy/tools/shoot.ps1 -Script "..."` | Send control commands, capture a frame |
-
-## Measured cost
-
-On a 1280x720 dev client with the menu closed, the ESP running and the HUD
-drawing, the whole overlay pass is **0.1–0.5 ms per frame** (`state` reports
-`overlay=<n>us`). Startup from injection to first drawn frame is ~1.0 s, of
-which most is rasterising the SDF font atlas on the loader thread, off the
-render path.
-
-## The Knowledge
-
-`docs/` is an Obsidian-style vault of everything in this project that
-cost more than one attempt. Start at [`docs/MAP.md`](docs/MAP.md).
-
-## Provenance
-
-The JNI bridge design, the injector shape and the rotation-controller model were
-studied from the [Vape 4.21 recovery project](https://github.com/OpenVapeCN/VapeV4.21).
-The dropdown menu follows the layout [LiquidBounce](https://github.com/CCBlueX/LiquidBounce)
-popularised. The silent-rotation model — a server rotation kept separate from the
-camera, composed with the player's own mouse movement rather than overwritten by
-it — and the telly bridge come from Rise 6.9.5 (`RotationComponent`,
-`RotationUtil.applySensitivityPatch`, `Scaffold.getTellyRotation`); Rise's
-sensitivity quantisation is the same formula this engine had arrived at
-independently, which is how it was confirmed correct.
-
-Those are Java clients for 1.8.9 and this is C++, so nothing was
-transliterated — but the designs are theirs, and all four are licensed
-differently from this repository. **Check the licences before redistributing.**
-
-Fonts are [Inter](https://rsms.me/inter/) and
-[JetBrains Mono](https://www.jetbrains.com/lp/mono/) (OFL), icons are
-[Lucide](https://lucide.dev/) (ISC), and the bundled third-party sources are
-MinHook (BSD-2), Lua 5.4 (MIT), stb_truetype (public domain) and nanosvg
-(zlib).
+<div align="center">
+<img src="docs/assets/divider.svg" width="60%" alt="">
+<br>
+<sub>Use it where it is allowed. What you do with it on someone else's server is on you.</sub>
+</div>

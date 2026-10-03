@@ -68,7 +68,7 @@ public class NukeDefend extends Module {
 
     public NukeDefend() {
         super("NukeDefend", "Replaces the blocks enemies break around your bed", Category.MINIGAMES,
-                Subcategory.EXTREME);
+                Subcategory.ADVANCED);
         this.throughWalls = addBoolean("Through walls", "", true);
         this.onlyWhitelistedBed = addBoolean("Only Whitelisted Bed", "", true);
         this.highlightPlacedBlocks = addBoolean("Highlight placed blocks", "", true);

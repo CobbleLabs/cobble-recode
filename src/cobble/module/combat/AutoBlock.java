@@ -93,7 +93,7 @@ public class AutoBlock extends Module {
     private AutoBlockMode autoBlockMode = AutoBlockMode.CUSTOM;
 
     public AutoBlock() {
-        super("AutoBlock", "3/3/2 ticks at 7.5 APS", Category.COMBAT, Subcategory.ADVANCED);
+        super("AutoBlock", "3/3/2 ticks at 7.5 APS", Category.COMBAT, Subcategory.MEDIUM);
         this.mode = addChoice("Mode", "", List.of(AutoBlockMode.labels()), AutoBlockMode.CUSTOM.ordinal());
         this.range = addNumber("Range", "", 4.0F, 2.0F, 6.0F, 1);
         this.swapAps = addNumber("Swap APS", "", 7.5F, 1.0F, 10.0F, 1);

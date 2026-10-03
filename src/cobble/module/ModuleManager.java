@@ -3,6 +3,7 @@ package cobble.module;
 import cobble.core.Color;
 import cobble.core.Config;
 import cobble.core.Log;
+import cobble.core.Time;
 import cobble.event.EventBus;
 import cobble.hook.Input;
 import cobble.ui.Client;
@@ -165,6 +166,25 @@ public final class ModuleManager {
                 case COLOUR -> document.set(section, key, colourToHex(setting.colour()));
             }
         }
+    }
+
+    /* Kept as Cobble keeps it: written shortly after each change rather than
+     * only on unload, so a crash or a game closed without unloading keeps what
+     * was set, and the next injection starts from exactly that. */
+    private static final double SAVE_DELAY_SECONDS = 1.0;
+    private static double changedAt = -1.0;
+
+    public static void markChanged() {
+        changedAt = Time.nowSeconds();
+    }
+
+    /** True once, a moment after the last change, when it is time to write the config. */
+    public static boolean changesSettled() {
+        if (changedAt < 0.0 || Time.nowSeconds() - changedAt < SAVE_DELAY_SECONDS) {
+            return false;
+        }
+        changedAt = -1.0;
+        return true;
     }
 
     public static void loadConfig(Path path) {

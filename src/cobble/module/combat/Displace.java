@@ -106,7 +106,7 @@ public final class Displace extends Module {
 
     public Displace() {
         super("Displace", "Turns on the hit so the knockback throws them sideways", Category.COMBAT,
-                Subcategory.EXTREME);
+                Subcategory.ADVANCED);
         setIcon(Icon.MOVE_3D);
     }
 

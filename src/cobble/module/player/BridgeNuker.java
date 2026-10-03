@@ -49,7 +49,7 @@ public class BridgeNuker extends Module implements PointedObjectOverrider {
     private final List<BlockPos> blockPoses = new ArrayList<>();
 
     public BridgeNuker() {
-        super("BridgeNuker", "Breaks the blocks enemies bridge with", Category.PLAYER, Subcategory.EXTREME);
+        super("BridgeNuker", "Breaks the blocks enemies bridge with", Category.PLAYER, Subcategory.ADVANCED);
         this.breakSpeed = addNumber("Break speed", "", 1.0F, 1.0F, 5.0F, 2);
         this.breakDelay = addNumber("Break delay", "", 250.0F, 0.0F, 250.0F, 0);
         this.range = addNumber("Range", "", 4.5F, 2.0F, 6.0F, 1);
