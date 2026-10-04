@@ -386,8 +386,7 @@ any callback is stopped after 250 ms because it all runs on the render thread.
 The shipped scripts are the best tour: [`example.lua`](scripts/example.lua) walks
 through the API, [`aura.lua`](scripts/aura.lua) is a complete rotation-gated aura,
 and [`selftest.lua`](scripts/selftest.lua) exercises everything and reports what
-failed. [`docs/lua-scripting.md`](docs/lua-scripting.md) explains how it is put
-together.
+failed.
 
 <br>
 <img src="docs/assets/divider.svg" width="100%" alt="">
@@ -471,9 +470,6 @@ snaps to that grid before anything reaches the player.
 </tr>
 </table>
 
-`docs/` is a vault of everything in this project that took more than one try.
-Start at [`docs/MAP.md`](docs/MAP.md).
-
 <br>
 <img src="docs/assets/divider.svg" width="100%" alt="">
 <br>
@@ -515,9 +511,8 @@ loader/            cobble-injector.exe
 assets/            fonts, icons, shaders, capes, the Lua prelude
 scripts/           example Lua scripts, embedded in the injector
 infra/             vendored C++ (Dear ImGui) and the jars the client compiles against
-docs/              notes on everything that was hard, and the README's artwork
+docs/              the README's artwork
 tools/             build helpers
-legacy/            the old C++ payload and its tools
 ```
 
 </details>
