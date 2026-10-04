@@ -6,28 +6,7 @@ Rise-6.9.5/
 
 # Build output
 build/
-legacy/testenv/build/
-legacy/testenv/.gradle/
-legacy/testenv/run/
-legacy/testenv/run-server/
-
-# Runtime artefacts next to the payload
-dist/*.log
-dist/*.cfg
-dist/*.bmp
-dist/*.png
-dist/coldwtf.control
-dist/coldwtf.control.out
-dist/coldwtf.control.tmp
-dist/*.dll
-dist/*.old
-dist/*.exe
-dist/*.pdb
-dist/*.lib
-dist/*.exp
-legacy/dist-old/
-# The build copies scripts/ next to the payload; the folder itself is the source.
-dist/scripts/
+dist/
 
 # Third-party jars the client compiles against; configuring fetches all but the MCP one
 infra/lib/
