@@ -21,6 +21,7 @@ public final class MemoryLoader extends ClassLoader {
     }
 
     private final Map<String, byte[]> entries = new HashMap<>();
+    private volatile String overlay = "";
 
     public MemoryLoader(ClassLoader parent, byte[] image) throws IOException {
         super("cobble", parent);
@@ -33,9 +34,24 @@ public final class MemoryLoader extends ClassLoader {
         }
     }
 
+    /**
+     * Serves the image's versions/{@code id}/ classes ahead of its own from
+     * now on: the legacy code as rewritten for that version. Called once, as
+     * soon as the client knows the version and before it loads anything the
+     * overlay holds.
+     */
+    public void selectVersion(String id) {
+        overlay = "versions/" + id + "/";
+    }
+
+    private byte[] entry(String path) {
+        byte[] bytes = overlay.isEmpty() ? null : entries.get(overlay + path);
+        return bytes != null ? bytes : entries.get(path);
+    }
+
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        byte[] bytes = entries.get(name.replace('.', '/') + ".class");
+        byte[] bytes = entry(name.replace('.', '/') + ".class");
         if (bytes == null) {
             return super.loadClass(name, resolve);
         }
@@ -53,7 +69,7 @@ public final class MemoryLoader extends ClassLoader {
 
     @Override
     public InputStream getResourceAsStream(String name) {
-        byte[] bytes = entries.get(name.startsWith("/") ? name.substring(1) : name);
+        byte[] bytes = entry(name.startsWith("/") ? name.substring(1) : name);
         return bytes != null ? new ByteArrayInputStream(bytes) : super.getResourceAsStream(name);
     }
 }

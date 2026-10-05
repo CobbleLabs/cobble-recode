@@ -1,0 +1,240 @@
+package cobble.boot;
+
+import cobble.core.Log;
+import cobble.platform.Platform;
+import cobble.ui.Client;
+import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+import org.objectweb.asm.Opcodes;
+
+/** Entry points the bootstrap DLL calls; see bootstrap/Main.cpp. */
+public final class Boot {
+    private static final String SCOPE = "boot";
+    /** A hook that keeps throwing is switched off rather than logged forever. */
+    private static final int FAILURE_LIMIT = 10;
+    private static final MethodType FAILED_TYPE =
+            MethodType.methodType(void.class, String.class, Throwable.class);
+
+    private static volatile ClassLoader gameLoader;
+    private static Platform platform;
+    private static List<Hook> hooks = List.of();
+    private static String bridgeName;
+    private static volatile Map<String, List<Hook>> targets = Map.of();
+    private static Class<?> bridge;
+    private static final Map<String, Integer> failures = new ConcurrentHashMap<>();
+
+    private Boot() {}
+
+    public static boolean start(String directory, String arrivals, long epochNanos) {
+        Path home = Path.of(directory);
+        try {
+            Log.open(home.resolve("cobble.log"), epochNanos);
+        } catch (IOException e) {
+            // Running without a log beats not running.
+        }
+        try {
+            gameLoader = Boot.class.getClassLoader().getParent();
+            String reported = GameVersion.reportedId(gameLoader);
+            GameVersion version = GameVersion.detect(reported);
+            if (version == null) {
+                Log.error(SCOPE, "Minecraft %s is not supported", reported);
+                Log.close();
+                return false;
+            }
+            GameVersion.set(version);
+            Log.info(SCOPE, "Minecraft %s", version.id);
+            /* The loader is the bootstrap's MemoryLoader, which this code is not compiled against. */
+            ClassLoader image = Boot.class.getClassLoader();
+            image.getClass().getMethod("selectVersion", String.class).invoke(image, version.id);
+            platform = (Platform) Class.forName("cobble." + version.adapterPackage + ".PlatformAdapter")
+                    .getConstructor().newInstance();
+            Platform.install(platform);
+            hooks = platform.hooks();
+            Client.start(home, Path.of(arrivals));
+
+            bridge = defineBridge();
+            bind(true);
+            Map<String, List<Hook>> byOwner = hooks.stream().collect(Collectors.groupingBy(Hook::owner));
+            targets = byOwner;
+            Native.setTargets(byOwner.keySet().toArray(new String[0]));
+            Class<?>[] loaded = loadedTargets();
+            Native.retransform(loaded);
+            Log.info(SCOPE, "hooks installed; %d of %d classes patched now, the rest as they load",
+                    loaded.length, byOwner.size());
+            return true;
+        } catch (Throwable thrown) {
+            Log.error(SCOPE, thrown, "start failed");
+            restore();
+            Log.close();
+            return false;
+        }
+    }
+
+    public static void stop() {
+        Log.info(SCOPE, "stopping");
+        try {
+            Client.stop();
+        } catch (Throwable thrown) {
+            Log.error(SCOPE, thrown, "client stop failed");
+        }
+        restore();
+        Log.info(SCOPE, "unloaded");
+        Log.close();
+    }
+
+    /** Called by the ClassFileLoadHook for every target name, from any thread. */
+    public static byte[] transform(ClassLoader loader, String name, byte[] bytes) {
+        List<Hook> patching = targets.get(name);
+        if (loader != gameLoader || patching == null) {
+            return null;
+        }
+        try {
+            byte[] patched = Patcher.apply(bytes, patching, bridgeName);
+            Log.debug(SCOPE, "patched %s", name);
+            return patched;
+        } catch (Throwable thrown) {
+            Log.error(SCOPE, thrown, "patching %s failed; left as is", name);
+            return null;
+        }
+    }
+
+    /** Points every hook at a no-op and hands the game its original classes back. */
+    private static void restore() {
+        try {
+            if (bridge != null) {
+                bind(false);
+            }
+            Native.setTargets(new String[0]);
+            Class<?>[] patched = loadedTargets();
+            targets = Map.of();
+            Native.retransform(patched);
+            Log.info(SCOPE, "restored %d classes", patched.length);
+        } catch (Throwable thrown) {
+            Log.error(SCOPE, thrown, "restoring the game classes failed");
+        }
+    }
+
+    private static Class<?> defineBridge() {
+        bridgeName = Bridge.internalName(hooks);
+        String binaryName = bridgeName.replace('/', '.');
+        for (Class<?> type : Native.loadedClasses()) {
+            if (type.getClassLoader() == gameLoader && type.getName().equals(binaryName)) {
+                Log.debug(SCOPE, "reusing %s", binaryName);
+                return type;
+            }
+        }
+        return Native.defineClass(gameLoader, bridgeName, Bridge.generate(bridgeName, hooks));
+    }
+
+    private static Class<?>[] loadedTargets() {
+        List<Class<?>> found = new ArrayList<>();
+        for (Class<?> type : Native.loadedClasses()) {
+            if (type.getClassLoader() == gameLoader && targets.containsKey(type.getName().replace('.', '/'))) {
+                found.add(type);
+            }
+        }
+        return found.toArray(new Class<?>[0]);
+    }
+
+    /**
+     * The failure handle goes live first and dead last, so no hook can ever
+     * reach a null one.
+     */
+    private static void bind(boolean live) throws ReflectiveOperationException {
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        if (live) {
+            set(Bridge.FAILED, lookup.findStatic(Boot.class, "failed", FAILED_TYPE));
+        }
+        for (Hook hook : hooks) {
+            set(Bridge.methodName(hook),
+                    live ? handler(lookup, hook) : idle(hook));
+        }
+        if (!live) {
+            set(Bridge.FAILED, MethodHandles.empty(FAILED_TYPE));
+        }
+    }
+
+    private static MethodHandle handler(MethodHandles.Lookup lookup, Hook hook) throws ReflectiveOperationException {
+        for (Class<?> handlers : platform.hookHandlers()) {
+            for (Method method : handlers.getMethods()) {
+                if (method.getName().equals(hook.handler()) && Modifier.isStatic(method.getModifiers())) {
+                    MethodHandle handle = lookup.unreflect(method);
+                    MethodType wanted = type(hook);
+                    int taken = handle.type().parameterCount();
+                    if (taken < wanted.parameterCount()) {
+                        handle = MethodHandles.dropArguments(handle, taken,
+                                wanted.parameterList().subList(taken, wanted.parameterCount()));
+                    }
+                    return handle.asType(wanted);
+                }
+            }
+        }
+        throw new NoSuchMethodException("no handler " + hook.handler());
+    }
+
+    private static MethodType type(Hook hook) {
+        return MethodType.fromMethodDescriptorString(hook.handlerDescriptor(), gameLoader);
+    }
+
+    /**
+     * What a hook does while the client is not listening: nothing, the result
+     * it was given, or the instruction it replaced.
+     */
+    private static MethodHandle idle(Hook hook) throws ReflectiveOperationException {
+        Hook.At at = hook.at();
+        if (hook.result()) {
+            MethodType type = type(hook);
+            return MethodHandles.dropArguments(MethodHandles.identity(type.returnType()), 1,
+                    type.parameterList().subList(1, type.parameterCount()));
+        }
+        if (at.kind() != Hook.At.Kind.REDIRECT) {
+            return MethodHandles.empty(type(hook));
+        }
+        MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+        Class<?> owner = Class.forName(at.owner().replace('/', '.'), false, gameLoader);
+        MethodType member = MethodType.fromMethodDescriptorString(
+                at.isField() ? "()" + at.descriptor() : at.descriptor(), gameLoader);
+        return switch (at.opcode()) {
+            case Opcodes.GETFIELD -> lookup.findGetter(owner, at.name(), member.returnType());
+            case Opcodes.PUTFIELD -> lookup.findSetter(owner, at.name(), member.returnType());
+            case Opcodes.GETSTATIC -> lookup.findStaticGetter(owner, at.name(), member.returnType());
+            case Opcodes.PUTSTATIC -> lookup.findStaticSetter(owner, at.name(), member.returnType());
+            case Opcodes.INVOKESTATIC -> lookup.findStatic(owner, at.name(), member);
+            default -> lookup.findVirtual(owner, at.name(), member);
+        };
+    }
+
+    private static void set(String field, MethodHandle handle) throws ReflectiveOperationException {
+        bridge.getField(field).set(null, handle);
+    }
+
+    private static void failed(String handler, Throwable thrown) {
+        int count = failures.merge(handler, 1, Integer::sum);
+        if (count <= 3) {
+            Log.error(SCOPE, thrown, "hook %s threw", handler);
+        }
+        if (count != FAILURE_LIMIT) {
+            return;
+        }
+        for (Hook hook : hooks) {
+            if (hook.handler().equals(handler)) {
+                try {
+                    set(Bridge.methodName(hook), idle(hook));
+                } catch (ReflectiveOperationException e) {
+                    Log.error(SCOPE, e, "could not disable hook %s", handler);
+                }
+            }
+        }
+        Log.error(SCOPE, "hook %s disabled after %d failures", handler, count);
+    }
+}

@@ -1,0 +1,346 @@
+# 1.8.9 references and what they are on 1.21.11, for the legacy code; see
+# tools/Retarget.java for the rule forms. Right-hand sides are in Yarn's
+# names, which the build turns into intermediary ones with everything else
+# written for 1.21. Members mostly go through the shims, which are plain code
+# under cobble/v1_21/compat; only the classes are listed here.
+
+shims cobble/v1_21/compat/
+
+class com/mojang/authlib/GameProfile                               com/mojang/authlib/GameProfile
+class net/minecraft/block/Block                                    net/minecraft/block/Block
+class net/minecraft/block/BlockAnvil                               net/minecraft/block/AnvilBlock
+class net/minecraft/block/BlockBanner                              net/minecraft/block/BannerBlock
+class net/minecraft/block/BlockBeacon                              net/minecraft/block/BeaconBlock
+class net/minecraft/block/BlockBed                                 net/minecraft/block/BedBlock
+class net/minecraft/block/BlockBrewingStand                        net/minecraft/block/BrewingStandBlock
+class net/minecraft/block/BlockButton                              net/minecraft/block/ButtonBlock
+class net/minecraft/block/BlockCactus                              net/minecraft/block/CactusBlock
+class net/minecraft/block/BlockCarpet                              net/minecraft/block/CarpetBlock
+class net/minecraft/block/BlockChest                               net/minecraft/block/ChestBlock
+class net/minecraft/block/BlockContainer                           net/minecraft/block/BlockWithEntity
+class net/minecraft/block/BlockDaylightDetector                    net/minecraft/block/DaylightDetectorBlock
+class net/minecraft/block/BlockDispenser                           net/minecraft/block/DispenserBlock
+class net/minecraft/block/BlockDoor                                net/minecraft/block/DoorBlock
+class net/minecraft/block/BlockDoublePlant                         net/minecraft/block/TallPlantBlock
+class net/minecraft/block/BlockDropper                             net/minecraft/block/DropperBlock
+class net/minecraft/block/BlockEnchantmentTable                    net/minecraft/block/EnchantingTableBlock
+class net/minecraft/block/BlockEndPortal                           net/minecraft/block/EndPortalBlock
+class net/minecraft/block/BlockEndPortalFrame                      net/minecraft/block/EndPortalFrameBlock
+class net/minecraft/block/BlockEnderChest                          net/minecraft/block/EnderChestBlock
+class net/minecraft/block/BlockFence                               net/minecraft/block/FenceBlock
+class net/minecraft/block/BlockFenceGate                           net/minecraft/block/FenceGateBlock
+class net/minecraft/block/BlockFlower                              net/minecraft/block/FlowerBlock
+class net/minecraft/block/BlockFlowerPot                           net/minecraft/block/FlowerPotBlock
+class net/minecraft/block/BlockGravel                              net/minecraft/block/ColoredFallingBlock
+class net/minecraft/block/BlockHopper                              net/minecraft/block/HopperBlock
+class net/minecraft/block/BlockJukebox                             net/minecraft/block/JukeboxBlock
+class net/minecraft/block/BlockLadder                              net/minecraft/block/LadderBlock
+class net/minecraft/block/BlockLever                               net/minecraft/block/LeverBlock
+class net/minecraft/block/BlockLilyPad                             net/minecraft/block/LilyPadBlock
+class net/minecraft/block/BlockLiquid                              net/minecraft/block/FluidBlock
+class net/minecraft/block/BlockNote                                net/minecraft/block/NoteBlock
+class net/minecraft/block/BlockPane                                net/minecraft/block/PaneBlock
+class net/minecraft/block/BlockRailBase                            net/minecraft/block/AbstractRailBlock
+class net/minecraft/block/BlockRedstoneTorch                       net/minecraft/block/RedstoneTorchBlock
+class net/minecraft/block/BlockSand                                net/minecraft/block/ColoredFallingBlock
+class net/minecraft/block/BlockSapling                             net/minecraft/block/SaplingBlock
+class net/minecraft/block/BlockSign                                net/minecraft/block/AbstractSignBlock
+class net/minecraft/block/BlockSkull                               net/minecraft/block/AbstractSkullBlock
+class net/minecraft/block/BlockSlab                                net/minecraft/block/SlabBlock
+class net/minecraft/block/BlockSnow                                net/minecraft/block/SnowBlock
+class net/minecraft/block/BlockSoulSand                            net/minecraft/block/SoulSandBlock
+class net/minecraft/block/BlockStainedGlassPane                    net/minecraft/block/StainedGlassPaneBlock
+class net/minecraft/block/BlockStairs                              net/minecraft/block/StairsBlock
+class net/minecraft/block/BlockTallGrass                           net/minecraft/block/ShortPlantBlock
+class net/minecraft/block/BlockTorch                               net/minecraft/block/TorchBlock
+class net/minecraft/block/BlockTrapDoor                            net/minecraft/block/TrapdoorBlock
+class net/minecraft/block/BlockTripWire                            net/minecraft/block/TripwireBlock
+class net/minecraft/block/BlockTripWireHook                        net/minecraft/block/TripwireHookBlock
+class net/minecraft/block/BlockWall                                net/minecraft/block/WallBlock
+class net/minecraft/block/BlockWeb                                 net/minecraft/block/CobwebBlock
+class net/minecraft/block/BlockWorkbench                           net/minecraft/block/CraftingTableBlock
+class net/minecraft/block/material/MapColor                        net/minecraft/block/MapColor
+class net/minecraft/block/state/IBlockState                        net/minecraft/block/BlockState
+class net/minecraft/client/Minecraft                               net/minecraft/client/MinecraftClient
+class net/minecraft/client/entity/AbstractClientPlayer             net/minecraft/client/network/AbstractClientPlayerEntity
+class net/minecraft/client/entity/EntityOtherPlayerMP              net/minecraft/client/network/OtherClientPlayerEntity
+class net/minecraft/client/entity/EntityPlayerSP                   net/minecraft/client/network/ClientPlayerEntity
+class net/minecraft/client/gui/GuiChat                             net/minecraft/client/gui/screen/ChatScreen
+class net/minecraft/client/gui/GuiGameOver                         net/minecraft/client/gui/screen/DeathScreen
+class net/minecraft/client/gui/GuiIngame                           net/minecraft/client/gui/hud/InGameHud
+class net/minecraft/client/gui/GuiMultiplayer                      net/minecraft/client/gui/screen/multiplayer/MultiplayerScreen
+class net/minecraft/client/gui/GuiNewChat                          net/minecraft/client/gui/hud/ChatHud
+class net/minecraft/client/gui/GuiScreen                           net/minecraft/client/gui/screen/Screen
+class net/minecraft/client/gui/GuiScreenBook                       net/minecraft/client/gui/screen/ingame/BookScreen
+class net/minecraft/client/gui/inventory/GuiChest                  net/minecraft/client/gui/screen/ingame/GenericContainerScreen
+class net/minecraft/client/gui/inventory/GuiContainer              net/minecraft/client/gui/screen/ingame/HandledScreen
+class net/minecraft/client/gui/inventory/GuiInventory              net/minecraft/client/gui/screen/ingame/InventoryScreen
+class net/minecraft/client/multiplayer/PlayerControllerMP          net/minecraft/client/network/ClientPlayerInteractionManager
+class net/minecraft/client/multiplayer/ServerData                  net/minecraft/client/network/ServerInfo
+class net/minecraft/client/multiplayer/WorldClient                 net/minecraft/client/world/ClientWorld
+class net/minecraft/client/network/NetHandlerPlayClient            net/minecraft/client/network/ClientPlayNetworkHandler
+class net/minecraft/client/network/NetworkPlayerInfo               net/minecraft/client/network/PlayerListEntry
+class net/minecraft/client/resources/I18n                          net/minecraft/client/resource/language/I18n
+class net/minecraft/client/settings/GameSettings                   net/minecraft/client/option/GameOptions
+class net/minecraft/client/settings/KeyBinding                     net/minecraft/client/option/KeyBinding
+class net/minecraft/enchantment/Enchantment                             net/minecraft/registry/RegistryKey
+class net/minecraft/enchantment/EnchantmentHelper                  net/minecraft/enchantment/EnchantmentHelper
+class net/minecraft/entity/Entity                                  net/minecraft/entity/Entity
+class net/minecraft/entity/EntityLivingBase                        net/minecraft/entity/LivingEntity
+class net/minecraft/entity/ai/attributes/AttributeModifier         net/minecraft/entity/attribute/EntityAttributeModifier
+class net/minecraft/entity/ai/attributes/IAttributeInstance        net/minecraft/entity/attribute/EntityAttributeInstance
+class net/minecraft/entity/boss/EntityDragon                       net/minecraft/entity/boss/dragon/EnderDragonEntity
+class net/minecraft/entity/item/EntityArmorStand                   net/minecraft/entity/decoration/ArmorStandEntity
+class net/minecraft/entity/item/EntityEnderCrystal                 net/minecraft/entity/decoration/EndCrystalEntity
+class net/minecraft/entity/item/EntityEnderPearl                   net/minecraft/entity/projectile/thrown/EnderPearlEntity
+class net/minecraft/entity/item/EntityItem                         net/minecraft/entity/ItemEntity
+class net/minecraft/entity/item/EntityItemFrame                    net/minecraft/entity/decoration/ItemFrameEntity
+class net/minecraft/entity/item/EntityTNTPrimed                    net/minecraft/entity/TntEntity
+class net/minecraft/entity/monster/EntitySlime                     net/minecraft/entity/mob/SlimeEntity
+class net/minecraft/entity/monster/EntityZombie                    net/minecraft/entity/mob/ZombieEntity
+class net/minecraft/entity/monster/IMob                            net/minecraft/entity/mob/Monster
+class net/minecraft/entity/passive/EntityAnimal                    net/minecraft/entity/passive/AnimalEntity
+class net/minecraft/entity/player/EntityPlayer                     net/minecraft/entity/player/PlayerEntity
+class net/minecraft/entity/player/EnumPlayerModelParts             net/minecraft/entity/player/PlayerModelPart
+class net/minecraft/entity/player/InventoryPlayer                  net/minecraft/entity/player/PlayerInventory
+class net/minecraft/entity/player/PlayerCapabilities               net/minecraft/entity/player/PlayerAbilities
+class net/minecraft/entity/projectile/EntityArrow                  net/minecraft/entity/projectile/PersistentProjectileEntity
+class net/minecraft/entity/projectile/EntityEgg                    net/minecraft/entity/projectile/thrown/EggEntity
+class net/minecraft/entity/projectile/EntityFireball               net/minecraft/entity/projectile/AbstractFireballEntity
+class net/minecraft/entity/projectile/EntityFishHook               net/minecraft/entity/projectile/FishingBobberEntity
+class net/minecraft/entity/projectile/EntityLargeFireball          net/minecraft/entity/projectile/FireballEntity
+class net/minecraft/entity/projectile/EntitySnowball               net/minecraft/entity/projectile/thrown/SnowballEntity
+class net/minecraft/init/Blocks                                    net/minecraft/block/Blocks
+class net/minecraft/init/Items                                     net/minecraft/item/Items
+class net/minecraft/inventory/Container                            net/minecraft/screen/ScreenHandler
+class net/minecraft/inventory/ContainerChest                       net/minecraft/screen/GenericContainerScreenHandler
+class net/minecraft/inventory/ContainerPlayer                      net/minecraft/screen/PlayerScreenHandler
+class net/minecraft/inventory/IInventory                           net/minecraft/inventory/Inventory
+class net/minecraft/inventory/Slot                                 net/minecraft/screen/slot/Slot
+class net/minecraft/item/Item                                      net/minecraft/item/Item
+class net/minecraft/item/ItemAxe                                   net/minecraft/item/AxeItem
+class net/minecraft/item/ItemBlock                                 net/minecraft/item/BlockItem
+class net/minecraft/item/ItemBow                                   net/minecraft/item/BowItem
+class net/minecraft/item/ItemBucket                                net/minecraft/item/BucketItem
+class net/minecraft/item/ItemEgg                                   net/minecraft/item/EggItem
+class net/minecraft/item/ItemEnderPearl                            net/minecraft/item/EnderPearlItem
+class net/minecraft/item/ItemExpBottle                             net/minecraft/item/ExperienceBottleItem
+class net/minecraft/item/ItemFireball                              net/minecraft/item/FireChargeItem
+class net/minecraft/item/ItemFishingRod                            net/minecraft/item/FishingRodItem
+class net/minecraft/item/ItemFlintAndSteel                         net/minecraft/item/FlintAndSteelItem
+class net/minecraft/item/ItemHoe                                   net/minecraft/item/HoeItem
+class net/minecraft/item/ItemPotion                                net/minecraft/item/PotionItem
+class net/minecraft/item/ItemShears                                net/minecraft/item/ShearsItem
+class net/minecraft/item/ItemSnowball                              net/minecraft/item/SnowballItem
+class net/minecraft/item/ItemSpade                                 net/minecraft/item/ShovelItem
+class net/minecraft/item/ItemStack                                 net/minecraft/item/ItemStack
+class net/minecraft/nbt/NBTTagCompound                             net/minecraft/nbt/NbtCompound
+class net/minecraft/nbt/NBTTagList                                 net/minecraft/nbt/NbtList
+class net/minecraft/network/EnumConnectionState                    net/minecraft/network/NetworkPhase
+class net/minecraft/network/Packet                                 net/minecraft/network/packet/Packet
+class net/minecraft/network/play/client/C00PacketKeepAlive         net/minecraft/network/packet/c2s/common/KeepAliveC2SPacket
+class net/minecraft/network/play/client/C01PacketChatMessage       net/minecraft/network/packet/c2s/play/ChatMessageC2SPacket
+class net/minecraft/network/play/client/C02PacketUseEntity         net/minecraft/network/packet/c2s/play/PlayerInteractEntityC2SPacket
+class net/minecraft/network/play/client/C03PacketPlayer            net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket
+class net/minecraft/network/play/client/C03PacketPlayer$C04PacketPlayerPosition net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket$PositionAndOnGround
+class net/minecraft/network/play/client/C03PacketPlayer$C05PacketPlayerLook net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket$LookAndOnGround
+class net/minecraft/network/play/client/C03PacketPlayer$C06PacketPlayerPosLook net/minecraft/network/packet/c2s/play/PlayerMoveC2SPacket$Full
+class net/minecraft/network/play/client/C07PacketPlayerDigging     net/minecraft/network/packet/c2s/play/PlayerActionC2SPacket
+class net/minecraft/network/play/client/C07PacketPlayerDigging$Action net/minecraft/network/packet/c2s/play/PlayerActionC2SPacket$Action
+class net/minecraft/network/play/client/C08PacketPlayerBlockPlacement net/minecraft/network/packet/Packet
+class net/minecraft/network/play/client/C09PacketHeldItemChange    net/minecraft/network/packet/c2s/play/UpdateSelectedSlotC2SPacket
+class net/minecraft/network/play/client/C0APacketAnimation         net/minecraft/network/packet/c2s/play/HandSwingC2SPacket
+class net/minecraft/network/play/client/C0DPacketCloseWindow       net/minecraft/network/packet/c2s/play/CloseHandledScreenC2SPacket
+class net/minecraft/network/play/client/C0EPacketClickWindow       net/minecraft/network/packet/c2s/play/ClickSlotC2SPacket
+class net/minecraft/network/play/client/C0FPacketConfirmTransaction net/minecraft/network/packet/c2s/common/CommonPongC2SPacket
+class net/minecraft/network/play/server/S00PacketKeepAlive         net/minecraft/network/packet/s2c/common/KeepAliveS2CPacket
+class net/minecraft/network/play/server/S01PacketJoinGame          net/minecraft/network/packet/s2c/play/GameJoinS2CPacket
+class net/minecraft/network/play/server/S02PacketChat              net/minecraft/network/packet/s2c/play/GameMessageS2CPacket
+class net/minecraft/network/play/server/S04PacketEntityEquipment   net/minecraft/network/packet/s2c/play/EntityEquipmentUpdateS2CPacket
+class net/minecraft/network/play/server/S06PacketUpdateHealth      net/minecraft/network/packet/s2c/play/HealthUpdateS2CPacket
+class net/minecraft/network/play/server/S07PacketRespawn           net/minecraft/network/packet/s2c/play/PlayerRespawnS2CPacket
+class net/minecraft/network/play/server/S08PacketPlayerPosLook     net/minecraft/network/packet/s2c/play/PlayerPositionLookS2CPacket
+class net/minecraft/network/play/server/S0BPacketAnimation         net/minecraft/network/packet/s2c/play/EntityAnimationS2CPacket
+class net/minecraft/network/play/server/S0DPacketCollectItem       net/minecraft/network/packet/s2c/play/ItemPickupAnimationS2CPacket
+class net/minecraft/network/play/server/S0EPacketSpawnObject       net/minecraft/network/packet/s2c/play/EntitySpawnS2CPacket
+class net/minecraft/network/play/server/S12PacketEntityVelocity    net/minecraft/network/packet/s2c/play/EntityVelocityUpdateS2CPacket
+class net/minecraft/network/play/server/S13PacketDestroyEntities   net/minecraft/network/packet/s2c/play/EntitiesDestroyS2CPacket
+class net/minecraft/network/play/server/S14PacketEntity            net/minecraft/network/packet/s2c/play/EntityS2CPacket
+class net/minecraft/network/play/server/S18PacketEntityTeleport    net/minecraft/network/packet/s2c/play/EntityPositionS2CPacket
+class net/minecraft/network/play/server/S19PacketEntityHeadLook    net/minecraft/network/packet/s2c/play/EntitySetHeadYawS2CPacket
+class net/minecraft/network/play/server/S19PacketEntityStatus      net/minecraft/network/packet/s2c/play/EntityStatusS2CPacket
+class net/minecraft/network/play/server/S1BPacketEntityAttach      net/minecraft/network/packet/s2c/play/EntityAttachS2CPacket
+class net/minecraft/network/play/server/S1CPacketEntityMetadata    net/minecraft/network/packet/s2c/play/EntityTrackerUpdateS2CPacket
+class net/minecraft/network/play/server/S1DPacketEntityEffect      net/minecraft/network/packet/s2c/play/EntityStatusEffectS2CPacket
+class net/minecraft/network/play/server/S1EPacketRemoveEntityEffect net/minecraft/network/packet/s2c/play/RemoveEntityStatusEffectS2CPacket
+class net/minecraft/network/play/server/S20PacketEntityProperties  net/minecraft/network/packet/s2c/play/EntityAttributesS2CPacket
+class net/minecraft/network/play/server/S21PacketChunkData         net/minecraft/network/packet/s2c/play/ChunkDataS2CPacket
+class net/minecraft/network/play/server/S22PacketMultiBlockChange  net/minecraft/network/packet/s2c/play/ChunkDeltaUpdateS2CPacket
+class net/minecraft/network/play/server/S23PacketBlockChange       net/minecraft/network/packet/s2c/play/BlockUpdateS2CPacket
+class net/minecraft/network/play/server/S24PacketBlockAction       net/minecraft/network/packet/s2c/play/BlockEventS2CPacket
+class net/minecraft/network/play/server/S25PacketBlockBreakAnim    net/minecraft/network/packet/s2c/play/BlockBreakingProgressS2CPacket
+class net/minecraft/network/play/server/S27PacketExplosion         net/minecraft/network/packet/s2c/play/ExplosionS2CPacket
+class net/minecraft/network/play/server/S28PacketEffect            net/minecraft/network/packet/s2c/play/WorldEventS2CPacket
+class net/minecraft/network/play/server/S29PacketSoundEffect       net/minecraft/network/packet/s2c/play/PlaySoundS2CPacket
+class net/minecraft/network/play/server/S2EPacketCloseWindow       net/minecraft/network/packet/s2c/play/CloseScreenS2CPacket
+class net/minecraft/network/play/server/S2FPacketSetSlot           net/minecraft/network/packet/s2c/play/ScreenHandlerSlotUpdateS2CPacket
+class net/minecraft/network/play/server/S30PacketWindowItems       net/minecraft/network/packet/s2c/play/InventoryS2CPacket
+class net/minecraft/network/play/server/S32PacketConfirmTransaction net/minecraft/network/packet/s2c/common/CommonPingS2CPacket
+class net/minecraft/network/play/server/S33PacketUpdateSign        net/minecraft/network/packet/s2c/play/SignEditorOpenS2CPacket
+class net/minecraft/network/play/server/S35PacketUpdateTileEntity  net/minecraft/network/packet/s2c/play/BlockEntityUpdateS2CPacket
+class net/minecraft/network/play/server/S38PacketPlayerListItem    net/minecraft/network/packet/s2c/play/PlayerListS2CPacket
+class net/minecraft/network/play/server/S39PacketPlayerAbilities   net/minecraft/network/packet/s2c/play/PlayerAbilitiesS2CPacket
+class net/minecraft/network/play/server/S3BPacketScoreboardObjective net/minecraft/network/packet/s2c/play/ScoreboardObjectiveUpdateS2CPacket
+class net/minecraft/network/play/server/S3CPacketUpdateScore       net/minecraft/network/packet/s2c/play/ScoreboardScoreUpdateS2CPacket
+class net/minecraft/network/play/server/S3DPacketDisplayScoreboard net/minecraft/network/packet/s2c/play/ScoreboardDisplayS2CPacket
+class net/minecraft/network/play/server/S3EPacketTeams             net/minecraft/network/packet/s2c/play/TeamS2CPacket
+class net/minecraft/network/play/server/S3FPacketCustomPayload     net/minecraft/network/packet/s2c/common/CustomPayloadS2CPacket
+class net/minecraft/network/play/server/S40PacketDisconnect        net/minecraft/network/packet/s2c/common/DisconnectS2CPacket
+class net/minecraft/network/play/server/S45PacketTitle             net/minecraft/network/packet/s2c/play/TitleS2CPacket
+class net/minecraft/network/play/server/S47PacketPlayerListHeaderFooter net/minecraft/network/packet/s2c/play/PlayerListHeaderS2CPacket
+class net/minecraft/network/play/server/S48PacketResourcePackSend  net/minecraft/network/packet/s2c/common/ResourcePackSendS2CPacket
+class net/minecraft/potion/Potion                                       net/minecraft/registry/entry/RegistryEntry
+class net/minecraft/potion/PotionEffect                            net/minecraft/entity/effect/StatusEffectInstance
+class net/minecraft/scoreboard/Score                               net/minecraft/scoreboard/ScoreboardEntry
+class net/minecraft/scoreboard/ScoreObjective                      net/minecraft/scoreboard/ScoreboardObjective
+class net/minecraft/scoreboard/ScorePlayerTeam                     net/minecraft/scoreboard/Team
+class net/minecraft/scoreboard/Scoreboard                          net/minecraft/scoreboard/Scoreboard
+class net/minecraft/tileentity/TileEntity                          net/minecraft/block/entity/BlockEntity
+class net/minecraft/tileentity/TileEntityChest                     net/minecraft/block/entity/ChestBlockEntity
+class net/minecraft/tileentity/TileEntityDispenser                 net/minecraft/block/entity/DispenserBlockEntity
+class net/minecraft/tileentity/TileEntityDropper                   net/minecraft/block/entity/DropperBlockEntity
+class net/minecraft/tileentity/TileEntityEnderChest                net/minecraft/block/entity/EnderChestBlockEntity
+class net/minecraft/tileentity/TileEntityFurnace                   net/minecraft/block/entity/FurnaceBlockEntity
+class net/minecraft/tileentity/TileEntityHopper                    net/minecraft/block/entity/HopperBlockEntity
+class net/minecraft/tileentity/TileEntityMobSpawner                net/minecraft/block/entity/MobSpawnerBlockEntity
+class net/minecraft/tileentity/MobSpawnerBaseLogic                 net/minecraft/block/entity/MobSpawnerBlockEntity
+class net/minecraft/util/AxisAlignedBB                             net/minecraft/util/math/Box
+class net/minecraft/util/BlockPos                                  net/minecraft/util/math/BlockPos
+class net/minecraft/util/BlockPos$MutableBlockPos                  net/minecraft/util/math/BlockPos$Mutable
+class net/minecraft/util/ChatComponentText                         net/minecraft/text/MutableText
+class net/minecraft/util/ChatStyle                                 net/minecraft/text/Style
+class net/minecraft/util/DamageSource                              net/minecraft/entity/damage/DamageSource
+class net/minecraft/util/EnumChatFormatting                        net/minecraft/util/Formatting
+class net/minecraft/util/EnumFacing                                net/minecraft/util/math/Direction
+class net/minecraft/util/EnumFacing$Axis                           net/minecraft/util/math/Direction$Axis
+class net/minecraft/util/FoodStats                                 net/minecraft/entity/player/HungerManager
+class net/minecraft/util/IChatComponent                            net/minecraft/text/Text
+class net/minecraft/util/MathHelper                                net/minecraft/util/math/MathHelper
+class net/minecraft/util/MouseHelper                               net/minecraft/client/Mouse
+class net/minecraft/util/MovementInput                             net/minecraft/client/input/Input
+class net/minecraft/util/MovementInputFromOptions                  net/minecraft/client/input/KeyboardInput
+class net/minecraft/util/MovingObjectPosition                      net/minecraft/util/hit/HitResult
+class net/minecraft/util/MovingObjectPosition$MovingObjectType     net/minecraft/util/hit/HitResult$Type
+class net/minecraft/util/ResourceLocation                          net/minecraft/util/Identifier
+class net/minecraft/util/Session                                   net/minecraft/client/session/Session
+class net/minecraft/util/Vec3                                      net/minecraft/util/math/Vec3d
+class net/minecraft/util/Vec3i                                     net/minecraft/util/math/Vec3i
+class net/minecraft/world/IBlockAccess                             net/minecraft/world/BlockView
+class net/minecraft/world/World                                    net/minecraft/world/World
+class net/minecraft/world/WorldProvider                            net/minecraft/world/World
+class net/minecraft/world/WorldSettings$GameType                   net/minecraft/world/GameMode
+class net/minecraft/world/chunk/Chunk                              net/minecraft/world/chunk/WorldChunk
+class net/minecraft/world/chunk/EmptyChunk                         net/minecraft/world/chunk/EmptyChunk
+class net/minecraft/world/chunk/storage/ExtendedBlockStorage       net/minecraft/world/chunk/ChunkSection
+
+# No 1.21 counterpart: nothing is ever one of these.
+class net/minecraft/network/play/server/S11PacketSpawnExperienceOrb   cobble/v1_21/compat/Absent
+class net/minecraft/network/play/server/S0APacketUseBed              cobble/v1_21/compat/Absent
+class net/minecraft/network/play/server/S0CPacketSpawnPlayer         cobble/v1_21/compat/Absent
+class net/minecraft/network/play/server/S0FPacketSpawnMob            cobble/v1_21/compat/Absent
+class net/minecraft/network/play/server/S10PacketSpawnPainting       cobble/v1_21/compat/Absent
+class net/minecraft/network/play/server/S26PacketMapChunkBulk        cobble/v1_21/compat/Absent
+class net/minecraft/network/play/server/S2CPacketSpawnGlobalEntity   cobble/v1_21/compat/Absent
+
+# LWJGL 2's input polling, on GLFW.
+class org/lwjgl/input/Keyboard                                        cobble/v1_21/compat/Keyboard
+class org/lwjgl/input/Mouse                                           cobble/v1_21/compat/Mouse
+
+# 1.8's scaled resolution is what 1.21's window reports itself.
+class net/minecraft/client/gui/ScaledResolution                       net/minecraft/client/util/Window
+
+# Packet handling.
+class net/minecraft/network/INetHandler                                net/minecraft/network/listener/PacketListener
+class net/minecraft/network/ThreadQuickExitException                  net/minecraft/network/OffThreadException
+
+# 1.8's timer is 1.21's render tick counter; its speed is the tick length hook's.
+class net/minecraft/util/Timer                                        net/minecraft/client/render/RenderTickCounter
+
+# Item classes 1.21 replaced with tags and components: the class is any item,
+# and a test against it asks the tag or component instead.
+class net/minecraft/item/ItemSword                                    net/minecraft/item/Item
+class net/minecraft/item/ItemPickaxe                                  net/minecraft/item/Item
+class net/minecraft/item/ItemTool                                     net/minecraft/item/Item
+class net/minecraft/item/ItemArmor                                    net/minecraft/item/Item
+class net/minecraft/item/ItemArmor$ArmorMaterial                       cobble/v1_21/compat/ArmorMaterial
+class net/minecraft/item/ItemFood                                     net/minecraft/item/Item
+instanceof net/minecraft/item/ItemSword    static cobble/v1_21/compat/ItemTypes.isSword(Ljava/lang/Object;)Z
+instanceof net/minecraft/item/ItemPickaxe  static cobble/v1_21/compat/ItemTypes.isPickaxe(Ljava/lang/Object;)Z
+instanceof net/minecraft/item/ItemTool     static cobble/v1_21/compat/ItemTypes.isTool(Ljava/lang/Object;)Z
+instanceof net/minecraft/item/ItemArmor    static cobble/v1_21/compat/ItemTypes.isArmor(Ljava/lang/Object;)Z
+instanceof net/minecraft/item/ItemFood     static cobble/v1_21/compat/ItemTypes.isFood(Ljava/lang/Object;)Z
+instanceof net/minecraft/network/play/client/C08PacketPlayerBlockPlacement static cobble/v1_21/compat/C08PacketPlayerBlockPlacementShim.isPlacement(Ljava/lang/Object;)Z
+class net/minecraft/network/play/client/C02PacketUseEntity$Action     cobble/v1_21/compat/UseEntityAction
+class net/minecraft/item/Item$ToolMaterial                            net/minecraft/item/ToolMaterial
+
+# Blocks and their properties.
+class net/minecraft/block/BlockBed$EnumPartType                       net/minecraft/block/enums/BedPart
+class net/minecraft/block/BlockStairs$EnumHalf                        net/minecraft/block/enums/BlockHalf
+class net/minecraft/block/BlockDirectional                            net/minecraft/block/HorizontalFacingBlock
+class net/minecraft/block/BlockClay                                   cobble/v1_21/compat/Absent
+class net/minecraft/block/material/Material                           cobble/v1_21/compat/Material
+class net/minecraft/block/properties/IProperty                        net/minecraft/state/property/Property
+class net/minecraft/block/properties/PropertyEnum                     net/minecraft/state/property/EnumProperty
+class net/minecraft/block/properties/PropertyDirection                net/minecraft/state/property/EnumProperty
+
+# Registries, text and attributes.
+class net/minecraft/util/RegistryNamespaced                           net/minecraft/registry/Registry
+class net/minecraft/util/RegistryNamespacedDefaultedByKey             net/minecraft/registry/Registry
+class net/minecraft/util/ChatComponentStyle                           net/minecraft/text/MutableText
+class net/minecraft/world/IWorldNameable                              net/minecraft/util/Nameable
+class net/minecraft/entity/ai/attributes/IAttribute                   net/minecraft/registry/entry/RegistryEntry
+class net/minecraft/network/EnumPacketDirection                       net/minecraft/network/NetworkSide
+class net/minecraft/block/BlockDeadBush                               net/minecraft/block/DryVegetationBlock
+class net/minecraft/block/BlockDynamicLiquid                          net/minecraft/block/FluidBlock
+class net/minecraft/block/BlockStaticLiquid                           net/minecraft/block/FluidBlock
+class net/minecraft/block/BlockFire                                   net/minecraft/block/FireBlock
+class net/minecraft/block/BlockStainedGlass                           net/minecraft/block/StainedGlassBlock
+class net/minecraft/entity/EnumCreatureAttribute                        cobble/v1_21/compat/CreatureAttribute
+class net/minecraft/network/PacketBuffer                                 net/minecraft/network/PacketByteBuf
+class net/minecraft/network/play/client/C16PacketClientStatus          net/minecraft/network/packet/Packet
+class net/minecraft/network/play/client/C16PacketClientStatus$EnumState cobble/v1_21/compat/ClientStatusMode
+instanceof net/minecraft/network/play/client/C16PacketClientStatus static cobble/v1_21/compat/C16PacketClientStatusShim.isClientStatus(Ljava/lang/Object;)Z
+
+
+# The legacy code's own menu screen is 1.21's.
+instanceof cobble/hook/MenuScreen    static cobble/v1_21/compat/Screens.isMenu(Ljava/lang/Object;)Z
+
+# 1.21 has no item subtypes for creative tabs to list; every item is its one stack.
+class net/minecraft/creativetab/CreativeTabs                          cobble/v1_21/compat/Absent
+
+# The legacy drawing code's GL, on 1.21's core context: see GlEmu.
+class org/lwjgl/opengl/GL11                                           cobble/v1_21/compat/GL11
+class org/lwjgl/util/glu/GLU                                          cobble/v1_21/compat/GLU
+class org/lwjgl/opengl/Display                                        cobble/v1_21/compat/Display
+class net/minecraft/client/renderer/GlStateManager                    cobble/v1_21/compat/GlStateManager
+class net/minecraft/client/renderer/Tessellator                       cobble/v1_21/compat/Tessellator
+class net/minecraft/client/renderer/WorldRenderer                     cobble/v1_21/compat/WorldRenderer
+class net/minecraft/client/renderer/vertex/VertexFormat               cobble/v1_21/compat/VertexFormat
+class net/minecraft/client/renderer/vertex/DefaultVertexFormats       cobble/v1_21/compat/DefaultVertexFormats
+class net/minecraft/client/renderer/OpenGlHelper                      cobble/v1_21/compat/OpenGlHelper
+class net/minecraft/client/renderer/RenderHelper                      cobble/v1_21/compat/RenderHelper
+class net/minecraft/client/renderer/culling/Frustum                   cobble/v1_21/compat/Frustum
+class net/minecraft/client/renderer/ActiveRenderInfo                  cobble/v1_21/compat/ActiveRenderInfo
+class net/minecraft/client/renderer/entity/RenderManager              cobble/v1_21/compat/RenderManager
+class net/minecraft/client/renderer/entity/RenderItem                 cobble/v1_21/compat/RenderItem
+class net/minecraft/client/renderer/texture/TextureManager            cobble/v1_21/compat/TextureManager
+class net/minecraft/client/renderer/texture/DynamicTexture            cobble/v1_21/compat/DynamicTexture
+class net/minecraft/client/gui/FontRenderer                           cobble/v1_21/compat/FontRenderer
+class net/minecraft/client/gui/Gui                                    cobble/v1_21/compat/Gui
+class net/minecraft/client/renderer/EntityRenderer                    net/minecraft/client/render/GameRenderer
+class net/minecraft/client/renderer/RenderGlobal                      net/minecraft/client/render/WorldRenderer
+method cobble/util/render/RoundedRect.drawRoundedRectArgb(FFFFFI)V  static cobble/v1_21/compat/LegacyDraw.roundedRect(FFFFFI)V
+method cobble/util/render/RoundedRect.drawRoundedRectWithCornerFlags(FFFFFIZZZZ)V  static cobble/v1_21/compat/LegacyDraw.roundedRect(FFFFFIZZZZ)V
+class net/minecraft/nbt/NBTBase                                       net/minecraft/nbt/NbtElement
+
+# Modules whose effect is a 1.8 hook 1.21 has none of yet: left out on 1.21 rather than shown and doing nothing.

@@ -275,6 +275,22 @@ bool acquireJvmti() {
     return true;
 }
 
+/* The game's main class under the names each Lunar version runs with: MCP on
+ * 1.7 and 1.8, Fabric intermediary (MinecraftClient) from 1.20 on. */
+constexpr const char* kMinecraftSignatures[] = {
+    "Lnet/minecraft/client/Minecraft;",
+    "Lnet/minecraft/class_310;",
+};
+
+bool isMinecraftClass(const char* signature) {
+    for (const char* candidate : kMinecraftSignatures) {
+        if (std::strcmp(signature, candidate) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* A worker thread with no Java frames resolves FindClass against the system
  * loader, which cannot see the game, so the Minecraft class is found by
  * signature among everything the VM has loaded. Polls, because the injector
@@ -293,7 +309,7 @@ jobject findMinecraftLoader(JNIEnv* env) {
                 char* signature = nullptr;
                 if (g_jvmti->GetClassSignature(classes[i], &signature, nullptr) ==
                     JVMTI_ERROR_NONE) {
-                    if (std::strcmp(signature, "Lnet/minecraft/client/Minecraft;") == 0) {
+                    if (isMinecraftClass(signature)) {
                         g_jvmti->GetClassLoader(classes[i], &loader);
                     }
                     g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(signature));
@@ -307,7 +323,7 @@ jobject findMinecraftLoader(JNIEnv* env) {
         }
         Sleep(500);
     }
-    LOG_ERROR("net.minecraft.client.Minecraft was never loaded");
+    LOG_ERROR("the Minecraft class was never loaded");
     return nullptr;
 }
 

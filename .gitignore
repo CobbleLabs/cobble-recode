@@ -1,7 +1,6 @@
 # Personal / local-only (never push)
 .freebuff/
 usefulinfo/
-Rise-6.9.5/
 *.py
 
 # Build output
