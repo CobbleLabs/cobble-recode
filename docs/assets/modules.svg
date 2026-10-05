@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="196" viewBox="0 0 1280 196" role="img" aria-label="120 modules by category">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="196" viewBox="0 0 1280 196" role="img" aria-label="126 modules by category">
   <defs>
     <linearGradient id="title" gradientUnits="userSpaceOnUse" x1="40" y1="0" x2="240" y2="0">
       <stop offset="0" stop-color="#FFD2A6"/><stop offset="0.5" stop-color="#F2A8C8"/><stop offset="1" stop-color="#BDA4BD"/>
@@ -6,23 +6,23 @@
   </defs>
   <g font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif">
     <rect x="1" y="1" width="1278" height="194" rx="22" fill="#13151B" stroke="#FFFFFF" stroke-opacity="0.07"/>
-    <text x="40" y="62" font-size="30" font-weight="800" fill="url(#title)">120 modules</text>
+    <text x="40" y="62" font-size="30" font-weight="800" fill="url(#title)">126 modules</text>
     <text x="1240" y="62" text-anchor="end" font-size="16" fill="#FFFFFF" fill-opacity="0.55">Each filed as Basic, Medium or Advanced</text>
     <clipPath id="bar"><rect x="40" y="92" width="1200" height="18" rx="9"/></clipPath>
     <g clip-path="url(#bar)">
-    <rect x="40.0" y="92" width="237.0" height="18" fill="#F2A8C8"/>
-    <rect x="280.0" y="92" width="357.0" height="18" fill="#FFD2A6"/>
-    <rect x="640.0" y="92" width="127.0" height="18" fill="#FFB98A"/>
-    <rect x="770.0" y="92" width="227.0" height="18" fill="#BDA4BD"/>
-    <rect x="1000.0" y="92" width="47.0" height="18" fill="#D9B8E8"/>
-    <rect x="1050.0" y="92" width="117.0" height="18" fill="#8FD3FF"/>
-    <rect x="1170.0" y="92" width="47.0" height="18" fill="#A9C7FF"/>
-    <rect x="1220.0" y="92" width="17.0" height="18" fill="#C9CED8"/>
+    <rect x="40.0" y="92" width="252.6" height="18" fill="#F2A8C8"/>
+    <rect x="295.6" y="92" width="364.9" height="18" fill="#FFD2A6"/>
+    <rect x="663.6" y="92" width="121.6" height="18" fill="#FFB98A"/>
+    <rect x="788.2" y="92" width="215.2" height="18" fill="#BDA4BD"/>
+    <rect x="1006.4" y="92" width="46.8" height="18" fill="#D9B8E8"/>
+    <rect x="1056.2" y="92" width="112.3" height="18" fill="#8FD3FF"/>
+    <rect x="1171.5" y="92" width="46.8" height="18" fill="#A9C7FF"/>
+    <rect x="1221.3" y="92" width="18.7" height="18" fill="#C9CED8"/>
     </g>
     <circle cx="48.0" cy="148" r="6" fill="#F2A8C8"/>
-    <text x="62.0" y="154" font-size="16" fill="#FFFFFF" fill-opacity="0.82">Combat <tspan fill-opacity="0.5">24</tspan></text>
+    <text x="62.0" y="154" font-size="16" fill="#FFFFFF" fill-opacity="0.82">Combat <tspan fill-opacity="0.5">27</tspan></text>
     <circle cx="162.1" cy="148" r="6" fill="#FFD2A6"/>
-    <text x="176.1" y="154" font-size="16" fill="#FFFFFF" fill-opacity="0.82">Player <tspan fill-opacity="0.5">36</tspan></text>
+    <text x="176.1" y="154" font-size="16" fill="#FFFFFF" fill-opacity="0.82">Player <tspan fill-opacity="0.5">39</tspan></text>
     <circle cx="276.2" cy="148" r="6" fill="#FFB98A"/>
     <text x="290.2" y="154" font-size="16" fill="#FFFFFF" fill-opacity="0.82">Movement <tspan fill-opacity="0.5">13</tspan></text>
     <circle cx="408.1" cy="148" r="6" fill="#BDA4BD"/>

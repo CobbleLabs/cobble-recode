@@ -5,17 +5,18 @@
 <br>
 <br>
 
-![Minecraft](https://img.shields.io/badge/Minecraft-1.8.9-BDA4BD?style=flat-square&labelColor=171A21)
-![Lunar Client](https://img.shields.io/badge/Lunar_Client-1.8.9-F2A8C8?style=flat-square&labelColor=171A21)
+![Minecraft](https://img.shields.io/badge/Minecraft-1.7.10_%7C_1.8.9_%7C_1.21.11-BDA4BD?style=flat-square&labelColor=171A21)
+![Lunar Client](https://img.shields.io/badge/Lunar_Client-one_build-F2A8C8?style=flat-square&labelColor=171A21)
 ![Java](https://img.shields.io/badge/Java-17-FFD2A6?style=flat-square&labelColor=171A21&logo=openjdk&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows-x64-8FD3FF?style=flat-square&labelColor=171A21)
 ![Lua](https://img.shields.io/badge/Scripting-Lua-F2A8C8?style=flat-square&labelColor=171A21&logo=lua&logoColor=white)
-![Modules](https://img.shields.io/badge/Modules-120-FFD2A6?style=flat-square&labelColor=171A21)
+![Modules](https://img.shields.io/badge/Modules-126-FFD2A6?style=flat-square&labelColor=171A21)
 
 **[cobble.vip](https://cobble.vip)**
 
 [Features](#features) ·
 [Getting started](#getting-started) ·
+[Versions](#versions) ·
 [The client](#the-client) ·
 [Modules](#modules) ·
 [Scripting](#scripting) ·
@@ -26,11 +27,13 @@
 
 <br>
 
-Cobble Recode is a client for **Lunar Client on Minecraft 1.8.9**. It is not a mod
-and it is not a launcher. You start the game the way you always do, run one small
-executable, and the client loads straight into the running game: modules, menu,
-HUD and a Lua runtime, all from memory. When you are done, hold <kbd>End</kbd> and
-it leaves again, with Minecraft still running.
+Cobble Recode is a client for **Lunar Client on Minecraft 1.7.10, 1.8.9 and
+1.21.11**. It is not a mod and it is not a launcher. You start the game the way you
+always do, run one small executable, and the client loads straight into the
+running game: modules, menu, HUD and a Lua runtime, all from memory. The same
+build works on all three versions; it finds out which one it is in and loads the
+modules that work there. When you are done, hold <kbd>End</kbd> and it leaves
+again, with Minecraft still running.
 
 <br>
 <img src="docs/assets/divider.svg" width="100%" alt="">
@@ -47,10 +50,10 @@ it leaves again, with Minecraft still running.
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Getting started
 
 > [!NOTE]
-> You need Windows x64 and Lunar Client on **1.8.9**. That is all; the client
-> brings everything else with it.
+> You need Windows x64 and Lunar Client on **1.7.10, 1.8.9 or 1.21.11**. That is
+> all; the client brings everything else with it.
 
-1. Open Lunar Client on 1.8.9 and join a world or a server.
+1. Open Lunar Client on one of those versions and join a world or a server.
 2. Run **`cobble-injector.exe`** and pick the game window.
 3. Press <kbd>Insert</kbd>. The menu opens at the top of the screen.
 
@@ -76,6 +79,31 @@ folders:
 > [!TIP]
 > If something looks off, `cobble.log` says which hook was skipped and why, and
 > which handler threw.
+
+<br>
+<img src="docs/assets/divider.svg" width="100%" alt="">
+<br>
+
+## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Versions
+
+| | 1.7.10 | 1.8.9 | 1.21.11 |
+| :-- | :-: | :-: | :-: |
+| **Modules** | 120 | 122 | 121 |
+| **Game names** | MCP, retargeted | MCP | Fabric intermediary, retargeted |
+
+Most modules are written once and run everywhere. A few only make sense on one
+side of the 1.9 combat update, and the client hides them where they do not:
+
+| Only on 1.21.11 | Only before the combat update |
+| :-- | :-- |
+| AutoAnchor, CrystalAura, AutoTotem, WindCharge: their items are not in the older versions | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock) |
+
+BedPlates does not load on 1.21.11 yet, and NickBot and BedPlates do not load on
+1.7.10.
+
+On 1.21.11 the client knows its way around what Lunar runs there: chunks are
+built by Sodium, which Xray hooks directly, and Lunar's cosmetic cloaks give way
+to the Cape module's when you pick one.
 
 <br>
 <img src="docs/assets/divider.svg" width="100%" alt="">
@@ -135,29 +163,32 @@ next to a real 3D model of their skin that you can turn with the mouse.
 
 ## <img src="docs/assets/section-modules.svg" height="30" align="top" alt=""> Modules
 
-<img src="docs/assets/modules.svg" width="100%" alt="120 modules: Combat 24, Player 36, Movement 13, Visuals 23, HUD 5, Minigames 12, Other 5, Client 2">
+<img src="docs/assets/modules.svg" width="100%" alt="126 modules: Combat 27, Player 39, Movement 13, Visuals 23, HUD 5, Minigames 12, Other 5, Client 2">
 
 Every module is filed as
 <img src="docs/assets/tier-basic.svg" alt="Basic" align="absmiddle">
 <img src="docs/assets/tier-medium.svg" alt="Medium" align="absmiddle"> or
 <img src="docs/assets/tier-advanced.svg" alt="Advanced" align="absmiddle">,
-so a tab can show only what you are after.
+so a tab can show only what you are after. Modules tagged *1.21* or *1.8* are
+only shown on those versions; see [Versions](#versions).
 
 <details>
-<summary><b>Combat</b> · 24 modules</summary>
+<summary><b>Combat</b> · 27 modules</summary>
 <br>
 
 | Module | Tier | What it does |
 | :-- | :-: | :-- |
 | **AimAssist** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Pulls your aim toward the nearest target |
 | **AttributeSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to your best sword for the hit, then back |
+| **AutoAnchor** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places, charges and sets off a respawn anchor, with an aim assist so no use misses · *1.21* |
 | **AutoAim** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims bows and rods where the target will be |
-| **AutoBlock** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks with the sword between hits, in custom, swap or predict timing |
+| **AutoBlock** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks with the sword between hits, in custom, swap or predict timing · *1.8* |
 | **AutoClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks for you while you hold left, on a human timing model |
 | **AutoFeed** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Stops attacks that would finish an enemy |
 | **Backtrack** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Delays incoming packets so you hit where targets were |
-| **BlockHit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks between hits on the beat of your clicks |
+| **BlockHit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks between hits on the beat of your clicks · *1.8* |
 | **Criticals** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hops on the hit so the next swings crit |
+| **CrystalAura** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places and breaks end crystals where you look, or on its own by the damage each would do · *1.21* |
 | **Displace** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Turns on the hit so the knockback throws them sideways |
 | **Fisherman** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Paces swings and forward movement on the nearest target to chain knockback |
 | **HitBoxes** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Expands entities' hitboxes |
@@ -170,6 +201,7 @@ so a tab can show only what you are after.
 | **Reach** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits players a little past vanilla's reach |
 | **Reduce** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks back when hit to cut the knockback |
 | **RightClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks right for you while you hold it |
+| **SilentAura** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims at and hits nearby players without moving your view, waiting out the attack cooldown |
 | **TriggerBot** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Attacks whatever the crosshair is already on |
 | **Velocity** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Cuts knockback by a share, a jump reset, a delay or a hard reset, or raises it to kite |
 | **WTap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | W-taps every landed hit |
@@ -177,7 +209,7 @@ so a tab can show only what you are after.
 </details>
 
 <details>
-<summary><b>Player</b> · 36 modules</summary>
+<summary><b>Player</b> · 39 modules</summary>
 <br>
 
 | Module | Tier | What it does |
@@ -188,9 +220,11 @@ so a tab can show only what you are after.
 | **AutoArmor** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Puts on the best armor you carry, openly, gliding the cursor or silently |
 | **AutoDeflect** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hits incoming fireballs back |
 | **AutoFish** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Fishes for you |
+| **AutoPearl** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Throws a pearl to where an enemy's will land |
 | **AutoRefill** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Refills the hotbar with soup and pots |
 | **AutoSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Moves to the next block stack when one runs out |
 | **AutoTool** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to the fastest tool for whatever you are breaking |
+| **AutoTotem** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Keeps a totem in your off hand · *1.21* |
 | **BedNuker** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Breaks beds within reach, through walls |
 | **Blink** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Holds packets back, inbound, outbound or both, and lets them go at once |
 | **BlockIn** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Surrounds you with blocks |
@@ -212,12 +246,13 @@ so a tab can show only what you are after.
 | **MLG** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places water under you to cancel fall damage |
 | **NoFall** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Prevents fall damage |
 | **NoItemRelease** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps using the item after you let go |
-| **PotionSaver** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Saves your potion effects while standing still |
-| **Regen** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Regenerates health quicker |
+| **PotionSaver** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Saves your potion effects while standing still · *1.8* |
+| **Regen** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Regenerates health quicker · *1.8* |
 | **Scaffold** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places blocks under you as you walk |
 | **Stealer** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Takes items out of chests |
 | **ThrowDebuff** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws the debuff potions on your hotbar |
 | **ThrowPots** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Uses the healing items on your hotbar |
+| **WindCharge** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Throws a wind charge at your feet for the jump · *1.21* |
 
 </details>
 
@@ -271,7 +306,7 @@ so a tab can show only what you are after.
 | **TargetHud** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | A panel for whoever you are fighting |
 | **Tracers** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Lines from the crosshair to players |
 | **Trajectories** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Draws where the projectile in your hand lands |
-| **Xray** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | See ores through the ground |
+| **Xray** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | See ores through the ground, deepslate and nether ores included |
 
 </details>
 
@@ -399,7 +434,8 @@ flowchart LR
     injector["cobble-injector.exe<br/>picks the game"] -->|LoadLibrary| dll["cobble.dll<br/>inside javaw.exe"]
     dll -->|finds the JVM| loader["MemoryLoader<br/>the client image, from memory"]
     loader --> boot["Boot"]
-    boot -->|JVMTI retransform| patcher["Patcher<br/>ASM, 83 hooks"]
+    boot -->|picks the version| adapter["Version adapter<br/>and its hook table"]
+    adapter -->|JVMTI retransform| patcher["Patcher<br/>ASM"]
     patcher --> bridge["Bridge<br/>in the game's class loader"]
     bridge --> hooks["Hooks"]
     hooks --> client["Modules, menu, HUD, Lua"]
@@ -420,8 +456,8 @@ Nothing is extracted next to the game.
 
 #### Hooks
 
-Each hook names a method of Lunar's baked classes, mixins and OptiFine already
-applied, and a point in it: its head, its returns, around one instruction, or in
+Each hook names a method of the classes Lunar runs, its mixins (and OptiFine or
+Sodium) already applied, and a point in it: its head, its returns, around one instruction, or in
 place of one. The patcher writes the call with ASM and the classes are
 retransformed while the game runs.
 
@@ -445,6 +481,28 @@ failing is switched off.
 The handles are pointed at no-ops, every class is retransformed back to the
 original, the input is handed back and the DLL frees itself. The same game can be
 injected again right away.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+#### One build, three versions
+
+The modules that need nothing version-specific are written once, against the
+client's own view of the game. The rest is 1.8.9 code, rewritten at build time
+for 1.7.10 from Lunar's mapping tables and for 1.21.11 from a table of renames
+and small shims. Each version's adapter supplies the hooks and the game view.
+
+</td>
+<td width="50%" valign="top">
+
+#### Linkage
+
+After the build, every class is checked against each version's game classes:
+every reference must resolve and every method must verify. What passes is that
+version's module list; what does not stays out, with the reason in a report,
+instead of failing in game.
 
 </td>
 </tr>
@@ -476,9 +534,10 @@ snaps to that grid before anything reaches the player.
 
 ## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
 
-You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer and a JDK 17 or
-newer. Configuring fetches the public jars into `infra/lib`; the MCP-named
-`minecraft-1.8.9-mcp.jar` has no public source and has to be copied there by hand.
+You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer, a JDK 17 or
+newer, and Lunar Client with 1.7.10, 1.8.9 and 1.21.11 each launched once: the
+build compiles against the classes Lunar bakes for them. Configuring fetches the
+public jars into `infra/lib`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1
@@ -486,7 +545,9 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 `build.ps1` finds CMake and a JDK on its own, installing them when it has to
 (pass `-NoAutoInstall` to fail instead), then configures and builds. The output is
-`dist/cobble-injector.exe`, the only file anyone needs. The two steps by hand:
+`dist/cobble-injector.exe`, the only file anyone needs, and
+`build/native/java/linkage/` holds each version's report of what did not link. The
+two steps by hand:
 
 ```bash
 cmake -S . -B build/native -A x64 -DCOLD_JAVA_HOME="<path to JDK>"
@@ -498,21 +559,21 @@ cmake --build build/native --config Release
 <br>
 
 ```
-src/cobble/        the Java client
-  boot/              entry points the DLL calls, hooks, patcher, bridge
-  core/  event/      config, maths, logging; the event bus
-  game/  hook/       views over Minecraft state; the hook handlers
-  module/            modules, one package per category
-  render/  ui/       SDF renderer; menu, HUD, radar, alt manager
-  script/            the Lua API
-  util/              blocks, fonts, items, packets, raytracing, rotations, teams
+src/common/        the client without Minecraft: boot, hooks, patcher, bridge,
+                   events, the game view, menu, HUD, renderer, Lua, and the
+                   modules written against the game view
+src/legacy/        the modules and utilities written against 1.8.9
+src/v1_7/          the 1.7.10 adapter and its retarget rules
+src/v1_21/         the 1.21.11 adapter, hooks, retarget rules and shims
+src/v1_21_legacy/  1.21.11 hooks for the legacy modules, and the legacy
+                   classes rewritten by hand for it
 bootstrap/         cobble.dll: finds the JVM, loads the client, starts Boot
 loader/            cobble-injector.exe
 assets/            fonts, icons, shaders, capes, the Lua prelude
 scripts/           example Lua scripts, embedded in the injector
 infra/             vendored C++ (Dear ImGui) and the jars the client compiles against
 docs/              the README's artwork
-tools/             build helpers
+tools/             build helpers: the game jars, Retarget, Remap, Linkage
 ```
 
 </details>

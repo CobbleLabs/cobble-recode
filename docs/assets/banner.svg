@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="Cobble Recode, a Lunar Client 1.8.9 client">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="Cobble Recode, a Lunar Client client for 1.7.10, 1.8.9 and 1.21.11">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0B0D12"/>
@@ -463,11 +463,11 @@
     <rect width="1280" height="400" fill="url(#glowBlue)"/>
   </g>
   <rect x="0.5" y="0.5" width="1279" height="399" rx="27.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.07"/>
-  <text x="94" y="104" class="over">LUNAR CLIENT · MINECRAFT 1.8.9</text>
+  <text x="94" y="104" class="over">LUNAR CLIENT · MINECRAFT 1.7.10 · 1.8.9 · 1.21.11</text>
   <text x="88" y="198" class="title">Cobble Recode</text>
   <text x="92" y="250" class="sub">A Java client that runs inside the game you already have open.</text>
   <rect x="92" y="300" width="118" height="36" rx="18" fill="#13151B" fill-opacity="0.92" stroke="#FFFFFF" stroke-opacity="0.09"/>
-  <text x="151" y="324" text-anchor="middle" class="pill">120 modules</text>
+  <text x="151" y="324" text-anchor="middle" class="pill">126 modules</text>
   <rect x="222.0" y="300" width="110" height="36" rx="18" fill="#13151B" fill-opacity="0.92" stroke="#FFFFFF" stroke-opacity="0.09"/>
   <text x="277" y="324" text-anchor="middle" class="pill">ASM hooks</text>
   <rect x="343.6" y="300" width="135" height="36" rx="18" fill="#13151B" fill-opacity="0.92" stroke="#FFFFFF" stroke-opacity="0.09"/>
