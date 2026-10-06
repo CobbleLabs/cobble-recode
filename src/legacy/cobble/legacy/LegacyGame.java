@@ -573,6 +573,11 @@ public abstract class LegacyGame implements Game {
     }
 
     @Override
+    public void showQueuedMouseButton(int button, boolean shown) {
+        InputHookManager.showQueued(button, shown);
+    }
+
+    @Override
     public boolean inGameFocused() {
         Minecraft mc = Minecraft.getMinecraft();
         return mc.currentScreen == null && mc.inGameHasFocus;

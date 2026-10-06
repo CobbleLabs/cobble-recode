@@ -4,6 +4,9 @@ import cobble.event.EventBus;
 import cobble.event.MouseEvent;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.settings.GameSettings;
+import net.minecraft.client.settings.KeyBinding;
 import org.lwjgl.input.Mouse;
 
 public final class InputHookManager {
@@ -15,6 +18,16 @@ public final class InputHookManager {
      * each use: a kept one would take events the game never looks at again. */
     private static final Field mouseButtons = mouseField("buttons");
     private static final Field mouseEvents = mouseField("readBuffer");
+
+    private static final int MOUSE_BUTTONS = 8;
+    /* Per button: whether a clicker has it shown as its queued events, what
+     * they last said, and what the HUD's turn displaced, to be put back. */
+    private static final boolean[] shownQueued = new boolean[MOUSE_BUTTONS];
+    private static final boolean[] queuedDown = new boolean[MOUSE_BUTTONS];
+    private static final byte[] physicalDown = new byte[MOUSE_BUTTONS];
+    private static final KeyBinding[] displacedBinding = new KeyBinding[MOUSE_BUTTONS];
+    private static final boolean[] bindingDown = new boolean[MOUSE_BUTTONS];
+    private static boolean showingQueued;
 
     private InputHookManager() {
     }
@@ -71,5 +84,64 @@ public final class InputHookManager {
             events.putLong(System.nanoTime());
         }
         events.flip();
+        queuedDown[button] = pressed;
+    }
+
+    /* Starts from the physical button, which is what the game last saw of it. */
+    public static void showQueued(int button, boolean shown) {
+        if (shown && !shownQueued[button]) {
+            queuedDown[button] = Mouse.isButtonDown(button);
+        }
+        shownQueued[button] = shown;
+    }
+
+    /**
+     * Right before the HUD is drawn, a button a clicker drives reads as its own
+     * presses and releases, both to Mouse.isButtonDown and to the key bound to
+     * it, which is what keystroke displays draw from. Only for the HUD's turn:
+     * everything else goes on reading the button the hand is holding.
+     */
+    public static void showQueuedButtons() {
+        ByteBuffer buttons = current(mouseButtons);
+        for (int button = 0; button < MOUSE_BUTTONS; button++) {
+            if (!shownQueued[button]) {
+                continue;
+            }
+            physicalDown[button] = buttons.get(button);
+            buttons.put(button, (byte) (queuedDown[button] ? 1 : 0));
+            displacedBinding[button] = boundTo(button);
+            if (displacedBinding[button] != null) {
+                bindingDown[button] = displacedBinding[button].isKeyDown();
+                KeyBinding.setKeyBindState(button - 100, queuedDown[button]);
+            }
+        }
+        showingQueued = true;
+    }
+
+    public static void showPhysicalButtons() {
+        if (!showingQueued) {
+            return;
+        }
+        ByteBuffer buttons = current(mouseButtons);
+        for (int button = 0; button < MOUSE_BUTTONS; button++) {
+            if (!shownQueued[button]) {
+                continue;
+            }
+            buttons.put(button, physicalDown[button]);
+            if (displacedBinding[button] != null) {
+                KeyBinding.setKeyBindState(button - 100, bindingDown[button]);
+                displacedBinding[button] = null;
+            }
+        }
+        showingQueued = false;
+    }
+
+    /* Attack or use, whichever is on the button; a mouse button is bound as its number less a hundred. */
+    private static KeyBinding boundTo(int button) {
+        GameSettings settings = Minecraft.getMinecraft().gameSettings;
+        if (settings.keyBindAttack.getKeyCode() == button - 100) {
+            return settings.keyBindAttack;
+        }
+        return settings.keyBindUseItem.getKeyCode() == button - 100 ? settings.keyBindUseItem : null;
     }
 }

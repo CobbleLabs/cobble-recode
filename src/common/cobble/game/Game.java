@@ -164,6 +164,14 @@ public interface Game {
      */
     void queueMouseButton(int button, boolean pressed);
 
+    /**
+     * While on, keystroke displays read the button as the events
+     * {@link #queueMouseButton} posted, not as it is physically held. A clicker
+     * turns it on while it clicks for a held button, which would otherwise
+     * show as one long press.
+     */
+    void showQueuedMouseButton(int button, boolean shown);
+
     /** No screen up and the cursor captured by the game, which is when a click lands in the world. */
     boolean inGameFocused();
 

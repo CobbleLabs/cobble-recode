@@ -64,6 +64,7 @@ import cobble.module.render.Xray;
 import cobble.platform.Platform;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
+import cobble.util.InputHookManager;
 import cobble.util.packet.PacketUtils;
 import cobble.util.raytrace.PointedObjectOverrider;
 import cobble.util.render.FakePlayerRenderer;
@@ -694,7 +695,12 @@ public final class Hooks {
         return false;
     }
 
+    public static void hudStart() {
+        InputHookManager.showQueuedButtons();
+    }
+
     public static void renderTickEnd(float partialTicks) {
+        InputHookManager.showPhysicalButtons();
         EventBus.post(new RenderTickEvent(Phase.END, partialTicks));
     }
 

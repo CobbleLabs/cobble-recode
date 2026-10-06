@@ -36,6 +36,9 @@ public final class HookTable {
     private static final String ATTACK = "(Lnet/minecraft/entity/Entity;)V";
     private static final String RENDER_PLAYER_ARGS = "(Lnet/minecraft/client/entity/AbstractClientPlayer;DDDFF)V";
     private static final String CAN_RENDER_NAME = "(Lnet/minecraft/entity/EntityLivingBase;)Z";
+    /* Lunar draws the game's HUD and its own through this wrapper. */
+    private static final String LUNAR_RENDER_GUI = "(Lnet/minecraft/client/gui/GuiIngame;F"
+            + "Lcom/llamalad7/mixinextras/injector/wrapoperation/Operation;)V";
 
     /**
      * Everything the client needs from the game's control flow. The tick hook
@@ -199,10 +202,10 @@ public final class HookTable {
             of(RENDERER, "updateCameraAndRender", "(FJ)V",
                     At.redirect(Opcodes.GETFIELD, MINECRAFT, "inGameHasFocus", "Z", 1), "mouseTurn"),
             of(RENDERER, "updateCameraAndRender", "(FJ)V",
-                    At.after(Opcodes.INVOKEVIRTUAL, RENDERER, "wrapOperation$*$lunar$renderGui",
-                            "(Lnet/minecraft/client/gui/GuiIngame;F"
-                                    + "Lcom/llamalad7/mixinextras/injector/wrapoperation/Operation;)V",
-                            0),
+                    At.before(Opcodes.INVOKEVIRTUAL, RENDERER, "wrapOperation$*$lunar$renderGui", LUNAR_RENDER_GUI, 0),
+                    "hudStart"),
+            of(RENDERER, "updateCameraAndRender", "(FJ)V",
+                    At.after(Opcodes.INVOKEVIRTUAL, RENDERER, "wrapOperation$*$lunar$renderGui", LUNAR_RENDER_GUI, 0),
                     "renderTickEnd").withArgs(),
             of(RENDERER, "renderWorldPass", "(IFJ)V",
                     At.before(Opcodes.GETFIELD, RENDERER, "renderHand", "Z", 0), "renderWorldLast").withArgs(),

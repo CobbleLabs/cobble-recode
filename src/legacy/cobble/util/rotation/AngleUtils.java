@@ -68,21 +68,26 @@ public final class AngleUtils {
             if (var9 < 0.001F) {
                 return new float[]{var2, clampPitch(var3)};
             } else {
-                float var10 = var4 / 30.0F;
-                float var11 = var10 * var10 * 180.0F;
-                float var12 = 0.6F * (float)(var5 / 100.0);
-                if (var12 > 0.001F) {
-                    var11 *= 1.0F - var12 / 2.0F + (float)(var6.getAsDouble() * var12);
-                }
-
-                float var13 = Math.min(1.0F, var9 / 180.0F);
-                float var14 = (float)Math.pow(var13, 0.7);
-                float var15 = (float)(var5 / 100.0);
-                float var16 = Math.max(0.8F, 1.0F - var15 * (1.0F - var14));
-                float var17 = Math.min(var11 * var16, var9) / var9;
+                float var17 = Math.min(stepLength(var4, var5, var9, var6), var9) / var9;
                 return new float[]{var0 + var7 * var17, clampPitch(var1 + var8 * var17)};
             }
         }
+    }
+
+    /** Degrees one tick of aim at {@code speed} (1-29) travels toward a target {@code distance} degrees away, before the cap at the distance itself. */
+    public static float stepLength(int speed, float randomization, float distance, DoubleSupplier random) {
+        float var10 = speed / 30.0F;
+        float var11 = var10 * var10 * 180.0F;
+        float var12 = 0.6F * (float)(randomization / 100.0);
+        if (var12 > 0.001F) {
+            var11 *= 1.0F - var12 / 2.0F + (float)(random.getAsDouble() * var12);
+        }
+
+        float var13 = Math.min(1.0F, distance / 180.0F);
+        float var14 = (float)Math.pow(var13, 0.7);
+        float var15 = (float)(randomization / 100.0);
+        float var16 = Math.max(0.8F, 1.0F - var15 * (1.0F - var14));
+        return var11 * var16;
     }
 
     public static float quantizeAngle(float var0, float var1, float var2) {
