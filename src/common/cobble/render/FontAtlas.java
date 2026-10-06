@@ -46,6 +46,7 @@ public final class FontAtlas {
             int offsetY, float advance) {}
 
     private final Map<FontRole, FontFace> faces = new EnumMap<>(FontRole.class);
+    private final Map<FontRole, Font> sources = new EnumMap<>(FontRole.class);
     private byte[] pixels;
     private int atlasWidth;
     private int atlasHeight;
@@ -70,6 +71,7 @@ public final class FontAtlas {
             } catch (FontFormatException | IOException e) {
                 throw new IllegalStateException("font " + role.file + " failed to load", e);
             }
+            sources.put(role, base);
             /* A size means an em, the way a design tool means it, while the atlas
              * is normalised to ascent minus descent the way stb_truetype sized it.
              * The em that gives that line box is what every size scales against. */
@@ -240,5 +242,10 @@ public final class FontAtlas {
 
     public FontFace face(FontRole role) {
         return faces.get(role);
+    }
+
+    /** The typeface as loaded, for rasterising at sizes the field does not serve. */
+    Font source(FontRole role) {
+        return sources.get(role);
     }
 }

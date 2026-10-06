@@ -48,11 +48,13 @@ public final class Renderer {
     private static final int MODE_SWEEP = 8;
     private static final int MODE_LINE = 9;
     private static final int MODE_TEXT_BLOOM = 10;
+    private static final int MODE_GLYPH = 11;
     /* How far past the glyph outline the halo carries, in field units. Small is
      * a rim; large is a slab. */
     private static final float TEXT_BLOOM_SOFTNESS = 0.30f;
 
     private final FontAtlas fonts = new FontAtlas();
+    private final GlyphCache strikes = new GlyphCache(fonts);
     private final IconAtlas icons = new IconAtlas();
     private final Shader ui = new Shader();
     private final float[] vertices = new float[MAX_QUADS * QUAD_FLOATS];
@@ -87,6 +89,7 @@ public final class Renderer {
             return false;
         }
         fonts.upload();
+        strikes.upload();
         icons.upload();
 
         vertexArray = GL30.glGenVertexArrays();
@@ -137,7 +140,7 @@ public final class Renderer {
      * self-healing.
      */
     public boolean resourcesValid() {
-        return ready && fonts.owned() && icons.owned() && ui.valid();
+        return ready && fonts.owned() && strikes.owned() && icons.owned() && ui.valid();
     }
 
     /*
@@ -149,6 +152,7 @@ public final class Renderer {
         boolean intact = resourcesValid();
         ui.destroy();
         fonts.destroy();
+        strikes.destroy();
         icons.destroy();
         if (intact) {
             if (crispSampler != 0) {
@@ -182,6 +186,7 @@ public final class Renderer {
         ui.set("uFontAtlas", 0);
         ui.set("uIconAtlas", 1);
         ui.set("uImage", 2);
+        ui.set("uGlyphAtlas", 3);
         // Texel size of each field, so the text path widens its ramp exactly when an atlas is magnified.
         ui.set("uFontAtlasTexel", fonts.texelWidth(), fonts.texelHeight());
         ui.set("uIconAtlasTexel", icons.texelWidth(), icons.texelHeight());
@@ -190,6 +195,8 @@ public final class Renderer {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, fonts.texture());
         GL13.glActiveTexture(GL13.GL_TEXTURE1);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, icons.texture());
+        GL13.glActiveTexture(GL13.GL_TEXTURE3);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, strikes.texture());
         GL13.glActiveTexture(GL13.GL_TEXTURE2);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
         if (samplers) {
@@ -197,6 +204,7 @@ public final class Renderer {
             GL33.glBindSampler(0, 0);
             GL33.glBindSampler(1, 0);
             GL33.glBindSampler(2, 0);
+            GL33.glBindSampler(3, 0);
         }
 
         GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -225,6 +233,7 @@ public final class Renderer {
         if (quadCount == 0) {
             return;
         }
+        strikes.upload();
         vertexData.clear();
         vertexData.put(vertices, 0, quadCount * QUAD_FLOATS).flip();
         GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, vertexBuffer);
@@ -252,6 +261,7 @@ public final class Renderer {
         ui.set("uFontAtlas", 0);
         ui.set("uIconAtlas", 1);
         ui.set("uImage", 2);
+        ui.set("uGlyphAtlas", 3);
         ui.set("uFontAtlasTexel", fonts.texelWidth(), fonts.texelHeight());
         ui.set("uIconAtlasTexel", icons.texelWidth(), icons.texelHeight());
 
@@ -259,12 +269,15 @@ public final class Renderer {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, fonts.texture());
         GL13.glActiveTexture(GL13.GL_TEXTURE1);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, icons.texture());
+        GL13.glActiveTexture(GL13.GL_TEXTURE3);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, strikes.texture());
         GL13.glActiveTexture(GL13.GL_TEXTURE2);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, boundImage);
         if (samplers) {
             GL33.glBindSampler(0, 0);
             GL33.glBindSampler(1, 0);
             GL33.glBindSampler(2, 0);
+            GL33.glBindSampler(3, 0);
         }
 
         GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -494,7 +507,7 @@ public final class Renderer {
     }
 
     public float measure(FontRole role, String value, float size) {
-        return fonts.face(role).measure(value, size);
+        return GlyphCache.covers(size) ? strikes.measure(role, value, size) : fonts.face(role).measure(value, size);
     }
 
     public float lineHeight(FontRole role, float size) {
@@ -526,13 +539,18 @@ public final class Renderer {
         if (!face.ready()) {
             return x;
         }
-        /* The run's origin snaps to whole pixels while the glyphs inside it stay
-         * on the subpixel grid: the field evaluates the edge analytically, so a
-         * glyph rounding to the previous pixel loses more in shifted stems than
-         * fractional placement costs in shimmer. */
-        float penX = Math.round(alignedStart(face, value, x, size, align));
+        /* The run's origin snaps to whole pixels. A hinted strike's advances are
+         * whole pixels, so its glyphs stay on the grid they were hinted for; on
+         * the field they stay on the subpixel grid, because the edge is
+         * evaluated analytically and a glyph rounding to the previous pixel
+         * loses more in shifted stems than fractional placement costs in
+         * shimmer. */
+        float penX = Math.round(alignedStart(role, value, x, size, align));
         float baseline = Math.round(y + face.baseline(size));
-        return glyphs(face, value, penX, baseline, size, color, MODE_TEXT, 0.0f, 0.0f);
+        if (GlyphCache.covers(size)) {
+            return strike(role, value, penX, baseline, size, color);
+        }
+        return glyphs(role, face, value, penX, baseline, size, color, MODE_TEXT, 0.0f, 0.0f);
     }
 
     /** Placed by the top of the capitals instead of the line box, which is where a design measures a label from. */
@@ -555,38 +573,64 @@ public final class Renderer {
         if (!face.ready() || spread <= 0.0f) {
             return x;
         }
-        float penX = Math.round(alignedStart(face, value, x, size, align));
+        float penX = Math.round(alignedStart(role, value, x, size, align));
         float baseline = Math.round(capTop - face.capTop(size) + face.baseline(size));
         /* The falloff is steep on purpose: gentle halos overlap their
          * neighbours and a word's worth summed reads as a lit rectangle. */
-        return glyphs(face, value, penX, baseline, size, color, MODE_TEXT_BLOOM, TEXT_BLOOM_SOFTNESS, spread);
+        return glyphs(role, face, value, penX, baseline, size, color, MODE_TEXT_BLOOM, TEXT_BLOOM_SOFTNESS, spread);
     }
 
-    private static float alignedStart(FontFace face, String value, float x, float size, Align align) {
+    private float alignedStart(FontRole role, String value, float x, float size, Align align) {
         return switch (align) {
             case LEFT -> x;
-            case CENTER -> x - face.measure(value, size) * 0.5f;
-            case RIGHT -> x - face.measure(value, size);
+            case CENTER -> x - measure(role, value, size) * 0.5f;
+            case RIGHT -> x - measure(role, value, size);
         };
     }
 
-    private float glyphs(FontFace face, String value, float penX, float baseline, float size, Color color, int mode,
-            float param, float spread) {
+    private float strike(FontRole role, String value, float penX, float baseline, float size, Color color) {
+        for (int index = 0; index < value.length(); ) {
+            int codepoint = value.codePointAt(index);
+            index += Character.charCount(codepoint);
+            GlyphCache.Glyph glyph = strikes.glyph(role, size, codepoint);
+            if (glyph.width > 0) {
+                if (!strikes.place(glyph)) {
+                    /* The atlas is full. What is batched still points into it,
+                     * so it is drawn before the atlas starts over. */
+                    flush();
+                    strikes.clear();
+                    strikes.place(glyph);
+                }
+                Rect tile = new Rect(penX + glyph.offsetX, baseline + glyph.offsetY, glyph.width, glyph.height);
+                quad(tile, tile, 0.0f, 0.0f, MODE_GLYPH, 0.0f, color, color, color, color, glyph.u0, glyph.v0,
+                        glyph.u1, glyph.v1);
+            }
+            penX += glyph.advance;
+        }
+        return penX;
+    }
+
+    /* A halo under hinted text steps by the strike's advances, so it stays
+     * under the glyphs it belongs to. */
+    private float glyphs(FontRole role, FontFace face, String value, float penX, float baseline, float size,
+            Color color, int mode, float param, float spread) {
         float scale = face.scaleFor(size);
+        boolean hinted = GlyphCache.covers(size);
         for (int index = 0; index < value.length(); ) {
             int codepoint = value.codePointAt(index);
             index += Character.charCount(codepoint);
             FontFace.Glyph glyph = face.glyph(codepoint);
-            if (glyph == null) {
-                continue;
-            }
-            if (glyph.width() > 0.0f && glyph.height() > 0.0f) {
+            if (glyph != null && glyph.width() > 0.0f && glyph.height() > 0.0f) {
                 Rect tile = new Rect(penX + glyph.offsetX() * scale, baseline + glyph.offsetY() * scale,
                         glyph.width() * scale, glyph.height() * scale).inset(-spread);
                 quad(tile, tile, 0.0f, 0.0f, mode, param, color, color, color, color, glyph.u0(), glyph.v0(),
                         glyph.u1(), glyph.v1());
             }
-            penX += glyph.advance() * scale;
+            if (hinted) {
+                penX += strikes.glyph(role, size, codepoint).advance;
+            } else if (glyph != null) {
+                penX += glyph.advance() * scale;
+            }
         }
         return penX;
     }
