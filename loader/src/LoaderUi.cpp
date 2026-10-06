@@ -34,6 +34,7 @@ IDXGISwapChain* g_swapChain = nullptr;
 ID3D11RenderTargetView* g_renderTarget = nullptr;
 bool g_initialized = false;
 bool g_shouldClose = false;
+float g_scale = 1.0f;
 
 View g_view = View::Picking;
 std::vector<Instance> g_instances;
@@ -102,8 +103,8 @@ using SetWindowCompositionAttributeFn = BOOL(WINAPI*)(HWND, WindowCompositionAtt
 
 /* SetWindowCompositionAttribute is undocumented but gives the acrylic-style
  * blur; DwmEnableBlurBehindWindow is the documented fallback. */
-void enableBackdropBlur(HWND window) {
-    HRGN clip = CreateRectRgn(0, 0, kWidth, kHeight);
+void enableBackdropBlur(HWND window, int width, int height) {
+    HRGN clip = CreateRectRgn(0, 0, width, height);
     if (clip != nullptr && !SetWindowRgn(window, clip, TRUE)) {
         DeleteObject(clip);
     }
@@ -124,7 +125,7 @@ void enableBackdropBlur(HWND window) {
         }
     }
 
-    HRGN region = CreateRectRgn(0, 0, kWidth, kHeight);
+    HRGN region = CreateRectRgn(0, 0, width, height);
     DWM_BLURBEHIND blur = {};
     blur.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
     blur.fEnable = TRUE;
@@ -141,7 +142,7 @@ void drawRingSweep(ImDrawList* draw, ImVec2 center, float radius, float opacity)
     const float trail = 2.18f;
     const int segments = 44;
 
-    draw->AddCircle(center, radius, alpha(kText, opacity * 0.075f), 96, 1.2f);
+    draw->AddCircle(center, radius, alpha(kText, opacity * 0.075f), 96, 1.2f * g_scale);
     for (int index = 0; index < segments; ++index) {
         const float t0 = static_cast<float>(index) / segments;
         const float t1 = static_cast<float>(index + 1) / segments;
@@ -150,9 +151,10 @@ void drawRingSweep(ImDrawList* draw, ImVec2 center, float radius, float opacity)
         const float strength = powf(t1, 2.55f);
         const ImVec2 p0(center.x + cosf(a0) * radius, center.y + sinf(a0) * radius);
         const ImVec2 p1(center.x + cosf(a1) * radius, center.y + sinf(a1) * radius);
-        draw->AddLine(p0, p1, alpha(kText, opacity * strength * 0.055f), 7.0f);
-        draw->AddLine(p0, p1, alpha(kText, opacity * strength * 0.14f), 3.8f);
-        draw->AddLine(p0, p1, alpha(kText, opacity * (0.18f + strength * 0.82f)), 1.45f);
+        draw->AddLine(p0, p1, alpha(kText, opacity * strength * 0.055f), 7.0f * g_scale);
+        draw->AddLine(p0, p1, alpha(kText, opacity * strength * 0.14f), 3.8f * g_scale);
+        draw->AddLine(p0, p1, alpha(kText, opacity * (0.18f + strength * 0.82f)),
+                      1.45f * g_scale);
     }
 }
 
@@ -177,9 +179,10 @@ bool drawButton(ImDrawList* draw, ImVec2 min, ImVec2 max, const char* label) {
 
 void drawSpinnerView(ImDrawList* draw, ImVec2 size, const char* caption, float opacity) {
     const float in = ease(g_viewTime / 0.14f);
-    const ImVec2 center(size.x * 0.5f, size.y * 0.5f - 12.0f);
-    drawRingSweep(draw, center, 18.0f, opacity * in);
-    drawSmallTextCentered(draw, ImVec2(center.x, center.y + 34.0f), caption, opacity * in * 0.82f);
+    const ImVec2 center(size.x * 0.5f, size.y * 0.5f - 12.0f * g_scale);
+    drawRingSweep(draw, center, 18.0f * g_scale, opacity * in);
+    drawSmallTextCentered(draw, ImVec2(center.x, center.y + 34.0f * g_scale), caption,
+                          opacity * in * 0.82f);
 }
 
 void drawPickView(ImDrawList* draw, ImVec2 size, float opacity) {
@@ -189,22 +192,23 @@ void drawPickView(ImDrawList* draw, ImVec2 size, float opacity) {
     }
 
     const float in = ease(g_viewTime / 0.16f);
-    const float width = size.x - kMargin * 2.0f;
+    const float margin = kMargin * g_scale;
+    const float width = size.x - margin * 2.0f;
 
     ImGui::PushFont(g_fontStrong);
-    draw->AddText(ImVec2(kMargin, 34.0f), alpha(kText, opacity * in), "Cobble");
+    draw->AddText(ImVec2(margin, 34.0f * g_scale), alpha(kText, opacity * in), "Cobble");
     ImGui::PopFont();
     ImGui::PushFont(g_fontSmall);
     const char* hint = "Select Minecraft";
-    draw->AddText(ImVec2(kMargin + width - ImGui::CalcTextSize(hint).x, 36.0f),
+    draw->AddText(ImVec2(margin + width - ImGui::CalcTextSize(hint).x, 36.0f * g_scale),
                   alpha(kTextFaint, opacity * in), hint);
     ImGui::PopFont();
 
-    const float rowHeight = 44.0f;
-    ImGui::SetCursorPos(ImVec2(kMargin, 72.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 6.0f));
-    ImGui::BeginChild("##instances", ImVec2(width, size.y - 72.0f - 24.0f), ImGuiChildFlags_None,
-                      ImGuiWindowFlags_NoBackground);
+    const float rowHeight = 44.0f * g_scale;
+    ImGui::SetCursorPos(ImVec2(margin, 72.0f * g_scale));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 6.0f * g_scale));
+    ImGui::BeginChild("##instances", ImVec2(width, size.y - (72.0f + 24.0f) * g_scale),
+                      ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
     ImDrawList* rows = ImGui::GetWindowDrawList();
     for (const Instance& instance : g_instances) {
         const ImVec2 min = ImGui::GetCursorScreenPos();
@@ -218,11 +222,13 @@ void drawPickView(ImDrawList* draw, ImVec2 size, float opacity) {
 
         rows->AddRectFilled(min, max, hovered ? kFieldActive : kField);
         rows->AddLine(ImVec2(min.x, max.y), max,
-                      hovered ? alpha(kText, 0.72f * opacity * in) : kRule, 1.0f);
-        rows->PushClipRect(min, ImVec2(max.x - 12.0f, max.y), true);
-        rows->AddText(g_fontBody, g_fontBody->FontSize, ImVec2(min.x + 12.0f, min.y + 6.0f),
+                      hovered ? alpha(kText, 0.72f * opacity * in) : kRule, g_scale);
+        rows->PushClipRect(min, ImVec2(max.x - 12.0f * g_scale, max.y), true);
+        rows->AddText(g_fontBody, g_fontBody->FontSize,
+                      ImVec2(min.x + 12.0f * g_scale, min.y + 6.0f * g_scale),
                       alpha(kText, opacity * in), instance.title.c_str());
-        rows->AddText(g_fontSmall, g_fontSmall->FontSize, ImVec2(min.x + 12.0f, min.y + 24.0f),
+        rows->AddText(g_fontSmall, g_fontSmall->FontSize,
+                      ImVec2(min.x + 12.0f * g_scale, min.y + 24.0f * g_scale),
                       alpha(kTextFaint, opacity * in), instance.detail.c_str());
         rows->PopClipRect();
     }
@@ -232,17 +238,18 @@ void drawPickView(ImDrawList* draw, ImVec2 size, float opacity) {
 
 void drawErrorView(ImDrawList* draw, ImVec2 size, float opacity) {
     const float in = ease(g_viewTime / 0.14f);
-    const float width = ImMin(330.0f, size.x - 96.0f);
+    const float width = ImMin(330.0f * g_scale, size.x - 96.0f * g_scale);
     const float x = (size.x - width) * 0.5f;
 
     ImGui::PushFont(g_fontBody);
     const ImVec2 textSize = ImGui::CalcTextSize(g_error.c_str(), nullptr, false, width);
-    draw->AddText(g_fontBody, g_fontBody->FontSize, ImVec2(x, 110.0f), alpha(kText, opacity * in),
-                  g_error.c_str(), nullptr, width);
+    draw->AddText(g_fontBody, g_fontBody->FontSize, ImVec2(x, 110.0f * g_scale),
+                  alpha(kText, opacity * in), g_error.c_str(), nullptr, width);
     ImGui::PopFont();
 
-    const float buttonY = ImMax(170.0f, 126.0f + textSize.y);
-    if (drawButton(draw, ImVec2(x, buttonY), ImVec2(x + width, buttonY + 36.0f), "Back")) {
+    const float buttonY = ImMax(170.0f * g_scale, 126.0f * g_scale + textSize.y);
+    if (drawButton(draw, ImVec2(x, buttonY), ImVec2(x + width, buttonY + 36.0f * g_scale),
+                   "Back")) {
         setView(View::Picking);
     }
 }
@@ -252,8 +259,8 @@ void drawSuccessView(ImDrawList* draw, ImVec2 size, float opacity) {
     const float fade = 1.0f - ease((g_viewTime - 0.24f) / 0.18f);
     const float amount = opacity * resolve * fade;
     const ImVec2 center(size.x * 0.5f, size.y * 0.5f);
-    draw->AddCircle(center, 18.0f, alpha(kText, amount * 0.10f), 96, 6.0f);
-    draw->AddCircle(center, 18.0f, alpha(kText, amount), 96, 1.45f);
+    draw->AddCircle(center, 18.0f * g_scale, alpha(kText, amount * 0.10f), 96, 6.0f * g_scale);
+    draw->AddCircle(center, 18.0f * g_scale, alpha(kText, amount), 96, 1.45f * g_scale);
     if (g_viewTime > 0.46f) {
         g_shouldClose = true;
     }
@@ -268,6 +275,28 @@ void createRenderTarget() {
     }
 }
 
+ImFont* loadFont(ImGuiIO& io, const char* primary, const char* fallback, float size) {
+    ImFont* font = io.Fonts->AddFontFromFileTTF(primary, size);
+    if (font == nullptr && fallback != nullptr) {
+        font = io.Fonts->AddFontFromFileTTF(fallback, size);
+    }
+    return font != nullptr ? font : io.Fonts->AddFontDefault();
+}
+
+/* Fonts are rasterized at the scaled size rather than stretched with
+ * FontGlobalScale, so text stays sharp. Must run between frames. */
+void applyScale(float scale) {
+    g_scale = scale;
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->Clear();
+    g_fontBody = loadFont(io, "C:\\Windows\\Fonts\\segoeui.ttf", nullptr, 14.0f * scale);
+    g_fontStrong = loadFont(io, "C:\\Windows\\Fonts\\seguisb.ttf",
+                            "C:\\Windows\\Fonts\\segoeuib.ttf", 14.0f * scale);
+    g_fontSmall = loadFont(io, "C:\\Windows\\Fonts\\segoeui.ttf", nullptr, 12.0f * scale);
+    ImGui::GetStyle().ScrollbarSize = 3.0f * scale;
+    ImGui_ImplDX11_InvalidateDeviceObjects();
+}
+
 LRESULT WINAPI windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     if (ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam)) {
         return TRUE;
@@ -276,7 +305,20 @@ LRESULT WINAPI windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
         case WM_NCHITTEST: {
             POINT point = {static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam))};
             ScreenToClient(window, &point);
-            return point.y >= 0 && point.y < 30 ? HTCAPTION : HTCLIENT;
+            return point.y >= 0 && point.y < 30.0f * g_scale ? HTCAPTION : HTCLIENT;
+        }
+        case WM_DPICHANGED: {
+            const RECT* suggested = reinterpret_cast<const RECT*>(lParam);
+            const int width = suggested->right - suggested->left;
+            const int height = suggested->bottom - suggested->top;
+            SetWindowPos(window, nullptr, suggested->left, suggested->top, width, height,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+            enableBackdropBlur(window, width, height);
+            g_renderTarget->Release();
+            g_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+            createRenderTarget();
+            applyScale(HIWORD(wParam) / static_cast<float>(USER_DEFAULT_SCREEN_DPI));
+            return 0;
         }
         case WM_KEYDOWN:
             if (wParam == VK_ESCAPE) {
@@ -296,18 +338,10 @@ LRESULT WINAPI windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPara
     return DefWindowProcW(window, message, wParam, lParam);
 }
 
-ImFont* loadFont(ImGuiIO& io, const char* primary, const char* fallback, float size) {
-    ImFont* font = io.Fonts->AddFontFromFileTTF(primary, size);
-    if (font == nullptr && fallback != nullptr) {
-        font = io.Fonts->AddFontFromFileTTF(fallback, size);
-    }
-    return font != nullptr ? font : io.Fonts->AddFontDefault();
-}
-
 }  // namespace
 
 bool init() {
-    SetProcessDPIAware();
+    ImGui_ImplWin32_EnableDpiAwareness();
 
     WNDCLASSEXW windowClass = {};
     windowClass.cbSize = sizeof(windowClass);
@@ -320,18 +354,22 @@ bool init() {
 
     const int screenWidth = GetSystemMetrics(SM_CXSCREEN);
     const int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    const float scale = ImGui_ImplWin32_GetDpiScaleForMonitor(
+        MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY));
+    const int width = static_cast<int>(kWidth * scale);
+    const int height = static_cast<int>(kHeight * scale);
     g_window = CreateWindowExW(WS_EX_APPWINDOW, L"CobbleLoader", L"Cobble", WS_POPUP,
-                               (screenWidth - kWidth) / 2, (screenHeight - kHeight) / 2, kWidth,
-                               kHeight, nullptr, nullptr, windowClass.hInstance, nullptr);
+                               (screenWidth - width) / 2, (screenHeight - height) / 2, width,
+                               height, nullptr, nullptr, windowClass.hInstance, nullptr);
     if (g_window == nullptr) {
         return false;
     }
-    enableBackdropBlur(g_window);
+    enableBackdropBlur(g_window, width, height);
 
     DXGI_SWAP_CHAIN_DESC description = {};
     description.BufferCount = 2;
-    description.BufferDesc.Width = kWidth;
-    description.BufferDesc.Height = kHeight;
+    description.BufferDesc.Width = width;
+    description.BufferDesc.Height = height;
     description.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     description.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     description.OutputWindow = g_window;
@@ -353,16 +391,11 @@ bool init() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
-    g_fontBody = loadFont(io, "C:\\Windows\\Fonts\\segoeui.ttf", nullptr, 14.0f);
-    g_fontStrong =
-        loadFont(io, "C:\\Windows\\Fonts\\seguisb.ttf", "C:\\Windows\\Fonts\\segoeuib.ttf", 14.0f);
-    g_fontSmall = loadFont(io, "C:\\Windows\\Fonts\\segoeui.ttf", nullptr, 12.0f);
 
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowPadding = ImVec2(0, 0);
     style.WindowBorderSize = 0.0f;
     style.WindowRounding = 0.0f;
-    style.ScrollbarSize = 3.0f;
     style.ScrollbarRounding = 0.0f;
     style.Colors[ImGuiCol_WindowBg] = ImVec4(0, 0, 0, 0);
     style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
@@ -372,6 +405,7 @@ bool init() {
 
     ImGui_ImplWin32_Init(g_window);
     ImGui_ImplDX11_Init(g_device, g_context);
+    applyScale(scale);
     g_initialized = true;
     return true;
 }

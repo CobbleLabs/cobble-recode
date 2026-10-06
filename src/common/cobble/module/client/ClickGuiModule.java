@@ -15,12 +15,14 @@ import cobble.ui.Theme;
 
 public final class ClickGuiModule extends Module {
     private final Setting blur;
+    private final Setting scale;
     private final Setting accent;
 
     public ClickGuiModule() {
         super("ClickGUI", "Opens the Cobble Recode menu", Category.CLIENT, Subcategory.BASIC, Input.KEY_INSERT);
         setIcon(Icon.SLIDERS_HORIZONTAL);
         blur = addNumber("Backdrop blur", "Frost the scene behind the panels", 1.0f, 0.0f, 1.5f, 2);
+        scale = addNumber("Scale", "Size of the menu on screen", 1.0f, 0.5f, 2.0f, 2);
         accent = addColour("Accent", "Drives the menu, the HUD and the ESP", Color.rgb(0xBDA4BD));
     }
 
@@ -34,6 +36,7 @@ public final class ClickGuiModule extends Module {
     public void onEnable(Context context) {
         ClickGui gui = Client.gui();
         gui.setBlurStrength(blur.number());
+        gui.setUserScale(scale.number());
         Theme.setAccent(accent.colour());
         gui.open();
         /* The radar is the other full window; only one of them holds the
@@ -57,6 +60,7 @@ public final class ClickGuiModule extends Module {
     public void onRender(Context context) {
         ClickGui gui = Client.gui();
         gui.setBlurStrength(blur.number());
+        gui.setUserScale(scale.number());
         Theme.setAccent(accent.colour());
         // Escape closes the menu directly, so the module state follows the menu rather than the other way round.
         if (enabled() && !gui.interactive()) {

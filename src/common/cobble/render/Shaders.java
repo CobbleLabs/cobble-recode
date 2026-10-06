@@ -44,6 +44,7 @@ final class Shaders {
             uniform sampler2D uFontAtlas;
             uniform sampler2D uIconAtlas;
             uniform sampler2D uImage;
+            uniform sampler2D uGlyphAtlas;
             uniform float uTime;
             uniform vec2 uFontAtlasTexel;
             uniform vec2 uIconAtlasTexel;
@@ -61,6 +62,7 @@ final class Shaders {
             const int MODE_SWEEP = 8;
             const int MODE_LINE = 9;
             const int MODE_TEXT_BLOOM = 10;
+            const int MODE_GLYPH = 11;
 
             float sdRoundBox(vec2 p, vec2 halfSize, float radius) {
                 vec2 q = abs(p) - halfSize + radius;
@@ -79,18 +81,27 @@ final class Shaders {
                 return clamp(0.5 - distance / max(fwidth(distance), 1e-5), 0.0, 1.0);
             }
 
+            // Blending runs on sRGB values, which thins and blurs light strokes on
+            // a dark ground. Lifting the coverage of light ink by its luminance
+            // gives back most of the weight a linear-light blend would have drawn.
+            float inkCoverage(float coverage, vec3 ink) {
+                float luminance = dot(ink, vec3(0.2126, 0.7152, 0.0722));
+                return pow(coverage, mix(1.0, 1.0 / 1.4, luminance));
+            }
+
             // A single fwidth() tap under-reads the edge width on a field magnified
             // past 1:1 and reconstructs the texel grid as stair steps. Measuring the
             // change across one atlas texel as well, and taking the wider ramp, keeps
             // small counters crisp and a stretched watermark smooth.
-            float sdfAlpha(sampler2D field, vec2 uv, vec2 texel, float alpha) {
+            float sdfAlpha(sampler2D field, vec2 uv, vec2 texel, vec4 color) {
                 float centre = texture(field, uv).r;
                 float fx = texture(field, uv + vec2(texel.x * 0.5, 0.0)).r -
                            texture(field, uv - vec2(texel.x * 0.5, 0.0)).r;
                 float fy = texture(field, uv + vec2(0.0, texel.y * 0.5)).r -
                            texture(field, uv - vec2(0.0, texel.y * 0.5)).r;
                 float width = max(fwidth(centre), max(abs(fx), abs(fy)));
-                return alpha * clamp((centre - 0.5) / max(width, 1e-4) + 0.5, 0.0, 1.0);
+                float coverage = clamp((centre - 0.5) / max(width, 1e-4) + 0.5, 0.0, 1.0);
+                return color.a * inkCoverage(coverage, color.rgb);
             }
 
             void main() {
@@ -101,7 +112,12 @@ final class Shaders {
                 vec4 color = vColor;
 
                 if (mode == MODE_TEXT) {
-                    fragColor = vec4(color.rgb, sdfAlpha(uFontAtlas, vUv, uFontAtlasTexel, color.a));
+                    fragColor = vec4(color.rgb, sdfAlpha(uFontAtlas, vUv, uFontAtlasTexel, color));
+                    return;
+                }
+
+                if (mode == MODE_GLYPH) {
+                    fragColor = vec4(color.rgb, color.a * inkCoverage(texture(uGlyphAtlas, vUv).r, color.rgb));
                     return;
                 }
 
@@ -118,7 +134,7 @@ final class Shaders {
                 }
 
                 if (mode == MODE_ICON) {
-                    fragColor = vec4(color.rgb, sdfAlpha(uIconAtlas, vUv, uIconAtlasTexel, color.a));
+                    fragColor = vec4(color.rgb, sdfAlpha(uIconAtlas, vUv, uIconAtlasTexel, color));
                     return;
                 }
 

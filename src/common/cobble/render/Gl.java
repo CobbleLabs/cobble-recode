@@ -84,6 +84,18 @@ public final class Gl {
         return upload(texture == 0 ? GL11.glGenTextures() : texture, width, height, GL30.GL_R8, GL11.GL_RED, data);
     }
 
+    /** Replaces rows {@code top} to {@code top + rows} of a single-channel texture from its full image. */
+    static void updateFieldRows(int texture, int width, int top, int rows, byte[] pixels) {
+        ByteBuffer data = BufferUtils.createByteBuffer(width * rows);
+        data.put(pixels, top * width, width * rows).flip();
+        int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        int[] unpack = neutralUnpack();
+        GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, top, width, rows, GL11.GL_RED, GL11.GL_UNSIGNED_BYTE, data);
+        restoreUnpack(unpack);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
+    }
+
     /** A new linear-filtered RGBA texture holding {@code data}, rows packed tight. */
     public static int uploadRgba(int width, int height, ByteBuffer data) {
         return upload(GL11.glGenTextures(), width, height, GL11.GL_RGBA8, GL11.GL_RGBA, data);
