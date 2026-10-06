@@ -109,9 +109,9 @@ public final class Client {
         altManager = new AltManager();
         AltAccounts.load(home.resolve("alts.json"));
 
-        /* Layout lands after construction: panels and HUD elements read their
-         * stored positions from the same document the modules just read. */
-        gui.loadLayout(ModuleManager.config());
+        /* Layout lands after construction: HUD elements read their stored
+         * positions from the same document the modules just read. The menu
+         * always opens on its first tab, Combat. */
         hud.loadLayout(ModuleManager.config());
 
         /* After the config, because a script module is registered as it loads
@@ -191,10 +191,9 @@ public final class Client {
         }
     }
 
-    /* Layout first: the panels and HUD elements write their sections into
-     * the live document, which saveConfig then carries to disk. */
+    /* Layout first: the HUD elements write their sections into the live
+     * document, which saveConfig then carries to disk. */
     private static void save() {
-        gui.saveLayout(ModuleManager.config());
         hud.saveLayout(ModuleManager.config());
         ModuleManager.saveConfig(configPath);
     }

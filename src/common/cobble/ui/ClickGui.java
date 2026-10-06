@@ -420,7 +420,7 @@ public final class ClickGui {
     private float searchHover;
     private float searchCloseHover;
     private float backHover;
-    private String pendingTab = "";       // selection restored before the tabs exist
+    private String pendingTab = "";       // selection kept across a rebuild of the tabs
 
     private int selectedConfig = -1;
     private String configName = "";
@@ -1104,45 +1104,6 @@ public final class ClickGui {
         }
     }
 
-    /** Restores the selected tab saved by {@link #saveLayout}. */
-    public void loadLayout(Config config) {
-        if (!config.hasSection("gui.menu")) {
-            return;
-        }
-        String wanted = config.get("gui.menu", "tab", "");
-        if (wanted.isEmpty()) {
-            return;
-        }
-        if (tabs.isEmpty()) {
-            pendingTab = wanted;
-            return;
-        }
-        for (int index = 0; index < tabs.size(); index++) {
-            if (tabs.get(index).key.equals(wanted)) {
-                /* Restoring a saved selection, not navigating to it: no handover. */
-                tab = index;
-                shownTab = index;
-                subcategory = Subcategory.ALL;
-                shownSubcategory = subcategory;
-                refreshShown();
-                chipLeft = 0.0f;
-                chipRight = 1.0f;
-                pageLeaving = false;
-                pageFade = 1.0f;
-                indicator = index;
-                closeSubpage();
-                break;
-            }
-        }
-    }
-
-    public void saveLayout(Config config) {
-        if (tabs.isEmpty() || tab >= tabs.size()) {
-            return;
-        }
-        config.set("gui.menu", "tab", tabs.get(tab).key);
-    }
-
     private static Path configPath(String name) {
         return Client.directory().resolve("cobble-" + name + ".cfg");
     }
@@ -1177,7 +1138,6 @@ public final class ClickGui {
             return false;
         }
         ModuleManager.loadConfig(path);
-        loadLayout(ModuleManager.config());
         Client.hud().loadLayout(ModuleManager.config());
         Log.info(SCOPE, "config %s loaded", name);
         return true;
@@ -1192,7 +1152,6 @@ public final class ClickGui {
         /* saveConfig only carries module sections, so the layout goes in after. */
         Config document = new Config();
         document.load(path);
-        saveLayout(document);
         Client.hud().saveLayout(document);
         boolean ok = document.save(path);
         if (ok) {
