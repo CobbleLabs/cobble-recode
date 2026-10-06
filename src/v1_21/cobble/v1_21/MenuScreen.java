@@ -46,7 +46,7 @@ public final class MenuScreen extends Screen {
     }
 
     @Override
-    protected void init() {
+    public void init() {
         if (parent != null) {
             parent.init(width, height);
         }
