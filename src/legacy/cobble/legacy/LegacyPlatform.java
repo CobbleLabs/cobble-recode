@@ -18,7 +18,7 @@ import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GLContext;
 
 /**
- * What 1.7.10 and 1.8.9 have in common: LWJGL 2 input and GL, the
+ * 1.8.9's side of the platform: LWJGL 2 input and GL, the
  * compatibility profile, and the MCP-named screen and session classes.
  */
 public abstract class LegacyPlatform implements Platform {

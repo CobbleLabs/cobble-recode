@@ -5,7 +5,7 @@
 <br>
 <br>
 
-![Minecraft](https://img.shields.io/badge/Minecraft-1.7.10_%7C_1.8.9_%7C_1.21.11-BDA4BD?style=flat-square&labelColor=171A21)
+![Minecraft](https://img.shields.io/badge/Minecraft-1.8.9_%7C_1.21.11-BDA4BD?style=flat-square&labelColor=171A21)
 ![Lunar Client](https://img.shields.io/badge/Lunar_Client-one_build-F2A8C8?style=flat-square&labelColor=171A21)
 ![Java](https://img.shields.io/badge/Java-17-FFD2A6?style=flat-square&labelColor=171A21&logo=openjdk&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows-x64-8FD3FF?style=flat-square&labelColor=171A21)
@@ -27,12 +27,12 @@
 
 <br>
 
-Cobble Recode is a client for **Lunar Client on Minecraft 1.7.10, 1.8.9 and
-1.21.11**. It is not a mod and it is not a launcher. You start the game the way you
-always do, run one small executable, and the client loads straight into the
-running game: modules, menu, HUD and a Lua runtime, all from memory. The same
-build works on all three versions; it finds out which one it is in and loads the
-modules that work there. When you are done, hold <kbd>End</kbd> and it leaves
+Cobble Recode is a client for **Lunar Client on Minecraft 1.8.9 and 1.21.11**. It
+is not a mod and it is not a launcher. You start the game the way you always do,
+run one small executable, and the client loads straight into the running game:
+modules, menu, HUD and a Lua runtime, all from memory. The same build works on
+both versions; it finds out which one it is in and loads the modules that work
+there. When you are done, hold <kbd>End</kbd> and it leaves
 again, with Minecraft still running.
 
 <br>
@@ -50,8 +50,8 @@ again, with Minecraft still running.
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Getting started
 
 > [!NOTE]
-> You need Windows x64 and Lunar Client on **1.7.10, 1.8.9 or 1.21.11**. That is
-> all; the client brings everything else with it.
+> You need Windows x64 and Lunar Client on **1.8.9 or 1.21.11**. That is all; the
+> client brings everything else with it.
 
 1. Open Lunar Client on one of those versions and join a world or a server.
 2. Run **`cobble-injector.exe`** and pick the game window.
@@ -86,20 +86,19 @@ folders:
 
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Versions
 
-| | 1.7.10 | 1.8.9 | 1.21.11 |
-| :-- | :-: | :-: | :-: |
-| **Modules** | 120 | 122 | 121 |
-| **Game names** | MCP, retargeted | MCP | Fabric intermediary, retargeted |
+| | 1.8.9 | 1.21.11 |
+| :-- | :-: | :-: |
+| **Modules** | 122 | 121 |
+| **Game names** | MCP | Fabric intermediary, retargeted |
 
-Most modules are written once and run everywhere. A few only make sense on one
+Most modules are written once and run on both. A few only make sense on one
 side of the 1.9 combat update, and the client hides them where they do not:
 
 | Only on 1.21.11 | Only before the combat update |
 | :-- | :-- |
-| AutoAnchor, CrystalAura, AutoTotem, WindCharge: their items are not in the older versions | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock) |
+| AutoAnchor, CrystalAura, AutoTotem, WindCharge: their items are not in 1.8.9 | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock) |
 
-BedPlates does not load on 1.21.11 yet, and NickBot and BedPlates do not load on
-1.7.10.
+BedPlates does not load on 1.21.11 yet.
 
 On 1.21.11 the client knows its way around what Lunar runs there: chunks are
 built by Sodium, which Xray hooks directly, and Lunar's cosmetic cloaks give way
@@ -487,12 +486,11 @@ injected again right away.
 <tr>
 <td width="50%" valign="top">
 
-#### One build, three versions
+#### One build, two versions
 
 The modules that need nothing version-specific are written once, against the
 client's own view of the game. The rest is 1.8.9 code, rewritten at build time
-for 1.7.10 from Lunar's mapping tables and for 1.21.11 from a table of renames
-and small shims. Each version's adapter supplies the hooks and the game view.
+for 1.21.11 from a table of renames and small shims. Each version's adapter supplies the hooks and the game view.
 
 </td>
 <td width="50%" valign="top">
@@ -535,7 +533,7 @@ snaps to that grid before anything reaches the player.
 ## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
 
 You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer, a JDK 17 or
-newer, and Lunar Client with 1.7.10, 1.8.9 and 1.21.11 each launched once: the
+newer, and Lunar Client with 1.8.9 and 1.21.11 each launched once: the
 build compiles against the classes Lunar bakes for them. Configuring fetches the
 public jars into `infra/lib`.
 
@@ -563,7 +561,6 @@ src/common/        the client without Minecraft: boot, hooks, patcher, bridge,
                    events, the game view, menu, HUD, renderer, Lua, and the
                    modules written against the game view
 src/legacy/        the modules and utilities written against 1.8.9
-src/v1_7/          the 1.7.10 adapter and its retarget rules
 src/v1_21/         the 1.21.11 adapter, hooks, retarget rules and shims
 src/v1_21_legacy/  1.21.11 hooks for the legacy modules, and the legacy
                    classes rewritten by hand for it

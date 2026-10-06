@@ -7,7 +7,6 @@ package cobble.boot;
  * intermediary ones, where the game reports its own version.
  */
 public enum GameVersion {
-    V1_7_10("1.7.10", "v1_7"),
     V1_8_9("1.8.9", "v1_8"),
     V1_21_11("1.21.11", "v1_21.legacy");
 

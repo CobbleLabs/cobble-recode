@@ -2,7 +2,7 @@ package cobble.module;
 
 import net.minecraft.client.Minecraft;
 
-/** A module written straight against the MCP-named game, which 1.7.10 and 1.8.9 share. */
+/** A module written straight against 1.8.9's MCP-named game. */
 public abstract class LegacyModule extends Module {
     protected static final Minecraft mc = Minecraft.getMinecraft();
 

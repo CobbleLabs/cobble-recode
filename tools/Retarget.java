@@ -71,13 +71,10 @@ import org.objectweb.asm.tree.analysis.SourceValue;
  * target.
  *
  * Right-hand sides are written in the target version's names; class renames
- * are applied to everything else afterwards. Given Lunar's Searge tables for
- * both versions, a reference no rule covers and the target lacks is renamed
- * to whatever the target calls the same Searge member, which takes care of
- * the plain renames between versions. Only classes that change are written.
+ * are applied to everything else afterwards. Only classes that change are
+ * written.
  *
  * Usage: java -cp asm*.jar tools/Retarget.java <rules> <source jar>,... <target jar or dir>,... <classes> <out>
- *            [<source searge2lunar jar!entry> <target searge2lunar jar!entry>]
  */
 public final class Retarget {
     private record Target(String kind, String owner, String name, String descriptor) {}
@@ -92,10 +89,6 @@ public final class Retarget {
     private final Map<String, ClassNode> target = new HashMap<>();
     private final List<String> errors = new ArrayList<>();
     private final SimpleRemapper renamer = new SimpleRemapper(classes);
-    /** Source version's "declaring class.name descriptor" to its Searge name. */
-    private final Map<String, String> sourceSearge = new HashMap<>();
-    /** Target version's "declaring class.Searge name descriptor" to its name there. */
-    private final Map<String, String> targetNames = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
         Retarget retarget = new Retarget();
@@ -109,10 +102,6 @@ public final class Retarget {
         retarget.renamedTargetsExist();
         Path input = Path.of(args[3]);
         Path output = Path.of(args[4]);
-        if (args.length > 6) {
-            readSearge(args[5], (srg, named) -> retarget.sourceSearge.put(named, srg));
-            readSearge(args[6], retarget.targetNames::put);
-        }
         Map<Path, byte[]> inputs = new HashMap<>();
         try (Stream<Path> walk = Files.walk(input)) {
             for (Path file : walk.filter(path -> path.toString().endsWith(".class")).collect(Collectors.toList())) {
@@ -177,14 +166,6 @@ public final class Retarget {
         boolean changed = false;
         for (MethodNode method : node.methods) {
             changed |= rewrite(node, method);
-            /* An override of a game method has to carry the name the target gives it, or it overrides nothing. */
-            if ((method.access & Opcodes.ACC_STATIC) == 0 && !method.name.startsWith("<") && node.superName != null) {
-                String renamed = renamedThroughSearge(node.superName, method.name, method.desc, true);
-                if (renamed != null) {
-                    method.name = renamed;
-                    changed = true;
-                }
-            }
         }
         boolean renames = mentionsRenamed(bytes);
         if (!changed && !renames) {
@@ -215,13 +196,7 @@ public final class Retarget {
                     replaceField(owner, method, field, replacement);
                     changed = true;
                 } else {
-                    String renamed = renamedThroughSearge(field.owner, field.name, field.desc, false);
-                    if (renamed != null) {
-                        field.name = renamed;
-                        changed = true;
-                    } else {
-                        changed |= shimField(method, field);
-                    }
+                    changed |= shimField(method, field);
                 }
             } else if (insn instanceof TypeInsnNode type && type.getOpcode() == Opcodes.INSTANCEOF
                     && instanceTests.containsKey(type.desc)) {
@@ -232,12 +207,6 @@ public final class Retarget {
             } else if (insn instanceof MethodInsnNode call) {
                 Target replacement = methods.get(declaring(call.owner, call.name + call.desc, true));
                 if (replacement == null) {
-                    String renamed = renamedThroughSearge(call.owner, call.name, call.desc, true);
-                    if (renamed != null) {
-                        call.name = renamed;
-                        changed = true;
-                        continue;
-                    }
                     replacement = shimFor(call);
                     if (replacement == null) {
                         changed |= followOwnerKind(call);
@@ -501,37 +470,6 @@ public final class Retarget {
         return null;
     }
 
-    /**
-     * A member the target does not have under its source name, renamed through
-     * the Searge names Lunar's mapping tables give both versions: the same
-     * Searge name with the same descriptor is the same member. Null when the
-     * reference already resolves, or when the tables have nothing that does.
-     */
-    private String renamedThroughSearge(String owner, String name, String descriptor, boolean isMethod) {
-        if (sourceSearge.isEmpty() || resolves(target, owner, name, descriptor, isMethod)) {
-            return null;
-        }
-        String declarer = declarer(source, owner, name, descriptor, isMethod);
-        if (declarer == null) {
-            return null;
-        }
-        String separator = isMethod ? "" : ":";
-        String seargeKey = sourceSearge.get(declarer + "." + name + separator + descriptor);
-        if (seargeKey == null) {
-            return null;
-        }
-        // A member the target's table leaves unnamed runs under its Searge name.
-        String targetKey = targetNames.getOrDefault(seargeKey, seargeKey);
-        String renamed = targetKey.substring(declarer.length() + 1, targetKey.length() - descriptor.length()
-                - separator.length());
-        return resolves(target, owner, renamed, descriptor, isMethod) ? renamed : null;
-    }
-
-    private static boolean resolves(Map<String, ClassNode> world, String owner, String name, String descriptor,
-                                    boolean isMethod) {
-        return declarer(world, owner, name, descriptor, isMethod) != null;
-    }
-
     /** The class in {@code owner}'s hierarchy that declares the member, or null. */
     private static String declarer(Map<String, ClassNode> world, String owner, String name, String descriptor,
                                    boolean isMethod) {
@@ -556,53 +494,6 @@ public final class Retarget {
             }
         }
         return null;
-    }
-
-    /*
-     * Lunar's .kin tables: a magic int, a version byte, an int, a class count,
-     * then per class its two names, its nested classes the same way (by simple
-     * name), its fields and its methods, each as Searge name, descriptor and
-     * mapped name. Every string is Java's modified UTF-8 with a length prefix.
-     */
-    private static void readSearge(String location, java.util.function.BiConsumer<String, String> into)
-            throws IOException {
-        String[] parts = location.split("!", 2);
-        try (ZipFile zip = new ZipFile(parts[0]);
-             java.io.DataInputStream in = new java.io.DataInputStream(
-                     new java.io.BufferedInputStream(zip.getInputStream(zip.getEntry(parts[1]))))) {
-            in.readInt();
-            in.readUnsignedByte();
-            in.readInt();
-            int count = in.readInt();
-            for (int index = 0; index < count; ++index) {
-                readSeargeClass(in, null, into);
-            }
-        }
-    }
-
-    private static void readSeargeClass(java.io.DataInputStream in, String outer,
-                                        java.util.function.BiConsumer<String, String> into) throws IOException {
-        String name = in.readUTF();
-        in.readUTF();
-        String owner = outer != null ? outer + "$" + name : name;
-        int nested = in.readInt();
-        for (int index = 0; index < nested; ++index) {
-            readSeargeClass(in, owner, into);
-        }
-        int fieldCount = in.readInt();
-        for (int index = 0; index < fieldCount; ++index) {
-            String srg = in.readUTF();
-            String descriptor = in.readUTF();
-            String mapped = in.readUTF();
-            into.accept(owner + "." + srg + ":" + descriptor, owner + "." + mapped + ":" + descriptor);
-        }
-        int methodCount = in.readInt();
-        for (int index = 0; index < methodCount; ++index) {
-            String srg = in.readUTF();
-            String descriptor = in.readUTF();
-            String mapped = in.readUTF();
-            into.accept(owner + "." + srg + descriptor, owner + "." + mapped + descriptor);
-        }
     }
 
     private boolean isInterface(String name) {

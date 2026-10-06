@@ -78,12 +78,6 @@ cold_fetch_jar("${COLD_MOJANG}/io/netty/netty-all/4.0.23.Final/netty-all-4.0.23.
     SHA1 0294104aaf1781d6a56a07d561e792c5d0c95f45)
 set(COLD_1_8_LIBS ${COLD_LEGACY_LIBS} "${COLD_LIB_DIR}/guava-17.0.jar" "${COLD_LIB_DIR}/netty-all-4.0.23.Final.jar")
 
-cold_fetch_jar("${COLD_MOJANG}/com/google/guava/guava/15.0/guava-15.0.jar"
-    SHA1 ed727a8d9f247e2050281cb083f1c77b09dcb5cd)
-cold_fetch_jar("${COLD_MOJANG}/io/netty/netty-all/4.0.10.Final/netty-all-4.0.10.Final.jar"
-    SHA1 9e50bd52ffe257a0e2cd8d971688d6ce7d174325)
-set(COLD_1_7_LIBS ${COLD_LEGACY_LIBS} "${COLD_LIB_DIR}/guava-15.0.jar" "${COLD_LIB_DIR}/netty-all-4.0.10.Final.jar")
-
 set(COLD_1_21_LIBS "")
 foreach(entry
         "com/google/code/gson/gson/2.13.2/gson-2.13.2.jar|48b8230771e573b54ce6e867a9001e75977fe78e"
@@ -135,7 +129,6 @@ set(COLD_LUNAR_JARS "${COLD_LUNAR_DIR}/lunar.jar" "${COLD_LUNAR_DIR}/common-0.1.
 set(COLD_LUNAR_LEGACY_JARS ${COLD_LUNAR_JARS} "${COLD_LUNAR_DIR}/legacy-0.1.0-SNAPSHOT-all-nomappings.jar")
 set(COLD_LUNAR_MODERN_JARS ${COLD_LUNAR_JARS} "${COLD_LUNAR_DIR}/modern-0.1.0-SNAPSHOT-all-nomappings.jar")
 
-set(COLD_GAME_1_7 "${COLD_GAME_DIR}/minecraft-1.7.10.jar")
 set(COLD_GAME_1_8 "${COLD_GAME_DIR}/minecraft-1.8.9.jar")
 set(COLD_GAME_1_21 "${COLD_GAME_DIR}/minecraft-1.21.11.jar")
 set(COLD_GAME_1_21_NAMED "${COLD_GAME_DIR}/minecraft-1.21.11-named.jar")
@@ -143,7 +136,7 @@ set(COLD_GAME_1_21_NAMED "${COLD_GAME_DIR}/minecraft-1.21.11-named.jar")
 add_custom_target(cobble-game-jars
     COMMAND "${COLD_JAVA}" "${CMAKE_SOURCE_DIR}/tools/GameJars.java"
         "${COLD_LUNAR_DIR}/cache" "${COLD_YARN}" "${COLD_GAME_DIR}"
-    BYPRODUCTS "${COLD_GAME_1_7}" "${COLD_GAME_1_8}" "${COLD_GAME_1_21}"
+    BYPRODUCTS "${COLD_GAME_1_8}" "${COLD_GAME_1_21}"
     COMMENT "picking the game classes Lunar baked"
     VERBATIM
 )
@@ -175,7 +168,7 @@ set(COLD_BUNDLED_JARS
     "${COLD_LIB_DIR}/asm-9.7.1.jar" "${COLD_LIB_DIR}/asm-tree-9.7.1.jar" "${COLD_LIB_DIR}/luaj-jse-3.0.1.jar")
 
 # One source set per row: what it may see, and nothing else. common holds no
-# Minecraft at all; legacy is written against 1.8.9 and reused on 1.7.10
+# Minecraft at all; legacy is written against 1.8.9 and rewritten for 1.21.11
 # wherever it links; each version's own set compiles against that version.
 # An argument file per set keeps the source lists clear of cmd.exe's
 # 8191-character limit and is only rewritten when a source is added or removed.
@@ -191,7 +184,6 @@ endfunction()
 
 set(COLD_OUT_COMMON "${COLD_CLASSES_DIR}/common")
 set(COLD_OUT_LEGACY "${COLD_CLASSES_DIR}/legacy")
-set(COLD_OUT_1_7 "${COLD_CLASSES_DIR}/v1_7")
 set(COLD_OUT_1_21_NAMED "${COLD_CLASSES_DIR}/v1_21-named")
 set(COLD_OUT_1_21 "${COLD_CLASSES_DIR}/v1_21")
 set(COLD_OUT_LEGACY_1_21_NAMED "${COLD_CLASSES_DIR}/legacy-1.21-named")
@@ -200,8 +192,6 @@ cold_source_set(common "${COLD_OUT_COMMON}"
     "${COLD_BUNDLED_JARS};${COLD_LIB_DIR}/lwjgl-2.9.4-nightly-20150209.jar;${COLD_LIB_DIR}/gson-2.2.4.jar")
 cold_source_set(legacy "${COLD_OUT_LEGACY}"
     "${COLD_OUT_COMMON};${COLD_BUNDLED_JARS};${COLD_GAME_1_8};${COLD_LUNAR_LEGACY_JARS};${COLD_1_8_LIBS}")
-cold_source_set(v1_7 "${COLD_OUT_1_7}"
-    "${COLD_OUT_COMMON};${COLD_OUT_LEGACY};${COLD_BUNDLED_JARS};${COLD_GAME_1_7};${COLD_LUNAR_LEGACY_JARS};${COLD_1_7_LIBS}")
 cold_source_set(v1_21 "${COLD_OUT_1_21_NAMED}"
     "${COLD_OUT_COMMON};${COLD_BUNDLED_JARS};${COLD_GAME_1_21_NAMED};${COLD_LUNAR_MODERN_JARS};${COLD_1_21_LIBS}")
 # The 1.21 hooks that raise the legacy code's events, and 1.21 versions of
@@ -212,7 +202,6 @@ cold_source_set(v1_21_legacy "${COLD_OUT_1_21_LEGACY_NAMED}"
     "${COLD_OUT_LEGACY_1_21_NAMED};${COLD_OUT_LEGACY};${COLD_OUT_1_21_NAMED};${COLD_OUT_COMMON};${COLD_BUNDLED_JARS};${COLD_GAME_1_21_NAMED};${COLD_LUNAR_MODERN_JARS};${COLD_1_21_LIBS}")
 
 # What each version's code is checked against: the game, then Lunar, then the libraries.
-string(JOIN "," COLD_WORLD_1_7 "${COLD_GAME_1_7}" ${COLD_LUNAR_LEGACY_JARS} ${COLD_1_7_LIBS})
 string(JOIN "," COLD_WORLD_1_8 "${COLD_GAME_1_8}" ${COLD_LUNAR_LEGACY_JARS} ${COLD_1_8_LIBS})
 string(JOIN "," COLD_WORLD_1_21 "${COLD_GAME_1_21}" ${COLD_LUNAR_MODERN_JARS} ${COLD_1_21_LIBS})
 string(JOIN "," COLD_WORLD_1_21_NAMED "${COLD_GAME_1_21_NAMED}" ${COLD_LUNAR_MODERN_JARS} ${COLD_1_21_LIBS}
@@ -227,7 +216,6 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E rm -rf "${COLD_CLASSES_DIR}" "${COLD_IMAGE_DIR}"
     COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/common.args"
     COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/legacy.args"
-    COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/v1_7.args"
     COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/v1_21.args"
     COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Retarget.java"
         "${CMAKE_SOURCE_DIR}/src/v1_21/retarget.rules" "${COLD_WORLD_1_8}" "${COLD_WORLD_1_21_NAMED}"
@@ -243,13 +231,7 @@ add_custom_command(
         "${COLD_IMAGE_DIR}/versions/1.21.11"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_COMMON}" "${COLD_IMAGE_DIR}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_LEGACY}" "${COLD_IMAGE_DIR}"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_1_7}" "${COLD_IMAGE_DIR}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_1_21}" "${COLD_IMAGE_DIR}"
-    COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Retarget.java"
-        "${CMAKE_SOURCE_DIR}/src/v1_7/retarget.rules" "${COLD_WORLD_1_8}" "${COLD_WORLD_1_7},${COLD_OUT_1_7}"
-        "${COLD_OUT_LEGACY}" "${COLD_IMAGE_DIR}/versions/1.7.10"
-        "${COLD_LUNAR_DIR}/lunar-platform-mappings-v1_8.jar!lunar/searge2lunar_1.8.9.kin"
-        "${COLD_LUNAR_DIR}/lunar-platform-mappings-v1_7.jar!lunar/searge2lunar_1.7.10.kin"
     COMMAND "${CMAKE_COMMAND}" -E chdir "${COLD_IMAGE_DIR}"
         "${CMAKE_COMMAND}" -E tar xf "${COLD_LIB_DIR}/asm-9.7.1.jar"
     COMMAND "${CMAKE_COMMAND}" -E chdir "${COLD_IMAGE_DIR}"
@@ -258,18 +240,18 @@ add_custom_command(
         "${CMAKE_COMMAND}" -E tar xf "${COLD_LIB_DIR}/luaj-jse-3.0.1.jar"
     COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Linkage.java"
         "${COLD_IMAGE_DIR}" "${COLD_JAVA_DIR}/linkage"
-        "1.7.10=v1_7=${COLD_WORLD_1_7}" "1.8.9=v1_8=${COLD_WORLD_1_8}" "1.21.11=v1_21/legacy=${COLD_WORLD_1_21}"
+        "1.8.9=v1_8=${COLD_WORLD_1_8}" "1.21.11=v1_21/legacy=${COLD_WORLD_1_21}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets" "${COLD_IMAGE_DIR}/assets"
     COMMAND "${CMAKE_COMMAND}" -E chdir "${COLD_IMAGE_DIR}"
         "${CMAKE_COMMAND}" -E tar cf "${COLD_IMAGE_ZIP}" --format=zip cobble org versions assets
-    DEPENDS "${COLD_JAVA_DIR}/common.args" "${COLD_JAVA_DIR}/legacy.args" "${COLD_JAVA_DIR}/v1_7.args"
+    DEPENDS "${COLD_JAVA_DIR}/common.args" "${COLD_JAVA_DIR}/legacy.args"
         "${COLD_JAVA_DIR}/v1_21.args" "${COLD_JAVA_DIR}/v1_21_legacy.args"
-        ${COLD_SOURCES_common} ${COLD_SOURCES_legacy} ${COLD_SOURCES_v1_7} ${COLD_SOURCES_v1_21}
+        ${COLD_SOURCES_common} ${COLD_SOURCES_legacy} ${COLD_SOURCES_v1_21}
         ${COLD_SOURCES_v1_21_legacy} "${CMAKE_SOURCE_DIR}/src/v1_21/retarget.rules"
-        "${COLD_GAME_1_7}" "${COLD_GAME_1_8}" "${COLD_GAME_1_21}" "${COLD_GAME_1_21_NAMED}"
+        "${COLD_GAME_1_8}" "${COLD_GAME_1_21}" "${COLD_GAME_1_21_NAMED}"
         "${CMAKE_SOURCE_DIR}/tools/Remap.java" "${CMAKE_SOURCE_DIR}/tools/Linkage.java"
-        "${CMAKE_SOURCE_DIR}/tools/Retarget.java" "${CMAKE_SOURCE_DIR}/src/v1_7/retarget.rules"
+        "${CMAKE_SOURCE_DIR}/tools/Retarget.java"
         ${COLD_ASSET_FILES}
     COMMENT "compiling the client for every version and packing its image"
     VERBATIM

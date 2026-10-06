@@ -69,8 +69,7 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
 /**
- * The game as 1.7.10 and 1.8.9 share it under MCP names. Written against
- * 1.8.9; whatever 1.7.10 spells differently its adapter overrides.
+ * The game under 1.8.9's MCP names.
  */
 public abstract class LegacyGame implements Game {
     private static final int MAX_CAPTURED_ENTITIES = 320;

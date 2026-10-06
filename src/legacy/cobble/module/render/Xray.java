@@ -11,7 +11,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 import net.minecraft.block.Block;
-import net.minecraft.init.Blocks;
 
 /**
  * Builds the world without everything but the chosen blocks. The chunk
@@ -52,9 +51,7 @@ public final class Xray extends LegacyModule {
     }
 
     private Choice choice(String name, String... ids) {
-        /* 1.7.10 answers a name it has no block for with air rather than null. */
-        List<Block> blocks = Stream.of(ids).map(Block::getBlockFromName)
-                .filter(block -> block != null && block != Blocks.air).toList();
+        List<Block> blocks = Stream.of(ids).map(Block::getBlockFromName).filter(Objects::nonNull).toList();
         if (blocks.isEmpty()) {
             return null;
         }
