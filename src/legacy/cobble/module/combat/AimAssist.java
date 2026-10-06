@@ -1,5 +1,8 @@
 package cobble.module.combat;
 
+import cobble.core.Maths;
+import cobble.event.Phase;
+import cobble.event.RenderTickEvent;
 import cobble.event.RotationEvent;
 import cobble.event.Subscribe;
 import cobble.module.Category;
@@ -14,6 +17,7 @@ import cobble.module.other.AntiBot;
 import cobble.util.ClientUtils;
 import cobble.util.raytrace.BlockNuker;
 import cobble.util.block.BlockList;
+import cobble.util.rotation.AngleUtils;
 import cobble.util.rotation.RotationHandler;
 import cobble.util.rotation.RotationUtils;
 import java.util.ArrayList;
@@ -21,13 +25,19 @@ import java.util.List;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.BlockPos;
+import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import org.lwjgl.input.Mouse;
 
 public class AimAssist extends LegacyModule {
+    /* Smoothing 100 eases a new pull in over this many ticks. */
+    private static final float RAMP_TICKS = 6.0F;
+
     private Setting mode;
+    private Setting horizontalOnly;
     private Setting speed;
+    private Setting smoothing;
     private Setting multipoint;
     private Setting randomization;
     private Setting fov;
@@ -44,12 +54,29 @@ public class AimAssist extends LegacyModule {
     private BlockList whitelistedBreakingBlocks;
     private Setting weaponOnly;
     private long kaY = -1L;
+    /* Resolved once a tick; the pull toward it runs every frame. */
+    private Entity aimTarget;
+    private float[] aimFrom;
+    private float[] aimTo;
+    private float aimRamp;
+    /* Two random draws a tick apart, blended across the frames between them,
+     * so the speed varies as much as before without jumping every tick. */
+    private float noiseFrom;
+    private float noiseTo;
+    private float residualYaw;
+    private float residualPitch;
+    /* Game time in ticks, so a frame's share of a tick follows the Timer the
+     * way the old once-a-tick pull did. */
+    private int ticks;
+    private float lastClock;
     private static final String[] uGubL = new String[]{"Health", "FOV", "Hurttime", "Distance"};
 
     public AimAssist() {
         super("AimAssist", "Pulls your aim toward the nearest target", Category.COMBAT, Subcategory.BASIC);
         this.mode = addChoice("Mode", "", List.of(AimAssistMode.labels()), AimAssistMode.NORMAL.ordinal());
+        this.horizontalOnly = addBoolean("Horizontal only", "", false);
         this.speed = addNumber("Speed", "", 10.0F, 1.0F, 30.0F, 0);
+        this.smoothing = addNumber("Smoothing", "", 0.0F, 0.0F, 100.0F, 0);
         this.multipoint = addNumber("Multipoint", "", 0.0F, 0.0F, 100.0F, 0);
         this.randomization = addNumber("Randomization", "", 50.0F, 0.0F, 100.0F, 0);
         this.fov = addNumber("FOV", "", 90.0F, 15.0F, 360.0F, 0);
@@ -100,6 +127,7 @@ public class AimAssist extends LegacyModule {
     public void guiUpdate() {
         boolean var1 = this.isLockOnMode();
         this.speed.setVisible(!var1);
+        this.smoothing.setVisible(!var1);
         this.multipoint.setVisible(!var1);
         this.randomization.setVisible(!var1);
         this.breakingBlocksWhitelist.setVisible(this.stopWhenBreaking.bool());
@@ -108,6 +136,8 @@ public class AimAssist extends LegacyModule {
     @Override
     public void onDisable(Context context) {
         this.kaY = -1L;
+        this.aimTarget = null;
+        this.aimTo = null;
     }
 
     @Subscribe(priority = Subscribe.Priority.NORMAL)
@@ -119,7 +149,11 @@ public class AimAssist extends LegacyModule {
                     float[] var3 = this.computeSilentRotation(var2, var1);
                     if (var3 != null) {
                         RotationHandler.getInstance().ljYma8(false);
-                        var1.setRotation(var3[0], var3[1], 10);
+                        if (this.horizontalOnly.bool()) {
+                            var1.setYaw(var3[0], 10);
+                        } else {
+                            var1.setRotation(var3[0], var3[1], 10);
+                        }
                     }
                 }
             }
@@ -128,17 +162,71 @@ public class AimAssist extends LegacyModule {
 
     @Override
     public void onUpdate() {
-        if (!this.isSilentMode() && this.canAimWithMouseHeld()) {
-            Entity var1 = this.findTarget(false);
-            if (var1 != null) {
-                float[] var2 = this.PCzIr(var1);
-                if (var2 != null) {
-                    var2 = RotationUtils.NSsr(var2[0], var2[1], mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
-                    mc.thePlayer.rotationYaw = var2[0];
-                    mc.thePlayer.rotationPitch = var2[1];
-                }
-            }
+        this.ticks++;
+        this.noiseFrom = this.noiseTo;
+        this.noiseTo = (float)Math.random();
+        Entity var1 = !this.isSilentMode() && this.canAimWithMouseHeld() ? this.findTarget(false) : null;
+        float[] var2 = var1 == null ? null : this.targetAngles(var1);
+        this.aimFrom = var1 == this.aimTarget && this.aimTo != null ? this.aimTo : var2;
+        this.aimTo = var2;
+        if (var1 != this.aimTarget) {
+            this.aimTarget = var1;
+            this.aimRamp = 0.0F;
         }
+    }
+
+    /*
+     * The pull runs every frame at the same degrees per tick, scaled by the
+     * frame's share of a tick, so it moves as continuously as the mouse does
+     * and shows on the frame it happens instead of a tick later.
+     */
+    @Subscribe
+    public void onRenderTick(RenderTickEvent var1) {
+        if (var1.phase != Phase.START) {
+            return;
+        }
+        float clock = this.ticks + var1.partialTicks;
+        float frameTicks = Maths.clamp(clock - this.lastClock, 0.0F, 1.0F);
+        this.lastClock = clock;
+        if (this.aimTo == null || !ClientUtils.isInWorld() || !this.canAimWithMouseHeld()) {
+            return;
+        }
+        /* Aimed where the target is drawn: between the last two ticks' angles,
+         * the way the game draws it between its last two positions. Chasing
+         * each tick's angles outright lurches twenty times a second. Just
+         * before a tick, when the click is handled, the two agree. */
+        float aimYaw = this.aimFrom[0] + MathHelper.wrapAngleTo180_float(this.aimTo[0] - this.aimFrom[0]) * var1.partialTicks;
+        float aimPitch = this.aimFrom[1] + (this.aimTo[1] - this.aimFrom[1]) * var1.partialTicks;
+        float yaw = mc.thePlayer.rotationYaw;
+        float pitch = mc.thePlayer.rotationPitch;
+        float deltaYaw = MathHelper.wrapAngleTo180_float(aimYaw - yaw);
+        float deltaPitch = this.horizontalOnly.bool() ? 0.0F : aimPitch - pitch;
+        float distance = (float)Math.sqrt(deltaYaw * deltaYaw + deltaPitch * deltaPitch);
+        if (distance < 0.001F) {
+            return;
+        }
+
+        float rampTicks = this.getEffectiveSmoothing() / 100.0F * RAMP_TICKS;
+        this.aimRamp = rampTicks <= 0.0F ? 1.0F : Math.min(1.0F, this.aimRamp + frameTicks / rampTicks);
+        int speed = this.getEffectiveSpeed();
+        float noise = this.noiseFrom + (this.noiseTo - this.noiseFrom) * var1.partialTicks;
+        float step = speed >= 30 ? distance
+            : AngleUtils.stepLength(speed, this.getEffectiveRandomization(), distance, () -> noise) * frameTicks;
+        float fraction = Math.min(step * this.aimRamp, distance) / distance;
+
+        float wantedYaw = yaw + deltaYaw * fraction + this.residualYaw;
+        float wantedPitch = pitch + deltaPitch * fraction + this.residualPitch;
+        float[] next = RotationUtils.NSsr(wantedYaw, wantedPitch, yaw, pitch);
+        /* The sensitivity grid rounds away whatever does not fill a whole mouse
+         * step; carried into the next frame, a slow pull still arrives. */
+        this.residualYaw = wantedYaw - next[0];
+        this.residualPitch = wantedPitch - next[1];
+        /* Moved the way the game moves it for the mouse: both ends of the
+         * render interpolation shift, so the frame shows it at once. */
+        mc.thePlayer.prevRotationYaw += next[0] - yaw;
+        mc.thePlayer.prevRotationPitch += next[1] - pitch;
+        mc.thePlayer.rotationYaw = next[0];
+        mc.thePlayer.rotationPitch = next[1];
     }
 
     private boolean isSilentMode() {
@@ -160,15 +248,20 @@ public class AimAssist extends LegacyModule {
             .getEventEntityRotationsFull(var1, var2, this.getEffectiveSpeed(), var3, var3, this.getEffectiveRandomization(), var5, this.distance.number(), !this.ignoreBehindWalls.bool(), this.targetBehindFriendly.bool(), this.targetBehindEnemy.bool());
     }
 
-    private float[] PCzIr(Entity var1) {
+    /* Full speed and no randomisation is the target itself; the frame pull does the approach. */
+    private float[] targetAngles(Entity var1) {
         double var2 = this.getEffectiveMultipoint();
         boolean var4 = this.ebdGdj();
         return RotationHandler.getInstance()
-            .getEntityRotationsFull(var1, this.getEffectiveSpeed(), var2, var2, this.getEffectiveRandomization(), var4, this.distance.number(), !this.ignoreBehindWalls.bool(), this.targetBehindFriendly.bool(), this.targetBehindEnemy.bool());
+            .getEntityRotationsFull(var1, 30, var2, var2, 0.0F, var4, this.distance.number(), !this.ignoreBehindWalls.bool(), this.targetBehindFriendly.bool(), this.targetBehindEnemy.bool());
     }
 
     private int getEffectiveSpeed() {
         return this.isLockOnMode() ? 30 : (int)this.speed.number();
+    }
+
+    private float getEffectiveSmoothing() {
+        return this.isLockOnMode() ? 0.0F : (float)this.smoothing.number();
     }
 
     private double getEffectiveMultipoint() {

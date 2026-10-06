@@ -541,6 +541,12 @@ final class GameAdapter implements Game {
         }
     }
 
+    /* Each posted event sets the binding the moment it arrives, a frame at a
+     * time, and that is what keystroke displays read here already. */
+    @Override
+    public void showQueuedMouseButton(int button, boolean shown) {
+    }
+
     @Override
     public boolean inGameFocused() {
         MinecraftClient mc = mc();
