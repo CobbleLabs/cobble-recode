@@ -10,7 +10,7 @@
 ![Java](https://img.shields.io/badge/Java-17-FFD2A6?style=flat-square&labelColor=171A21&logo=openjdk&logoColor=white)
 ![Platform](https://img.shields.io/badge/Windows-x64-8FD3FF?style=flat-square&labelColor=171A21)
 ![Lua](https://img.shields.io/badge/Scripting-Lua-F2A8C8?style=flat-square&labelColor=171A21&logo=lua&logoColor=white)
-![Modules](https://img.shields.io/badge/Modules-126-FFD2A6?style=flat-square&labelColor=171A21)
+![Modules](https://img.shields.io/badge/Modules-128-FFD2A6?style=flat-square&labelColor=171A21)
 
 **[cobble.vip](https://cobble.vip)**
 
@@ -27,11 +27,11 @@
 
 <br>
 
-Cobble Recode is a client for **Lunar Client on Minecraft 1.8.9 and 1.21.11**. It
-is not a mod and it is not a launcher. You start the game the way you always do,
+Cobble Recode is a client for **Lunar Client on Minecraft 1.8.9 and 1.21.11**
+and for **CheatBreaker on 1.8.9**. It is not a mod and it is not a launcher. You start the game the way you always do,
 run one small executable, and the client loads straight into the running game:
 modules, menu, HUD and a Lua runtime, all from memory. The same build works on
-both versions; it finds out which one it is in and loads the modules that work
+every one of them; it finds out which one it is in and loads the modules that work
 there. When you are done, hold <kbd>End</kbd> and it leaves
 again, with Minecraft still running.
 
@@ -50,10 +50,10 @@ again, with Minecraft still running.
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Getting started
 
 > [!NOTE]
-> You need Windows x64 and Lunar Client on **1.8.9 or 1.21.11**. That is all; the
-> client brings everything else with it.
+> You need Windows x64 and Lunar Client on **1.8.9 or 1.21.11**, or CheatBreaker
+> on **1.8.9**. That is all; the client brings everything else with it.
 
-1. Open Lunar Client on one of those versions and join a world or a server.
+1. Open the game on one of those and join a world or a server.
 2. Run **`cobble-injector.exe`** and pick the game window.
 3. Press <kbd>Insert</kbd>. The menu opens at the top of the screen.
 
@@ -86,17 +86,17 @@ folders:
 
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Versions
 
-| | 1.8.9 | 1.21.11 |
-| :-- | :-: | :-: |
-| **Modules** | 122 | 121 |
-| **Game names** | MCP | Fabric intermediary, retargeted |
+| | 1.8.9 | 1.21.11 | CheatBreaker 1.8.9 |
+| :-- | :-: | :-: | :-: |
+| **Modules** | 122 | 121 | as 1.8.9 |
+| **Game names** | MCP | Fabric intermediary, retargeted | CheatBreaker's own, recovered at build time |
 
 Most modules are written once and run on both. A few only make sense on one
 side of the 1.9 combat update, and the client hides them where they do not:
 
 | Only on 1.21.11 | Only before the combat update |
 | :-- | :-- |
-| AutoAnchor, CrystalAura, AutoTotem, WindCharge: their items are not in 1.8.9 | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock) |
+| AutoAnchor, CrystalAura, AutoTotem, WindCharge: their items are not in 1.8.9 | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock), AutoBackstab (HCF is played on 1.8) |
 
 BedPlates does not load on 1.21.11 yet.
 
@@ -162,7 +162,7 @@ next to a real 3D model of their skin that you can turn with the mouse.
 
 ## <img src="docs/assets/section-modules.svg" height="30" align="top" alt=""> Modules
 
-<img src="docs/assets/modules.svg" width="100%" alt="126 modules: Combat 27, Player 39, Movement 13, Visuals 23, HUD 5, Minigames 12, Other 5, Client 2">
+<img src="docs/assets/modules.svg" width="100%" alt="128 modules: Combat 28, Player 39, Movement 13, Visuals 23, HUD 5, Minigames 13, Other 5, Client 2">
 
 Every module is filed as
 <img src="docs/assets/tier-basic.svg" alt="Basic" align="absmiddle">
@@ -172,7 +172,7 @@ so a tab can show only what you are after. Modules tagged *1.21* or *1.8* are
 only shown on those versions; see [Versions](#versions).
 
 <details>
-<summary><b>Combat</b> · 27 modules</summary>
+<summary><b>Combat</b> · 28 modules</summary>
 <br>
 
 | Module | Tier | What it does |
@@ -181,6 +181,7 @@ only shown on those versions; see [Versions](#versions).
 | **AttributeSwap** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Swaps to your best sword for the hit, then back |
 | **AutoAnchor** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places, charges and sets off a respawn anchor, with an aim assist so no use misses · *1.21* |
 | **AutoAim** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims bows and rods where the target will be |
+| **AutoBackstab** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | HCF rogue backstabs, from the front or swapping to the golden sword when their back turns · *1.8* |
 | **AutoBlock** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks with the sword between hits, in custom, swap or predict timing · *1.8* |
 | **AutoClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks for you while you hold left, on a human timing model |
 | **AutoFeed** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Stops attacks that would finish an enemy |
@@ -324,7 +325,7 @@ only shown on those versions; see [Versions](#versions).
 </details>
 
 <details>
-<summary><b>Minigames</b> · 12 modules</summary>
+<summary><b>Minigames</b> · 13 modules</summary>
 <br>
 
 | Module | Tier | What it does |
@@ -332,6 +333,7 @@ only shown on those versions; see [Versions](#versions).
 | **ArmedAimbot** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Aims the gun in BedWars Armed mode |
 | **AutoChest** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Scroll up to deposit and down to steal |
 | **AutoWho** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Runs /who for you |
+| **BardHelper** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Cycles the HCF bard buff items on your hotbar |
 | **BedDefender** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Covers your bed with blocks |
 | **BedwarsUtils** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | BedWars alerts and utilities |
 | **Deposit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Puts resources and items into nearby chests |
@@ -533,9 +535,10 @@ snaps to that grid before anything reaches the player.
 ## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
 
 You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer, a JDK 17 or
-newer, and Lunar Client with 1.8.9 and 1.21.11 each launched once: the
-build compiles against the classes Lunar bakes for them. Configuring fetches the
-public jars into `infra/lib`.
+newer, Lunar Client with 1.8.9 and 1.21.11 each launched once, and CheatBreaker
+with 1.8.9 launched once: the build compiles against the classes Lunar bakes for
+them, and names CheatBreaker's classes by matching its game jar against
+vanilla's. Configuring fetches the public jars into `infra/lib`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1

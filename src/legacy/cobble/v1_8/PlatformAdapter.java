@@ -13,7 +13,7 @@ import cobble.util.rotation.RotationHandler;
 import java.util.List;
 
 /** Lunar's 1.8.9, the version the legacy code is written against. */
-public final class PlatformAdapter extends LegacyPlatform {
+public class PlatformAdapter extends LegacyPlatform {
     private final Game game = new GameAdapter();
 
     @Override

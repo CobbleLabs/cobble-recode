@@ -235,6 +235,7 @@ public abstract class LegacyGame implements Game {
             view.yaw = entity.rotationYaw;
             view.pitch = entity.rotationPitch;
             view.bodyYaw = living.renderYawOffset;
+            view.headYaw = living.rotationYawHead;
             view.health = living.getHealth();
             view.maxHealth = living.getMaxHealth();
             view.absorption = living.getAbsorptionAmount();
@@ -446,6 +447,14 @@ public abstract class LegacyGame implements Game {
             case OBSIDIAN -> item == Item.getItemFromBlock(Blocks.obsidian);
             case GLOWSTONE -> item == Item.getItemFromBlock(Blocks.glowstone);
             case ENDER_PEARL -> item instanceof ItemEnderPearl;
+            case IRON_INGOT -> item == Items.iron_ingot;
+            case BLAZE_POWDER -> item == Items.blaze_powder;
+            case GHAST_TEAR -> item == Items.ghast_tear;
+            case SUGAR -> item == Items.sugar;
+            case FEATHER -> item == Items.feather;
+            case MAGMA_CREAM -> item == Items.magma_cream;
+            case SPIDER_EYE -> item == Items.spider_eye;
+            case GOLDEN_SWORD -> item == Items.golden_sword;
             case TOTEM, END_CRYSTAL, RESPAWN_ANCHOR, MACE, WIND_CHARGE -> false;
         };
     }

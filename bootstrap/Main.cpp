@@ -13,6 +13,8 @@
 #include <jni.h>
 #include <jvmti.h>
 
+#include "CheatBreakerNames.h"
+
 #include <atomic>
 #include <cstdarg>
 #include <cstdio>
@@ -275,11 +277,13 @@ bool acquireJvmti() {
     return true;
 }
 
-/* The game's main class under the names each Lunar version runs with: MCP on
- * 1.7 and 1.8, Fabric intermediary (MinecraftClient) from 1.20 on. */
+/* The game's main class under the names each version runs with: MCP on Lunar's
+ * 1.7 and 1.8, Fabric intermediary (MinecraftClient) from 1.20 on, and
+ * whatever the CheatBreaker 1.8.9 build the client was mapped against calls it. */
 constexpr const char* kMinecraftSignatures[] = {
     "Lnet/minecraft/client/Minecraft;",
     "Lnet/minecraft/class_310;",
+    COLD_CB_MINECRAFT,
 };
 
 bool isMinecraftClass(const char* signature) {

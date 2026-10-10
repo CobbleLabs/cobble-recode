@@ -25,6 +25,8 @@ public final class EntityView {
     public float yaw;
     public float pitch;
     public float bodyYaw;
+    /** Where the head, and so the player, looks. On 1.8 it is set straight from the server; yaw eases toward it. */
+    public float headYaw;
 
     public float health;
     public float maxHealth;

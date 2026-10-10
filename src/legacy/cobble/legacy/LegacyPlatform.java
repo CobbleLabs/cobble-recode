@@ -6,6 +6,7 @@ import cobble.hook.MenuScreen;
 import cobble.platform.Platform;
 import cobble.render.Renderer;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -111,27 +112,35 @@ public abstract class LegacyPlatform implements Platform {
         return new Session(session.getUsername(), session.getPlayerID(), session.getToken());
     }
 
-    /* The fields are final, so they go through reflection. */
+    /*
+     * The fields are final, so they go through reflection, and by what they
+     * hold rather than by name: CheatBreaker runs them under names this
+     * source never sees. Null leaves a part as it is.
+     */
     @Override
     public void setSession(Session replacement) {
         net.minecraft.util.Session session = Minecraft.getMinecraft().getSession();
+        Object username = session.getUsername();
+        Object uuid = session.getPlayerID();
+        Object token = session.getToken();
         try {
-            set(session, "username", replacement.username());
-            set(session, "playerID", replacement.uuid());
-            set(session, "token", replacement.token());
+            for (Field field : net.minecraft.util.Session.class.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object value = field.get(session);
+                if (value == username && replacement.username() != null) {
+                    field.set(session, replacement.username());
+                } else if (value == uuid && replacement.uuid() != null) {
+                    field.set(session, replacement.uuid());
+                } else if (value == token && replacement.token() != null) {
+                    field.set(session, replacement.token());
+                }
+            }
         } catch (ReflectiveOperationException e) {
             Log.error("alts", "session not changed: %s", e);
         }
-    }
-
-    private static void set(net.minecraft.util.Session session, String name, String value)
-            throws ReflectiveOperationException {
-        if (value == null) {
-            return;
-        }
-        Field field = net.minecraft.util.Session.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(session, value);
     }
 
     /* The legacy code draws through the game's own GL here, as it is called. */

@@ -195,6 +195,7 @@ final class GameAdapter implements Game {
             view.yaw = entity.getYaw();
             view.pitch = entity.getPitch();
             view.bodyYaw = living.bodyYaw;
+            view.headYaw = living.getHeadYaw();
             view.health = living.getHealth();
             view.maxHealth = living.getMaxHealth();
             view.absorption = living.getAbsorptionAmount();
@@ -408,6 +409,14 @@ final class GameAdapter implements Game {
             case MACE -> stack.isOf(Items.MACE);
             case WIND_CHARGE -> stack.isOf(Items.WIND_CHARGE);
             case ENDER_PEARL -> stack.isOf(Items.ENDER_PEARL);
+            case IRON_INGOT -> stack.isOf(Items.IRON_INGOT);
+            case BLAZE_POWDER -> stack.isOf(Items.BLAZE_POWDER);
+            case GHAST_TEAR -> stack.isOf(Items.GHAST_TEAR);
+            case SUGAR -> stack.isOf(Items.SUGAR);
+            case FEATHER -> stack.isOf(Items.FEATHER);
+            case MAGMA_CREAM -> stack.isOf(Items.MAGMA_CREAM);
+            case SPIDER_EYE -> stack.isOf(Items.SPIDER_EYE);
+            case GOLDEN_SWORD -> stack.isOf(Items.GOLDEN_SWORD);
         };
     }
 

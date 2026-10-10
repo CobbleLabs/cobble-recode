@@ -54,6 +54,15 @@ cold_fetch_jar("${COLD_MAVEN}/org/ow2/asm/asm-analysis/9.7.1/asm-analysis-9.7.1.
     SHA256 85b29371884ba31bb76edf22323c2c24e172c3267a67152eba3d1ccc2e041ef2)
 cold_fetch_jar("${COLD_FABRIC}/net/fabricmc/yarn/1.21.11+build.6/yarn-1.21.11+build.6-v2.jar"
     SHA256 e8112359716235dc4fd7f0bd4a6162fd728e0d1067d9fa02f289edaaccd37718)
+# What CheatBreaker's names are recovered against: vanilla's client and MCP's names for it.
+set(COLD_VANILLA_1_8 "${COLD_LIB_DIR}/minecraft-1.8.9-client.jar")
+file(DOWNLOAD "https://launcher.mojang.com/v1/objects/3870888a6c3d349d3771a3e9d16c9bf5e076b908/client.jar"
+    "${COLD_VANILLA_1_8}" EXPECTED_HASH SHA1=3870888a6c3d349d3771a3e9d16c9bf5e076b908 TLS_VERIFY ON)
+set(COLD_FORGE "https://maven.minecraftforge.net")
+cold_fetch_jar("${COLD_FORGE}/de/oceanlabs/mcp/mcp/1.8.9/mcp-1.8.9-srg.zip"
+    SHA1 7612cfa7e48787ce5aa989c6c513807d18b31a36)
+cold_fetch_jar("${COLD_FORGE}/de/oceanlabs/mcp/mcp_stable/22-1.8.9/mcp_stable-22-1.8.9.zip"
+    SHA1 a0ac11737e5e8100f91c65b66da02b1fbbf08809)
 
 # The libraries each version's game runs with, where Lunar's bake does not
 # carry them. Hashes are the ones in Mojang's version manifests.
@@ -140,6 +149,44 @@ add_custom_target(cobble-game-jars
     COMMENT "picking the game classes Lunar baked"
     VERBATIM
 )
+# CheatBreaker runs its own build of 1.8.9 with every Minecraft name replaced;
+# the client runs there under the names tools/CbMap.java recovers from it.
+set(COLD_CB_DIR "$ENV{APPDATA}/CheatBreaker/downloads" CACHE PATH
+    "CheatBreaker's downloads folder, holding its versions and libraries")
+file(TO_CMAKE_PATH "${COLD_CB_DIR}" COLD_CB_DIR)
+set(COLD_CB_GAME "${COLD_CB_DIR}/versions/1.8.9/1.8.9.patch")
+set(COLD_CB_VERSION "${COLD_CB_DIR}/versions/1.8.9/1.8.9.json")
+if(NOT EXISTS "${COLD_CB_GAME}" OR NOT EXISTS "${COLD_CB_VERSION}")
+    message(FATAL_ERROR "no CheatBreaker 1.8.9 under ${COLD_CB_DIR}; launch 1.8.9 from CheatBreaker once "
+        "or pass -DCOLD_CB_DIR=<downloads folder>")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${COLD_CB_VERSION}")
+# Its libraries, the ones its launcher downloaded for this machine.
+file(READ "${COLD_CB_VERSION}" COLD_CB_JSON)
+string(JSON COLD_CB_LIBRARY_COUNT LENGTH "${COLD_CB_JSON}" libraries)
+math(EXPR COLD_CB_LAST_LIBRARY "${COLD_CB_LIBRARY_COUNT} - 1")
+set(COLD_CB_LIBS "")
+foreach(index RANGE ${COLD_CB_LAST_LIBRARY})
+    string(JSON path ERROR_VARIABLE no_artifact GET "${COLD_CB_JSON}" libraries ${index} downloads artifact path)
+    if(NOT no_artifact AND EXISTS "${COLD_CB_DIR}/libraries/${path}")
+        list(APPEND COLD_CB_LIBS "${COLD_CB_DIR}/libraries/${path}")
+    endif()
+endforeach()
+
+set(COLD_CB_NAMES_DIR "${COLD_JAVA_DIR}/cheatbreaker")
+set(COLD_CB_NAMES "${COLD_CB_NAMES_DIR}/names.tsv")
+set(COLD_CB_HEADER "${COLD_CB_NAMES_DIR}/CheatBreakerNames.h")
+add_custom_command(
+    OUTPUT "${COLD_CB_NAMES}" "${COLD_CB_HEADER}"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${COLD_CB_NAMES_DIR}"
+    COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/CbMap.java"
+        "${COLD_VANILLA_1_8}" "${COLD_CB_GAME}" "${COLD_LIB_DIR}/mcp-1.8.9-srg.zip"
+        "${COLD_LIB_DIR}/mcp_stable-22-1.8.9.zip" "${COLD_CB_NAMES}" "${COLD_CB_HEADER}"
+    DEPENDS "${COLD_CB_GAME}" "${COLD_VANILLA_1_8}" "${CMAKE_SOURCE_DIR}/tools/CbMap.java"
+    COMMENT "naming CheatBreaker 1.8.9's classes after MCP"
+    VERBATIM
+)
+
 add_custom_command(
     OUTPUT "${COLD_GAME_1_21_NAMED}"
     COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
@@ -188,6 +235,8 @@ set(COLD_OUT_1_21_NAMED "${COLD_CLASSES_DIR}/v1_21-named")
 set(COLD_OUT_1_21 "${COLD_CLASSES_DIR}/v1_21")
 set(COLD_OUT_LEGACY_1_21_NAMED "${COLD_CLASSES_DIR}/legacy-1.21-named")
 set(COLD_OUT_1_21_LEGACY_NAMED "${COLD_CLASSES_DIR}/v1_21_legacy-named")
+set(COLD_OUT_CB "${COLD_CLASSES_DIR}/cb_1_8")
+set(COLD_CB_OVERLAY "${COLD_IMAGE_DIR}/versions/cb-1.8.9")
 cold_source_set(common "${COLD_OUT_COMMON}"
     "${COLD_BUNDLED_JARS};${COLD_LIB_DIR}/lwjgl-2.9.4-nightly-20150209.jar;${COLD_LIB_DIR}/gson-2.2.4.jar")
 cold_source_set(legacy "${COLD_OUT_LEGACY}"
@@ -200,12 +249,17 @@ cold_source_set(v1_21 "${COLD_OUT_1_21_NAMED}"
 # retargeted classes they stand in for.
 cold_source_set(v1_21_legacy "${COLD_OUT_1_21_LEGACY_NAMED}"
     "${COLD_OUT_LEGACY_1_21_NAMED};${COLD_OUT_LEGACY};${COLD_OUT_1_21_NAMED};${COLD_OUT_COMMON};${COLD_BUNDLED_JARS};${COLD_GAME_1_21_NAMED};${COLD_LUNAR_MODERN_JARS};${COLD_1_21_LIBS}")
+# CheatBreaker's adapter, written against the legacy code under MCP names and
+# rewritten with it into CheatBreaker's for that version's overlay.
+cold_source_set(cb_1_8 "${COLD_OUT_CB}"
+    "${COLD_OUT_LEGACY};${COLD_OUT_COMMON};${COLD_BUNDLED_JARS};${COLD_GAME_1_8};${COLD_LUNAR_LEGACY_JARS};${COLD_1_8_LIBS}")
 
 # What each version's code is checked against: the game, then Lunar, then the libraries.
 string(JOIN "," COLD_WORLD_1_8 "${COLD_GAME_1_8}" ${COLD_LUNAR_LEGACY_JARS} ${COLD_1_8_LIBS})
 string(JOIN "," COLD_WORLD_1_21 "${COLD_GAME_1_21}" ${COLD_LUNAR_MODERN_JARS} ${COLD_1_21_LIBS})
 string(JOIN "," COLD_WORLD_1_21_NAMED "${COLD_GAME_1_21_NAMED}" ${COLD_LUNAR_MODERN_JARS} ${COLD_1_21_LIBS}
     "${COLD_OUT_1_21_NAMED}" "${COLD_OUT_COMMON}")
+string(JOIN "," COLD_WORLD_CB "${COLD_CB_GAME}" ${COLD_CB_LIBS})
 
 file(GLOB_RECURSE COLD_ASSET_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/assets/*")
 
@@ -217,6 +271,14 @@ add_custom_command(
     COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/common.args"
     COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/legacy.args"
     COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/v1_21.args"
+    COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/cb_1_8.args"
+    COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
+        cheatbreaker "${COLD_CB_NAMES}" "${COLD_GAME_1_8}" "${COLD_OUT_LEGACY}" "${COLD_CB_OVERLAY}"
+    COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
+        cheatbreaker "${COLD_CB_NAMES}" "${COLD_GAME_1_8}" "${COLD_OUT_CB}" "${COLD_CB_OVERLAY}"
+    COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
+        hooks "${COLD_CB_NAMES}" "${COLD_GAME_1_8}" "${COLD_CB_GAME}" "${COLD_OUT_COMMON};${COLD_OUT_LEGACY};${COLD_OUT_CB}"
+        cobble.cb.HookTable "${COLD_CB_OVERLAY}/cobble/cb/hooks.tsv"
     COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Retarget.java"
         "${CMAKE_SOURCE_DIR}/src/v1_21/retarget.rules" "${COLD_WORLD_1_8}" "${COLD_WORLD_1_21_NAMED}"
         "${COLD_OUT_LEGACY}" "${COLD_OUT_LEGACY_1_21_NAMED}"
@@ -232,6 +294,7 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_COMMON}" "${COLD_IMAGE_DIR}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_LEGACY}" "${COLD_IMAGE_DIR}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_1_21}" "${COLD_IMAGE_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${COLD_OUT_CB}" "${COLD_IMAGE_DIR}"
     COMMAND "${CMAKE_COMMAND}" -E chdir "${COLD_IMAGE_DIR}"
         "${CMAKE_COMMAND}" -E tar xf "${COLD_LIB_DIR}/asm-9.7.1.jar"
     COMMAND "${CMAKE_COMMAND}" -E chdir "${COLD_IMAGE_DIR}"
@@ -240,16 +303,16 @@ add_custom_command(
         "${CMAKE_COMMAND}" -E tar xf "${COLD_LIB_DIR}/luaj-jse-3.0.1.jar"
     COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Linkage.java"
         "${COLD_IMAGE_DIR}" "${COLD_JAVA_DIR}/linkage"
-        "1.8.9=v1_8=${COLD_WORLD_1_8}" "1.21.11=v1_21/legacy=${COLD_WORLD_1_21}"
+        "1.8.9=v1_8=${COLD_WORLD_1_8}" "1.21.11=v1_21/legacy=${COLD_WORLD_1_21}" "cb-1.8.9=cb=${COLD_WORLD_CB}"
     COMMAND "${CMAKE_COMMAND}" -E copy_directory
         "${CMAKE_SOURCE_DIR}/assets" "${COLD_IMAGE_DIR}/assets"
     COMMAND "${CMAKE_COMMAND}" -E chdir "${COLD_IMAGE_DIR}"
         "${CMAKE_COMMAND}" -E tar cf "${COLD_IMAGE_ZIP}" --format=zip cobble org versions assets
     DEPENDS "${COLD_JAVA_DIR}/common.args" "${COLD_JAVA_DIR}/legacy.args"
-        "${COLD_JAVA_DIR}/v1_21.args" "${COLD_JAVA_DIR}/v1_21_legacy.args"
+        "${COLD_JAVA_DIR}/v1_21.args" "${COLD_JAVA_DIR}/v1_21_legacy.args" "${COLD_JAVA_DIR}/cb_1_8.args"
         ${COLD_SOURCES_common} ${COLD_SOURCES_legacy} ${COLD_SOURCES_v1_21}
-        ${COLD_SOURCES_v1_21_legacy} "${CMAKE_SOURCE_DIR}/src/v1_21/retarget.rules"
-        "${COLD_GAME_1_8}" "${COLD_GAME_1_21}" "${COLD_GAME_1_21_NAMED}"
+        ${COLD_SOURCES_v1_21_legacy} ${COLD_SOURCES_cb_1_8} "${CMAKE_SOURCE_DIR}/src/v1_21/retarget.rules"
+        "${COLD_GAME_1_8}" "${COLD_GAME_1_21}" "${COLD_GAME_1_21_NAMED}" "${COLD_CB_NAMES}" "${COLD_CB_GAME}"
         "${CMAKE_SOURCE_DIR}/tools/Remap.java" "${CMAKE_SOURCE_DIR}/tools/Linkage.java"
         "${CMAKE_SOURCE_DIR}/tools/Retarget.java"
         ${COLD_ASSET_FILES}
@@ -268,12 +331,14 @@ add_library(cobble SHARED
     "${COLD_BOOTSTRAP_RC}"
     "${COLD_MEMORY_LOADER_CLASS}"
     "${COLD_IMAGE_ZIP}"
+    "${COLD_CB_HEADER}"
 )
 set_target_properties(cobble PROPERTIES OUTPUT_NAME "cobble" PREFIX "")
 add_dependencies(cobble cobble-game-jars)
 target_include_directories(cobble PRIVATE
     "${COLD_JAVA_HOME}/include"
     "${COLD_JAVA_HOME}/include/win32"
+    "${COLD_CB_NAMES_DIR}"
 )
 target_link_libraries(cobble PRIVATE user32)
 target_compile_definitions(cobble PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)

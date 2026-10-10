@@ -4,10 +4,14 @@ package cobble.boot;
  * The Minecraft version the client was injected into, told apart by what the
  * game's loader holds rather than by the launcher's command line: Lunar runs
  * 1.7 and 1.8 under MCP names and the modern versions under Fabric's
- * intermediary ones, where the game reports its own version.
+ * intermediary ones, where the game reports its own version; CheatBreaker
+ * keeps its own classes' names. A version's {@code id} also names its overlay
+ * in the image and its module list.
  */
 public enum GameVersion {
     V1_8_9("1.8.9", "v1_8"),
+    /** CheatBreaker's 1.8.9, which renames every Minecraft class and member. */
+    CB_1_8_9("cb-1.8.9", "cb"),
     V1_21_11("1.21.11", "v1_21.legacy");
 
     private static GameVersion current;
@@ -50,6 +54,10 @@ public enum GameVersion {
                 return "1.9 or later under MCP names";
             }
             return present(game, "net.minecraft.util.BlockPos") ? "1.8.9" : "1.7.10";
+        }
+        /* The bootstrap only finds CheatBreaker's game in the 1.8.9 build the client was mapped against. */
+        if (present(game, "com.cheatbreaker.client.network.messages.Message")) {
+            return CB_1_8_9.id;
         }
         try {
             Class<?> constants = Class.forName("net.minecraft.class_155", true, game);
