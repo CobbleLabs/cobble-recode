@@ -18,10 +18,12 @@ import cobble.module.ModuleManager;
 import cobble.module.client.AltManagerModule;
 import cobble.module.client.ClickGuiModule;
 import cobble.module.client.RadarModule;
+import cobble.module.render.Notifications;
 import cobble.render.Backdrop;
 import cobble.render.Renderer;
 import cobble.platform.Platform;
 import cobble.render.StateGuard;
+import cobble.render.StreamProof;
 import cobble.script.ScriptManager;
 import cobble.util.alt.AltAccounts;
 import java.io.IOException;
@@ -148,6 +150,7 @@ public final class Client {
             backdrop.destroy();
             renderReady = false;
         }
+        StreamProof.shutdown();
         Log.info(SCOPE, "Cobble Recode unloaded");
     }
 
@@ -301,14 +304,36 @@ public final class Client {
         }
         gfx.beginFrame(state.windowWidth, state.windowHeight, time);
         Platform.get().drawDeferred(gfx);
-        ModuleManager.render(context);
+        ModuleManager.render(context, false);
         ScriptManager.render();
-        hud.render(context);
+        boolean hideNotices = ModuleManager.get(Notifications.class).streamProof();
+        if (!hideNotices) {
+            hud.render(context);
+        }
+        if (hideNotices || ModuleManager.anyStreamProofed()) {
+            gfx.flush();
+            StreamProof.layer(() -> {
+                ModuleManager.render(context, true);
+                if (hideNotices) {
+                    hud.render(context);
+                }
+                gfx.flush();
+            });
+        }
         ScriptManager.renderHud(context, gui.interactive());
         gui.render(context);
-        radar.render(context);
+        if (ModuleManager.get(RadarModule.class).streamProof()) {
+            gfx.flush();
+            StreamProof.layer(() -> {
+                radar.render(context);
+                gfx.flush();
+            });
+        } else {
+            radar.render(context);
+        }
         altManager.render(context);
         gfx.endFrame();
+        StreamProof.present();
         ScriptManager.endFrame();
     }
 

@@ -1,6 +1,6 @@
 package cobble.event;
 
-public final class RenderTickEvent extends Event {
+public final class RenderTickEvent extends Event implements DrawEvent {
     public final Phase phase;
     public final float partialTicks;
 

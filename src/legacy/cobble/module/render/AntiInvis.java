@@ -25,6 +25,12 @@ public class AntiInvis extends LegacyModule {
         super("AntiInvis", "Shows invisible players", Category.VISUALS, Subcategory.ADVANCED);
     }
 
+    /* The players it reveals are drawn by the game itself, into the frame a capture records. */
+    @Override
+    protected boolean canStreamProof() {
+        return false;
+    }
+
     public boolean isForceVisibleTarget(EntityLivingBase var1) {
         return this.enabled() && var1 instanceof EntityPlayer && var1 != mc.thePlayer;
     }

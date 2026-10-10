@@ -43,6 +43,12 @@ public class FreeLook extends LegacyModule {
         this.fov = addNumber("FOV", "", 90.0F, 10.0F, 150.0F, 0);
     }
 
+    /* It turns the game's own camera; there is nothing of its own to draw. */
+    @Override
+    protected boolean canStreamProof() {
+        return false;
+    }
+
     @Override
     public void guiUpdate() {
         this.fov.setVisible(this.customFov.bool());

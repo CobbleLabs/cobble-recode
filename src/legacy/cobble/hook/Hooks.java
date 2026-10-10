@@ -65,6 +65,7 @@ import cobble.module.render.Nametags;
 import cobble.module.render.NoCameraClip;
 import cobble.module.render.Xray;
 import cobble.platform.Platform;
+import cobble.render.StreamProof;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.InputHookManager;
@@ -734,14 +735,14 @@ public final class Hooks {
 
     public static void renderTickEnd(float partialTicks) {
         InputHookManager.showPhysicalButtons();
-        EventBus.post(new RenderTickEvent(Phase.END, partialTicks));
+        StreamProof.post(new RenderTickEvent(Phase.END, partialTicks));
     }
 
     public static void renderWorldLast(int pass, float partialTicks, long finishTime) {
         /* The world-time draws push and pop attributes and set state raw, so the
          * cache is set right before the game goes on to draw its HUD over them. */
         if (EventBus.hasListeners(RenderWorldLastEvent.class)) {
-            EventBus.post(new RenderWorldLastEvent(partialTicks));
+            StreamProof.post(new RenderWorldLastEvent(partialTicks));
             Platform.get().resyncGlState();
         }
     }

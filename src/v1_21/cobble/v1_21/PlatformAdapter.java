@@ -130,6 +130,11 @@ public class PlatformAdapter implements Platform {
     }
 
     @Override
+    public boolean drawsImmediately() {
+        return false;
+    }
+
+    @Override
     public void glGetIntegers(int name, IntBuffer into) {
         GL11.glGetIntegerv(name, into);
     }

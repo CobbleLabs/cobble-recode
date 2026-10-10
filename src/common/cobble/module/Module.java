@@ -2,8 +2,11 @@ package cobble.module;
 
 import cobble.core.Color;
 import cobble.core.Log;
+import cobble.event.DrawEvent;
+import cobble.event.Subscribe;
 import cobble.render.Icon;
 import cobble.ui.Client;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +24,7 @@ public abstract class Module {
     private boolean running;
     private float animation;
     private final List<Setting> settings = new ArrayList<>();
+    private Setting streamProof;
 
     protected Module(String name, String description, Category category, Subcategory subcategory) {
         this(name, description, category, subcategory, 0);
@@ -147,6 +151,44 @@ public abstract class Module {
     /** Whether the running version has what the module works with; one that does not is never registered. */
     public boolean supported() {
         return true;
+    }
+
+    /** Drawn for the player but kept off screen captures; see {@link cobble.render.StreamProof}. */
+    public boolean streamProof() {
+        return streamProof != null && streamProof.bool();
+    }
+
+    /**
+     * Whether everything the module shows comes from the passes the stream proof
+     * layer can take over: {@link #onRender} and its {@link DrawEvent} handlers.
+     * A module that changes how the game draws the world itself must say no.
+     */
+    protected boolean canStreamProof() {
+        if (category.tab != Category.VISUALS) {
+            return false;
+        }
+        try {
+            if (getClass().getMethod("onRender", Context.class).getDeclaringClass() != Module.class) {
+                return true;
+            }
+        } catch (NoSuchMethodException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+        // The same methods EventBus.register subscribes.
+        for (Method method : getClass().getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Subscribe.class) && method.getParameterCount() == 1
+                    && DrawEvent.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void offerStreamProof() {
+        if (canStreamProof()) {
+            streamProof = addBoolean("Stream Proof", "Kept out of OBS, Discord and other captures; you still see it",
+                    false);
+        }
     }
 
     /** Whether this module is in the middle of clicking the inventory, which no other click may interleave with. */

@@ -78,6 +78,7 @@ public final class ModuleManager {
 
     private static void add(Module module) {
         Log.debug("modules", "registered %s (%s)", module.name, module.category.displayName);
+        module.offerStreamProof();
         modules.add(module);
         EventBus.register(module);
     }
@@ -258,12 +259,22 @@ public final class ModuleManager {
         }
     }
 
-    public static void render(Context context) {
+    /** Runs onRender for the modules whose {@link Module#streamProof()} is {@code streamProofed}. */
+    public static void render(Context context, boolean streamProofed) {
         for (Module module : modules) {
-            if (module.enabled() || module.animation() > 0.001f) {
+            if ((module.enabled() || module.animation() > 0.001f) && module.streamProof() == streamProofed) {
                 module.onRender(context);
             }
         }
+    }
+
+    public static boolean anyStreamProofed() {
+        for (Module module : modules) {
+            if ((module.enabled() || module.animation() > 0.001f) && module.streamProof()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void advanceAnimations(float deltaTime) {

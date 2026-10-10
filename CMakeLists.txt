@@ -328,6 +328,7 @@ set_source_files_properties("${COLD_BOOTSTRAP_RC}" PROPERTIES
 
 add_library(cobble SHARED
     bootstrap/Main.cpp
+    bootstrap/StreamProof.cpp
     "${COLD_BOOTSTRAP_RC}"
     "${COLD_MEMORY_LOADER_CLASS}"
     "${COLD_IMAGE_ZIP}"
@@ -340,7 +341,7 @@ target_include_directories(cobble PRIVATE
     "${COLD_JAVA_HOME}/include/win32"
     "${COLD_CB_NAMES_DIR}"
 )
-target_link_libraries(cobble PRIVATE user32)
+target_link_libraries(cobble PRIVATE user32 gdi32 opengl32)
 target_compile_definitions(cobble PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)
 if(MSVC)
     target_compile_options(cobble PRIVATE /W4 /permissive- /utf-8

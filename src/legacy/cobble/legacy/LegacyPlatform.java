@@ -146,4 +146,9 @@ public abstract class LegacyPlatform implements Platform {
     /* The legacy code draws through the game's own GL here, as it is called. */
     @Override
     public void drawDeferred(Renderer gfx) {}
+
+    @Override
+    public boolean drawsImmediately() {
+        return true;
+    }
 }
