@@ -28,8 +28,8 @@ import org.objectweb.asm.tree.VarInsnNode;
  * leave the operand stack as they found it, one that takes the result trades
  * the value about to be returned for another of its type, and a redirect has
  * the same stack effect as the instruction it replaces, so the existing stack
- * map frames stay valid. The one branch, a cancel, resumes at a frame of the method's entry
- * state, which HEAD still has.
+ * map frames stay valid, save for the entry locals some gain. The one branch,
+ * a cancel, resumes at a frame of the method's entry state, which HEAD still has.
  */
 final class Patcher {
     private static final String SCOPE = "patch";
@@ -46,11 +46,16 @@ final class Patcher {
             heads.put(method, method.instructions.getFirst());
         }
         Set<MethodNode> cancelled = new HashSet<>();
+        Map<MethodNode, Integer> saved = new HashMap<>();
+        for (Hook hook : hooks) {
+            MethodNode method = find(node, hook);
+            if (method != null && hook.at().kind() != Hook.At.Kind.HEAD && (hook.self() || hook.args())) {
+                saved.putIfAbsent(method, method.maxLocals);
+            }
+        }
         int applied = 0;
         for (Hook hook : hooks) {
-            MethodNode method = node.methods.stream()
-                    .filter(m -> m.name.equals(hook.method()) && m.desc.equals(hook.descriptor()))
-                    .findFirst().orElse(null);
+            MethodNode method = find(node, hook);
             if (method == null) {
                 Log.warn(SCOPE, "%s.%s%s not found; hook %s skipped",
                         hook.owner(), hook.method(), hook.descriptor(), hook.handler());
@@ -62,10 +67,11 @@ final class Patcher {
                         hook.owner(), hook.method(), hook.at(), hook.handler());
                 continue;
             }
+            int base = hook.at().kind() == Hook.At.Kind.HEAD ? 0 : saved.getOrDefault(method, 0);
             for (AbstractInsnNode anchor : anchors) {
                 switch (hook.at().kind()) {
-                    case HEAD, RETURN, BEFORE -> method.instructions.insertBefore(anchor, call(hook, method, bridge));
-                    case AFTER -> method.instructions.insert(anchor, call(hook, method, bridge));
+                    case HEAD, RETURN, BEFORE -> method.instructions.insertBefore(anchor, call(hook, method, bridge, base));
+                    case AFTER -> method.instructions.insert(anchor, call(hook, method, bridge, base));
                     case REDIRECT -> method.instructions.set(anchor, new MethodInsnNode(Opcodes.INVOKESTATIC,
                             bridge, Bridge.methodName(hook), hook.handlerDescriptor(), false));
                 }
@@ -78,6 +84,7 @@ final class Patcher {
         if (applied == 0) {
             return null;
         }
+        saved.forEach((method, base) -> saveEntryLocals(node.name, method, base));
         cancelled.forEach(Patcher::dropShadowedFrames);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         node.accept(writer);
@@ -127,15 +134,22 @@ final class Patcher {
         return false;
     }
 
-    private static InsnList call(Hook hook, MethodNode method, String bridge) {
+    private static MethodNode find(ClassNode node, Hook hook) {
+        return node.methods.stream()
+                .filter(m -> m.name.equals(hook.method()) && m.desc.equals(hook.descriptor()))
+                .findFirst().orElse(null);
+    }
+
+    /** {@code base} is where the method's receiver and arguments are read from; see {@link #saveEntryLocals}. */
+    private static InsnList call(Hook hook, MethodNode method, String bridge, int base) {
         InsnList list = new InsnList();
         boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
         if (hook.self()) {
-            list.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            list.add(new VarInsnNode(Opcodes.ALOAD, base));
         }
         Type[] params = Type.getArgumentTypes(method.desc);
         if (hook.args()) {
-            int slot = isStatic ? 0 : 1;
+            int slot = base + (isStatic ? 0 : 1);
             for (Type type : params) {
                 list.add(new VarInsnNode(type.getOpcode(Opcodes.ILOAD), slot));
                 slot += type.getSize();
@@ -156,6 +170,45 @@ final class Patcher {
             list.add(new FrameNode(Opcodes.F_NEW, locals.length, locals, 0, new Object[0]));
         }
         return list;
+    }
+
+    /**
+     * Past the entry, the receiver and arguments may no longer be in their
+     * slots: CheatBreaker's frames drop locals that are dead, so at a return
+     * even {@code this} is top, and an optimizer may reuse the slot. A copy is
+     * taken on entry into slots above the method's own, which nothing else
+     * writes, so every frame can declare them.
+     */
+    private static void saveEntryLocals(String owner, MethodNode method, int base) {
+        boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
+        InsnList copy = new InsnList();
+        int slot = 0;
+        if (!isStatic) {
+            copy.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            copy.add(new VarInsnNode(Opcodes.ASTORE, base));
+            slot = 1;
+        }
+        Type[] params = Type.getArgumentTypes(method.desc);
+        for (Type type : params) {
+            copy.add(new VarInsnNode(type.getOpcode(Opcodes.ILOAD), slot));
+            copy.add(new VarInsnNode(type.getOpcode(Opcodes.ISTORE), base + slot));
+            slot += type.getSize();
+        }
+        method.instructions.insert(copy);
+
+        List<Object> entry = List.of(Bridge.frameLocals(isStatic ? null : owner, params));
+        for (AbstractInsnNode insn : method.instructions) {
+            if (insn instanceof FrameNode frame) {
+                int used = 0;
+                for (Object local : frame.local) {
+                    used += local == Opcodes.LONG || local == Opcodes.DOUBLE ? 2 : 1;
+                }
+                for (; used < base; ++used) {
+                    frame.local.add(Opcodes.TOP);
+                }
+                frame.local.addAll(entry);
+            }
+        }
     }
 
     /**
