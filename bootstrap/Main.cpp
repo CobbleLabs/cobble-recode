@@ -5,8 +5,8 @@
  * MemoryLoader into the system loader, instantiates it over the image with
  * Lunar's Minecraft loader as parent, and hands control to cobble.boot.Boot.
  * From then on it only serves the natives the Java side cannot do itself
- * (DefineClass into a foreign loader, JVMTI retransform, DPAPI) and watches the
- * unload key. Nothing is ever written to disk. */
+ * (DefineClass into a foreign loader, JVMTI retransform, DPAPI, the stream
+ * proof window) and watches the unload key. Nothing is ever written to disk. */
 
 #include <windows.h>
 #include <wincrypt.h>
@@ -17,6 +17,7 @@
 #if COLD_HAS_CB
 #include "CheatBreakerNames.h"
 #endif
+#include "StreamProof.hpp"
 
 #include <atomic>
 #include <cstdarg>
@@ -399,6 +400,16 @@ void JNICALL nativeSetTargets(JNIEnv* env, jclass, jobjectArray names) {
 
 void JNICALL nativeRequestUnload(JNIEnv*, jclass) { g_unloadRequested = true; }
 
+jboolean JNICALL nativeStreamProofBegin(JNIEnv*, jclass) {
+    return streamproof::begin() ? JNI_TRUE : JNI_FALSE;
+}
+
+void JNICALL nativeStreamProofEnd(JNIEnv*, jclass) { streamproof::end(); }
+
+void JNICALL nativeStreamProofPresent(JNIEnv*, jclass) { streamproof::present(); }
+
+void JNICALL nativeStreamProofShutdown(JNIEnv*, jclass) { streamproof::shutdown(); }
+
 /* DPAPI, scoped to the Windows user: what the client keeps on disk that must
  * not be readable by copying the file elsewhere (the Alt Manager's tokens).
  * The entropy only keeps other DPAPI users' blobs and ours apart. */
@@ -451,6 +462,14 @@ const JNINativeMethod kNatives[] = {
      reinterpret_cast<void*>(&nativeSetTargets)},
     {const_cast<char*>("requestUnload"), const_cast<char*>("()V"),
      reinterpret_cast<void*>(&nativeRequestUnload)},
+    {const_cast<char*>("streamProofBegin"), const_cast<char*>("()Z"),
+     reinterpret_cast<void*>(&nativeStreamProofBegin)},
+    {const_cast<char*>("streamProofEnd"), const_cast<char*>("()V"),
+     reinterpret_cast<void*>(&nativeStreamProofEnd)},
+    {const_cast<char*>("streamProofPresent"), const_cast<char*>("()V"),
+     reinterpret_cast<void*>(&nativeStreamProofPresent)},
+    {const_cast<char*>("streamProofShutdown"), const_cast<char*>("()V"),
+     reinterpret_cast<void*>(&nativeStreamProofShutdown)},
     {const_cast<char*>("protect"), const_cast<char*>("([B)[B"),
      reinterpret_cast<void*>(&nativeProtect)},
     {const_cast<char*>("unprotect"), const_cast<char*>("([B)[B"),
@@ -569,6 +588,7 @@ void waitForUnload() {
 /* Boot.stop has already restored every patched class. What is left is making
  * sure no JVM thread can reach this DLL's code once it unmaps. */
 void teardown(JNIEnv* env) {
+    streamproof::stopWindow();
     if (g_jvmti != nullptr) {
         g_jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK,
                                           nullptr);
@@ -594,6 +614,7 @@ void teardown(JNIEnv* env) {
 DWORD WINAPI loaderThread(LPVOID) {
     openLog();
     LOG_INFO("bootstrap loaded");
+    streamproof::setLogger([](const char* message) { LOG_INFO("stream proof: %s", message); });
     if (!acquireVm()) {
         FreeLibraryAndExitThread(g_module, 1);
     }

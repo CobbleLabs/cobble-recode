@@ -1,6 +1,7 @@
 package cobble.util.font;
 
 import cobble.core.Assets;
+import cobble.core.Log;
 import cobble.ui.Client;
 import cobble.module.render.nametags.MinecraftFont;
 import java.awt.Font;
@@ -110,6 +111,7 @@ public final class FontManager {
                                     ? FontManager.getMinecraftRenderer(var2)
                                     : new TrueTypeFont(var1x.deriveFont(var3.style, var2), true));
                             } catch (Throwable t) {
+                                Log.error("font", t, "%s failed to load; drawing it with the game's font", var0);
                                 return FontManager.getMinecraftRenderer(var2);
                             }
                         }

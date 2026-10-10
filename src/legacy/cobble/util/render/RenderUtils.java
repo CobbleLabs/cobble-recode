@@ -515,18 +515,20 @@ public class RenderUtils implements IMinecraft {
                     + var0.getEyeHeight()
                     + (var0.isSneaking() ? -0.125 : 0.0);
                 double var9 = var0.lastTickPosZ + (var0.posZ - var0.lastTickPosZ) * var3 - mc.getRenderManager().viewerPosZ;
-                double var11 = 0.0;
-                double var13 = var4.getEyeHeight();
-                double var15 = 0.0;
+                /* The eye in the world, less the render origin: 1.8 puts that origin at the feet, 1.21 at the camera. */
+                double var11 = var4.lastTickPosX + (var4.posX - var4.lastTickPosX) * var3 - mc.getRenderManager().viewerPosX;
+                double var13 = var4.lastTickPosY + (var4.posY - var4.lastTickPosY) * var3 + var4.getEyeHeight()
+                    - mc.getRenderManager().viewerPosY;
+                double var15 = var4.lastTickPosZ + (var4.posZ - var4.lastTickPosZ) * var3 - mc.getRenderManager().viewerPosZ;
                 if (var4 == mc.thePlayer && mc.gameSettings.thirdPersonView == 0) {
                     float var17 = ((Entity)var4).rotationYaw;
                     float var18 = ((Entity)var4).rotationPitch;
                     double var19 = -Math.sin(Math.toRadians(var17)) * Math.cos(Math.toRadians(var18));
                     double var21 = -Math.sin(Math.toRadians(var18));
                     double var23 = Math.cos(Math.toRadians(var17)) * Math.cos(Math.toRadians(var18));
-                    var11 = var19;
+                    var11 += var19;
                     var13 += var21;
-                    var15 = var23;
+                    var15 += var23;
                 }
 
                 float var28 = (var1 >> 24 & 0xFF) / 255.0F;

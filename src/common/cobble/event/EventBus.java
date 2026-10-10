@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Dispatches game events to {@link Subscribe} methods, keyed by the exact event
@@ -63,12 +64,17 @@ public final class EventBus {
     }
 
     public static <T extends Event> T post(T event) {
+        return post(event, owner -> true);
+    }
+
+    /** Delivers only to the listeners whose owner passes {@code owners}. */
+    public static <T extends Event> T post(T event, Predicate<Object> owners) {
         Listener[] listeners = table.get(event.getClass());
         if (listeners == null) {
             return event;
         }
         for (Listener listener : listeners) {
-            if (listener.owner instanceof Module module && !module.enabled()) {
+            if (listener.owner instanceof Module module && !module.enabled() || !owners.test(listener.owner)) {
                 continue;
             }
             try {

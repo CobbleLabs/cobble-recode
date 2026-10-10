@@ -68,6 +68,9 @@ public interface Platform {
     /** Draws, inside the overlay's frame, what the legacy code drew where the platform could not draw it then. */
     void drawDeferred(Renderer gfx);
 
+    /** Whether DrawEvent handlers draw as they are called, rather than being replayed by {@link #drawDeferred}. */
+    boolean drawsImmediately();
+
     /* The GL entry points LWJGL 2 and 3 spell differently; everything else the overlay calls is the same in both. */
     void glGetIntegers(int name, IntBuffer into);
 

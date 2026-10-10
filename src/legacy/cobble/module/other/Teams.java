@@ -9,6 +9,7 @@ import cobble.module.LegacyModule;
 import cobble.module.Setting;
 import cobble.module.Subcategory;
 import cobble.util.team.ApolloMessages;
+import cobble.util.team.CheatBreakerPackets;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +27,11 @@ import net.minecraft.util.EnumChatFormatting;
  * Cobble's Teams: decides who counts as a teammate, and from which evidence,
  * for every module that asks TeamUtils. Off means no team awareness at all.
  *
- * <p>Strongest first: the roster a server states through Lunar's Apollo API,
- * an Apollo nametag turned green (confirmed over several signals, because
- * cosmetic colour cycling can flash one), shared scoreboard team, your own
- * nametag colour or one you pick, and the game's own same-team flag.
+ * <p>Strongest first: the roster a server states through Lunar's Apollo API
+ * or the CheatBreaker API, an Apollo nametag turned green (confirmed over
+ * several signals, because cosmetic colour cycling can flash one), shared
+ * scoreboard team, your own nametag colour or one you pick, and the game's
+ * own same-team flag.
  */
 public final class Teams extends LegacyModule {
     private static final String APOLLO_CHANNEL = "lunar:apollo";
@@ -55,6 +57,8 @@ public final class Teams extends LegacyModule {
     private static final String COLOUR_KEY = "\"color\":\"#";
 
     private final Setting lunarApi = addBoolean("Lunar API", "The roster the server sends through Apollo", true);
+    private final Setting cheatBreakerApi = addBoolean("CheatBreaker API",
+            "The roster the server sends through the CheatBreaker API", true);
     private final Setting apolloNametags = addBoolean("Apollo Nametags", "A green Apollo nametag marks a teammate",
             true);
     private final Setting scoreboard = addBoolean("Scoreboard", "Players on your scoreboard team", true);
@@ -78,6 +82,7 @@ public final class Teams extends LegacyModule {
 
     /* Written on the network thread, read by every module on the game thread. */
     private final Set<UUID> lunarTeammates = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> cheatBreakerTeammates = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Signal> nametags = new ConcurrentHashMap<>();
 
     public Teams() {
@@ -90,6 +95,9 @@ public final class Teams extends LegacyModule {
     public String suffix() {
         if (!lunarTeammates.isEmpty()) {
             return "Lunar " + lunarTeammates.size();
+        }
+        if (!cheatBreakerTeammates.isEmpty()) {
+            return "CB " + cheatBreakerTeammates.size();
         }
         long tags = nametags.values().stream().filter(Signal::confirmed).count();
         return tags > 0 ? "Tags " + tags : "";
@@ -108,6 +116,7 @@ public final class Teams extends LegacyModule {
 
     private void clearDetected() {
         lunarTeammates.clear();
+        cheatBreakerTeammates.clear();
         nametags.clear();
     }
 
@@ -118,7 +127,8 @@ public final class Teams extends LegacyModule {
             return false;
         }
         UUID id = player.getUniqueID();
-        if (lunarApi.bool() && lunarTeammates.contains(id)) {
+        if (lunarApi.bool() && lunarTeammates.contains(id)
+                || cheatBreakerApi.bool() && cheatBreakerTeammates.contains(id)) {
             return true;
         }
         /* A server that states its roster is trusted over a colour, unless told otherwise. */
@@ -166,21 +176,36 @@ public final class Teams extends LegacyModule {
 
     @Subscribe
     public void onPacketReceive(PacketReceiveEvent event) {
-        if (!(event.getPacket() instanceof S3FPacketCustomPayload payload)
-                || !APOLLO_CHANNEL.equals(payload.getChannelName())) {
+        if (!(event.getPacket() instanceof S3FPacketCustomPayload payload)) {
             return;
         }
-        /* Copied out without moving the reader: Lunar reads this same buffer after us. */
-        ByteBuf buffer = payload.getBufferData();
-        byte[] data = new byte[buffer.readableBytes()];
-        buffer.getBytes(buffer.readerIndex(), data);
-        Object message = ApolloMessages.decode(data);
+        String channel = payload.getChannelName();
+        if (CheatBreakerPackets.CHANNELS.contains(channel)) {
+            Set<UUID> team = CheatBreakerPackets.teammates(contents(payload));
+            if (team != null) {
+                cheatBreakerTeammates.retainAll(team);
+                cheatBreakerTeammates.addAll(team);
+            }
+            return;
+        }
+        if (!APOLLO_CHANNEL.equals(channel)) {
+            return;
+        }
+        Object message = ApolloMessages.decode(contents(payload));
         if (message instanceof ApolloMessages.TeamMembers members) {
             lunarTeammates.retainAll(members.members());
             lunarTeammates.addAll(members.members());
         } else if (message instanceof ApolloMessages.Nametag nametag) {
             nametagSignal(nametag);
         }
+    }
+
+    /* Copied out without moving the reader: the client reads this same buffer after us. */
+    private static byte[] contents(S3FPacketCustomPayload payload) {
+        ByteBuf buffer = payload.getBufferData();
+        byte[] data = new byte[buffer.readableBytes()];
+        buffer.getBytes(buffer.readerIndex(), data);
+        return data;
     }
 
     /*

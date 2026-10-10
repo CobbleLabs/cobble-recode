@@ -32,6 +32,8 @@ public final class EntityView {
     public float maxHealth;
     public float absorption;
     public int armor;
+    /* None before 1.9, where armour stops the same share of every hit. */
+    public float armorToughness;
     public int hurtTime;
 
     /** Eye to eye, for target sorting. */

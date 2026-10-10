@@ -361,8 +361,9 @@ public class Nametags extends LegacyModule {
         }
     }
 
+    /* Kept off captures, these tags leave the game's own for the recording to show. */
     public boolean shouldHideVanillaNametag(EntityPlayer var1) {
-        if (this.enabled() && !this.showVanilla.bool() && this.isValidNametagPlayer(var1)) {
+        if (this.enabled() && !this.showVanilla.bool() && !this.streamProof() && this.isValidNametagPlayer(var1)) {
             Entity var2 = mc.getRenderViewEntity();
             if (var2 == null) {
                 return false;

@@ -269,22 +269,23 @@ cold_source_set(v1_21_legacy "${COLD_OUT_1_21_LEGACY_NAMED}"
 # CheatBreaker's adapter, written against the legacy code under MCP names and
 # rewritten with it into CheatBreaker's for that version's overlay.
 # Its steps in the image build below are collected here and stay empty without
-# it; $<SEMICOLON> keeps the hook classpath one argument inside the list.
+# it; $<SEMICOLON> keeps each classpath one argument inside the list.
 set(COLD_CB_COMPILE_STEPS "")
 set(COLD_CB_COPY_STEP "")
 set(COLD_CB_LINKAGE "")
 set(COLD_CB_IMAGE_DEPENDS "")
 if(COLD_ENABLE_CB)
+    string(REPLACE ";" "$<SEMICOLON>" COLD_ASM_ARGUMENT "${COLD_ASM}")
     cold_source_set(cb_1_8 "${COLD_OUT_CB}"
         "${COLD_OUT_LEGACY};${COLD_OUT_COMMON};${COLD_BUNDLED_JARS};${COLD_GAME_1_8};${COLD_LUNAR_LEGACY_JARS};${COLD_1_8_LIBS}")
     string(JOIN "," COLD_WORLD_CB "${COLD_CB_GAME}" ${COLD_CB_LIBS})
     set(COLD_CB_COMPILE_STEPS
         COMMAND "${COLD_JAVAC}" "@${COLD_JAVA_DIR}/cb_1_8.args"
-        COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
+        COMMAND "${COLD_JAVA}" -cp "${COLD_ASM_ARGUMENT}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
             cheatbreaker "${COLD_CB_NAMES}" "${COLD_GAME_1_8}" "${COLD_OUT_LEGACY}" "${COLD_CB_OVERLAY}"
-        COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
+        COMMAND "${COLD_JAVA}" -cp "${COLD_ASM_ARGUMENT}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
             cheatbreaker "${COLD_CB_NAMES}" "${COLD_GAME_1_8}" "${COLD_OUT_CB}" "${COLD_CB_OVERLAY}"
-        COMMAND "${COLD_JAVA}" -cp "${COLD_ASM}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
+        COMMAND "${COLD_JAVA}" -cp "${COLD_ASM_ARGUMENT}" "${CMAKE_SOURCE_DIR}/tools/Remap.java"
             hooks "${COLD_CB_NAMES}" "${COLD_GAME_1_8}" "${COLD_CB_GAME}"
             "${COLD_OUT_COMMON}$<SEMICOLON>${COLD_OUT_LEGACY}$<SEMICOLON>${COLD_OUT_CB}"
             cobble.cb.HookTable "${COLD_CB_OVERLAY}/cobble/cb/hooks.tsv")
@@ -360,6 +361,7 @@ set_source_files_properties("${COLD_BOOTSTRAP_RC}" PROPERTIES
 
 add_library(cobble SHARED
     bootstrap/Main.cpp
+    bootstrap/StreamProof.cpp
     "${COLD_BOOTSTRAP_RC}"
     "${COLD_MEMORY_LOADER_CLASS}"
     "${COLD_IMAGE_ZIP}"
@@ -376,7 +378,7 @@ if(COLD_ENABLE_CB)
     target_compile_definitions(cobble PRIVATE COLD_HAS_CB=1)
 endif()
 # crypt32: DPAPI, which seals the Alt Manager's tokens to this Windows user.
-target_link_libraries(cobble PRIVATE user32 crypt32)
+target_link_libraries(cobble PRIVATE user32 gdi32 opengl32 crypt32)
 target_compile_definitions(cobble PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE)
 if(MSVC)
     target_compile_options(cobble PRIVATE /W4 /permissive- /utf-8

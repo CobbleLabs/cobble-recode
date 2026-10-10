@@ -3,6 +3,7 @@ package cobble.util.render;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -89,6 +90,37 @@ public final class FakePlayerRenderer {
                     }
                 }
             }
+        }
+    }
+
+    /** Draws a real player once more, outside the game's entity pass and without the hooks that pass runs. */
+    public static void renderAgain(EntityPlayer player, float partialTicks) {
+        if (rendering) {
+            return;
+        }
+        RenderManager manager = mc.getRenderManager();
+        rendering = true;
+        int matrixMode = GL11.glGetInteger(GL11.GL_MATRIX_MODE);
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GlStateManager.pushMatrix();
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        boolean shadows = manager.isRenderShadow();
+        manager.setRenderShadow(false);
+        try {
+            double x = player.lastTickPosX + (player.posX - player.lastTickPosX) * partialTicks - manager.viewerPosX;
+            double y = player.lastTickPosY + (player.posY - player.lastTickPosY) * partialTicks - manager.viewerPosY;
+            double z = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * partialTicks - manager.viewerPosZ;
+            float yaw = player.prevRotationYaw + (player.rotationYaw - player.prevRotationYaw) * partialTicks;
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            manager.renderEntityWithPosYaw(player, x, y, z, yaw, partialTicks);
+        } finally {
+            manager.setRenderShadow(shadows);
+            GL11.glPopAttrib();
+            resetRenderState();
+            GL11.glMatrixMode(GL11.GL_MODELVIEW);
+            GlStateManager.popMatrix();
+            GL11.glMatrixMode(matrixMode);
+            rendering = false;
         }
     }
 

@@ -32,9 +32,17 @@ public final class MenuScreen extends GuiScreen {
         this.parent = parent;
     }
 
+    /*
+     * The press that opened the menu was read from live key state and may still
+     * be queued, since the game only drains the queues from the tick; replayed
+     * into the menu, the menu key would close it again. Lunar drains them on
+     * every screen open, CheatBreaker and vanilla do not.
+     */
     public static void show() {
         Minecraft mc = Minecraft.getMinecraft();
         if (!(mc.currentScreen instanceof MenuScreen)) {
+            while (Mouse.next()) {}
+            while (Keyboard.next()) {}
             mc.displayGuiScreen(new MenuScreen(mc.currentScreen));
         }
     }
