@@ -30,8 +30,10 @@ public final class Gl {
      * The fixed-function matrix stacks are live state on the legacy versions,
      * and Lunar's sprite pass scales coordinates through the texture matrix;
      * the game also leaves client arrays enabled, and a stray enabled array
-     * makes the fetch read the wrong pointer. The state guard captured all of
-     * it before this point. A core context has none of it.
+     * makes the fetch read the wrong pointer. CheatBreaker leaves the
+     * lightmap's unit textured at the swap, which multiplies every legacy draw
+     * in the frame, the HUD text first, by whatever that unit holds. The state
+     * guard captured all of it before this point. A core context has none of it.
      */
     static void neutraliseFixedFunction(int width, int height) {
         if (!Platform.get().compatibilityProfile()) {
@@ -46,6 +48,11 @@ public final class Gl {
         GL11.glLoadIdentity();
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         disableClientArrays(3);
+        for (int unit = 1; unit < 4; ++unit) {
+            GL13.glActiveTexture(GL13.GL_TEXTURE0 + unit);
+            GL11.glDisable(GL11.GL_TEXTURE_2D);
+        }
+        GL13.glActiveTexture(GL13.GL_TEXTURE0);
     }
 
     private static void disableClientArrays(int units) {
