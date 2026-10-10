@@ -2,17 +2,15 @@ package cobble.util.alt;
 
 import cobble.core.Log;
 import cobble.platform.Platform;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,7 +23,9 @@ import java.util.List;
  * check; an offline one swaps the name alone.
  *
  * <p>The list lives in its own file: the tokens and cookie jars are far too
- * long for the config's lines.
+ * long for the config's lines. They are also live credentials, so the file is
+ * sealed with DPAPI for the Windows user (see {@link SealedJson}) and is never
+ * written in plaintext; a plaintext file from an older build is resealed on load.
  */
 public final class AltAccounts {
     private static final String SCOPE = "altmanager";
@@ -47,6 +47,7 @@ public final class AltAccounts {
     private static int active = -1;
     private static Original original;
     private static Path file;
+    private static SealedJson.Sealer sealer = SealedJson.DPAPI;
 
     private AltAccounts() {}
 
@@ -81,17 +82,20 @@ public final class AltAccounts {
             Log.warn(SCOPE, "accounts not loaded: %s", e.getMessage());
             return;
         }
-        JsonObject root;
+        SealedJson.Read read;
         try {
-            JsonElement parsed = new JsonParser().parse(text);
-            if (!parsed.isJsonObject()) {
-                return;
-            }
-            root = parsed.getAsJsonObject();
-        } catch (JsonParseException e) {
-            Log.warn(SCOPE, "accounts file unreadable: %s", e.getMessage());
+            read = SealedJson.read(text, sealer);
+        } catch (IllegalStateException e) {
+            /* Another Windows user's or machine's file: set it aside rather than overwrite it. */
+            Log.warn(SCOPE, "accounts file cannot be opened (%s); moved aside", e.getMessage());
+            setAside(path);
             return;
         }
+        if (read == null) {
+            Log.warn(SCOPE, "accounts file unreadable");
+            return;
+        }
+        JsonObject root = read.root();
         if (root.has("accounts") && root.get("accounts").isJsonArray()) {
             for (JsonElement element : root.getAsJsonArray("accounts")) {
                 if (!element.isJsonObject() || accounts.size() >= MAX_ACCOUNTS) {
@@ -112,6 +116,8 @@ public final class AltAccounts {
         int stored = root.has("active") ? root.get("active").getAsInt() : -1;
         if (stored >= 0 && stored < accounts.size()) {
             use(stored);
+        } else if (read.plaintext()) {
+            save();
         }
     }
 
@@ -129,12 +135,36 @@ public final class AltAccounts {
         JsonObject root = new JsonObject();
         root.addProperty("active", active);
         root.add("accounts", list);
+        String text;
         try {
-            Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(root),
-                    StandardCharsets.UTF_8);
+            text = SealedJson.write(root, sealer);
+        } catch (IllegalStateException e) {
+            /* Never plaintext: the previous sealed file stays as it was. */
+            Log.error(SCOPE, "accounts not saved, sealing failed: %s", e.getMessage());
+            return;
+        }
+        /* Written beside and moved over, so a crash mid-write cannot lose the list. */
+        Path temp = file.resolveSibling(file.getFileName() + ".tmp");
+        try {
+            Files.writeString(temp, text, StandardCharsets.UTF_8);
+            Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             Log.error(SCOPE, "accounts not saved: %s", e.getMessage());
         }
+    }
+
+    private static void setAside(Path path) {
+        try {
+            Files.move(path, path.resolveSibling(path.getFileName() + ".unreadable"),
+                    StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            Log.warn(SCOPE, "accounts file not moved aside: %s", e.getMessage());
+        }
+    }
+
+    /** For tests, which have no bootstrap to seal with. */
+    static void useSealer(SealedJson.Sealer replacement) {
+        sealer = replacement;
     }
 
     /** Adds an offline name and logs in with it; false when the list is full. */

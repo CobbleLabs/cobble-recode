@@ -72,7 +72,7 @@ folders:
 | `configs/` | Named configs from the menu |
 | `scripts/` | Lua scripts; the injector ships the examples here |
 | `cobble.scripts.cfg` | Which scripts are on, and what they stored |
-| `alts.json` | Accounts saved in the Alt Manager |
+| `alts.json` | Accounts saved in the Alt Manager, sealed with DPAPI to your Windows user |
 | `fonts/` | Extra `.ttf` and `.otf` fonts for the HUD |
 | `cobble.log` | One log per session; every startup stage reports its timing or why it failed |
 
@@ -537,10 +537,15 @@ snaps to that grid before anything reaches the player.
 ## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
 
 You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer, a JDK 17 or
-newer, Lunar Client with 1.8.9 and 1.21.11 each launched once, and CheatBreaker
-with 1.8.9 launched once: the build compiles against the classes Lunar bakes for
-them, and names CheatBreaker's classes by matching its game jar against
-vanilla's. Configuring fetches the public jars into `infra/lib`.
+newer, and Lunar Client with 1.8.9 and 1.21.11 each launched once: the build
+compiles against the classes Lunar bakes for them. Configuring fetches the public
+jars into `infra/lib`.
+
+CheatBreaker support is optional. It is built when CheatBreaker 1.8.9 has been
+launched once on the machine, since its classes are named by matching its game
+jar against vanilla's; without it the client builds for Lunar alone. Force it
+either way with `-DCOLD_ENABLE_CB=ON|OFF`, or point at another install with
+`-DCOLD_CB_DIR=<downloads folder>`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1
@@ -555,6 +560,14 @@ two steps by hand:
 ```bash
 cmake -S . -B build/native -A x64 -DCOLD_JAVA_HOME="<path to JDK>"
 cmake --build build/native --config Release
+```
+
+The tests need only a JDK 17 and the jars configuring fetched, so they run on any
+OS. They cover the Alt Manager's sealed accounts file and the remapper, over a
+made-up game:
+
+```bash
+java tests/RunTests.java
 ```
 
 <details>
@@ -574,6 +587,7 @@ loader/            cobble-injector.exe
 assets/            fonts, icons, shaders, capes, the Lua prelude
 scripts/           example Lua scripts, embedded in the injector
 infra/             vendored C++ (Dear ImGui) and the jars the client compiles against
+tests/             java tests/RunTests.java; the tests themselves under unit/
 docs/              the README's artwork
 tools/             build helpers: the game jars, Retarget, Remap, Linkage
 ```

@@ -34,4 +34,10 @@ public final class Native {
 
     /** Frees the layer's GL objects and closes the window. */
     public static native void streamProofShutdown();
+
+    /** DPAPI for the current Windows user. Throws IllegalStateException when Windows refuses. */
+    public static native byte[] protect(byte[] plain);
+
+    /** Opens what {@link #protect} sealed; throws for another user's or machine's blob. */
+    public static native byte[] unprotect(byte[] sealed);
 }

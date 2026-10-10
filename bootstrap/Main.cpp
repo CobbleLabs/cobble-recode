@@ -5,15 +5,18 @@
  * MemoryLoader into the system loader, instantiates it over the image with
  * Lunar's Minecraft loader as parent, and hands control to cobble.boot.Boot.
  * From then on it only serves the natives the Java side cannot do itself
- * (DefineClass into a foreign loader, JVMTI retransform, the stream proof
- * window) and watches the unload key. Nothing is ever written to disk. */
+ * (DefineClass into a foreign loader, JVMTI retransform, DPAPI, the stream
+ * proof window) and watches the unload key. Nothing is ever written to disk. */
 
 #include <windows.h>
+#include <wincrypt.h>
 
 #include <jni.h>
 #include <jvmti.h>
 
+#if COLD_HAS_CB
 #include "CheatBreakerNames.h"
+#endif
 #include "StreamProof.hpp"
 
 #include <atomic>
@@ -284,7 +287,9 @@ bool acquireJvmti() {
 constexpr const char* kMinecraftSignatures[] = {
     "Lnet/minecraft/client/Minecraft;",
     "Lnet/minecraft/class_310;",
+#if COLD_HAS_CB
     COLD_CB_MINECRAFT,
+#endif
 };
 
 bool isMinecraftClass(const char* signature) {
@@ -405,6 +410,46 @@ void JNICALL nativeStreamProofPresent(JNIEnv*, jclass) { streamproof::present();
 
 void JNICALL nativeStreamProofShutdown(JNIEnv*, jclass) { streamproof::shutdown(); }
 
+/* DPAPI, scoped to the Windows user: what the client keeps on disk that must
+ * not be readable by copying the file elsewhere (the Alt Manager's tokens).
+ * The entropy only keeps other DPAPI users' blobs and ours apart. */
+constexpr char kDpapiEntropy[] = "cobble.recode.dpapi.v1";
+
+jbyteArray dpapi(JNIEnv* env, jbyteArray input, bool protect) {
+    const jsize length = env->GetArrayLength(input);
+    std::vector<BYTE> plain(static_cast<std::size_t>(length));
+    env->GetByteArrayRegion(input, 0, length, reinterpret_cast<jbyte*>(plain.data()));
+    DATA_BLOB in{static_cast<DWORD>(length), plain.data()};
+    DATA_BLOB entropy{static_cast<DWORD>(sizeof(kDpapiEntropy) - 1),
+                      reinterpret_cast<BYTE*>(const_cast<char*>(kDpapiEntropy))};
+    DATA_BLOB out{};
+    const BOOL ok = protect
+        ? CryptProtectData(&in, L"cobble", &entropy, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out)
+        : CryptUnprotectData(&in, nullptr, &entropy, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out);
+    SecureZeroMemory(plain.data(), plain.size());
+    if (!ok) {
+        const DWORD error = GetLastError();
+        env->ThrowNew(env->FindClass("java/lang/IllegalStateException"),
+                      (std::string(protect ? "CryptProtectData" : "CryptUnprotectData") +
+                       " failed: " + std::to_string(error)).c_str());
+        return nullptr;
+    }
+    jbyteArray result = env->NewByteArray(static_cast<jsize>(out.cbData));
+    env->SetByteArrayRegion(result, 0, static_cast<jsize>(out.cbData),
+                            reinterpret_cast<const jbyte*>(out.pbData));
+    SecureZeroMemory(out.pbData, out.cbData);
+    LocalFree(out.pbData);
+    return result;
+}
+
+jbyteArray JNICALL nativeProtect(JNIEnv* env, jclass, jbyteArray plain) {
+    return dpapi(env, plain, true);
+}
+
+jbyteArray JNICALL nativeUnprotect(JNIEnv* env, jclass, jbyteArray sealed) {
+    return dpapi(env, sealed, false);
+}
+
 const JNINativeMethod kNatives[] = {
     {const_cast<char*>("defineClass"),
      const_cast<char*>("(Ljava/lang/ClassLoader;Ljava/lang/String;[B)Ljava/lang/Class;"),
@@ -425,6 +470,10 @@ const JNINativeMethod kNatives[] = {
      reinterpret_cast<void*>(&nativeStreamProofPresent)},
     {const_cast<char*>("streamProofShutdown"), const_cast<char*>("()V"),
      reinterpret_cast<void*>(&nativeStreamProofShutdown)},
+    {const_cast<char*>("protect"), const_cast<char*>("([B)[B"),
+     reinterpret_cast<void*>(&nativeProtect)},
+    {const_cast<char*>("unprotect"), const_cast<char*>("([B)[B"),
+     reinterpret_cast<void*>(&nativeUnprotect)},
 };
 
 /* MemoryLoader outlives an injection: a class defined into the system loader
