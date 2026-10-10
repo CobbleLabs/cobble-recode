@@ -17,4 +17,10 @@ public final class Native {
 
     /** Asks the bootstrap to run {@link Boot#stop} and unload, as the unload key does. */
     public static native void requestUnload();
+
+    /** DPAPI for the current Windows user. Throws IllegalStateException when Windows refuses. */
+    public static native byte[] protect(byte[] plain);
+
+    /** Opens what {@link #protect} sealed; throws for another user's or machine's blob. */
+    public static native byte[] unprotect(byte[] sealed);
 }

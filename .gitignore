@@ -9,3 +9,6 @@ dist/
 
 # Third-party jars the client compiles against; configuring fetches all but the MCP one
 infra/lib/
+
+# Old build outputs kept locally for reference
+legacy/dist-old/
