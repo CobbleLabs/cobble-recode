@@ -92,6 +92,11 @@ public final class BlockHit extends LegacyModule {
         return serverBlocking ? "Block" : "Open";
     }
 
+    /** Whether the server holds a block this module raised. */
+    public boolean serverBlocking() {
+        return serverBlocking;
+    }
+
     /* The block itself is not dropped here: the next hook call sees the module
      * off and lowers it, from the game thread at the point it belongs. */
     @Override

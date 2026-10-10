@@ -37,4 +37,7 @@ public final class LocalPlayerView {
     public int age;
     /* How charged the next hit is, 0 to 1; full always before the combat update. */
     public float attackCharge = 1.0f;
+    /* The attack damage attribute, which follows the held item only once the player has ticked with it. */
+    public float attackDamage = 1.0f;
+    public boolean gliding;
 }

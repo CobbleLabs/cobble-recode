@@ -7,12 +7,14 @@ import cobble.event.TickEndEvent;
 import cobble.module.Category;
 import cobble.module.Context;
 import cobble.module.LegacyModule;
+import cobble.module.ModuleManager;
 import cobble.module.Setting;
 import cobble.module.Subcategory;
 import cobble.module.combat.keepsprint.KeepSprintState;
 import cobble.module.combat.keepsprint.KeepSprintState$0;
-import cobble.module.movement.NoSlow;
+import cobble.module.movement.NoSlowDown;
 import cobble.util.ClientUtils;
+import cobble.util.item.ItemUse;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 
@@ -100,7 +102,7 @@ public class KeepSprint extends LegacyModule {
                 && !mc.thePlayer.isSneaking()
                 && !mc.thePlayer.isCollidedHorizontally
                 && mc.thePlayer.getFoodStats().getFoodLevel() > 6
-                && NoSlow.isVanillaModeActive();
+                && ModuleManager.get(NoSlowDown.class).covers(ItemUse.of(mc.thePlayer.getHeldItem()));
     }
 
     private void CSgX1(KeepSprintState$0 var1) {

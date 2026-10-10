@@ -41,6 +41,7 @@ import cobble.event.UseItemEvent;
 import cobble.event.VelocityEvent;
 import cobble.game.RotationEngine;
 import cobble.module.ModuleManager;
+import cobble.module.combat.AutoBlock;
 import cobble.module.combat.BlockHit;
 import cobble.module.combat.HitBoxes;
 import cobble.module.combat.KeepSprint;
@@ -49,6 +50,8 @@ import cobble.module.combat.Reach;
 import cobble.module.minigames.AutoChest;
 import cobble.module.minigames.BedwarsUtils;
 import cobble.module.minigames.NukeDefend;
+import cobble.module.movement.NoSlowDown;
+import cobble.module.movement.Sprint;
 import cobble.module.player.BedNuker;
 import cobble.module.player.BridgeNuker;
 import cobble.module.player.Freecam;
@@ -65,6 +68,7 @@ import cobble.platform.Platform;
 import cobble.ui.Client;
 import cobble.util.ClientUtils;
 import cobble.util.InputHookManager;
+import cobble.util.item.ItemUse;
 import cobble.util.packet.PacketUtils;
 import cobble.util.raytrace.PointedObjectOverrider;
 import cobble.util.render.FakePlayerRenderer;
@@ -113,6 +117,10 @@ public final class Hooks {
     private static final Minecraft mc = Minecraft.getMinecraft();
     /* Sky and block light both at 15, packed the way getCombinedLight returns them. */
     private static final int FULL_BRIGHT = 15 << 20 | 15 << 4;
+    private static final float VANILLA_USE_SPEED = 0.2f;
+    /* What onLivingUpdate asks of the input and the food bar before it lets a sprint run. */
+    private static final float SPRINT_INPUT = 0.8f;
+    private static final int SPRINT_FOOD = 6;
     private static final EntityRotationOverride freeLookRotation = new EntityRotationOverride();
     private static boolean freeLookRotated;
     private static float blockDamageBefore;
@@ -403,11 +411,36 @@ public final class Hooks {
     }
 
     public static void livingUpdate(EntityPlayerSP player) {
+        noSlowDown(player);
         KeepSprint keepSprint = ModuleManager.get(KeepSprint.class);
         if (keepSprint.enabled()) {
             keepSprint.applyPredictedSprintState(player);
         }
         ModuleManager.get(BlockHit.class).livingUpdate(player);
+    }
+
+    /*
+     * By here vanilla has cut the input to a fifth for the item in use and,
+     * with it under 0.8, dropped the sprint, and the player has not moved yet.
+     * BlockHit's own block keeps its slowdown: it pays it so the block looks
+     * like a hand's.
+     */
+    private static void noSlowDown(EntityPlayerSP player) {
+        NoSlowDown noSlow = ModuleManager.get(NoSlowDown.class);
+        NoSlowDown.Use use = ItemUse.of(player.getHeldItem());
+        if (!player.isUsingItem() || player.isRiding() || !noSlow.covers(use)
+                || ModuleManager.get(BlockHit.class).serverBlocking() && !mc.gameSettings.keyBindUseItem.isKeyDown()
+                || ModuleManager.get(AutoBlock.class).isSwapBlocking()) {
+            return;
+        }
+        float restored = noSlow.speed(use) / VANILLA_USE_SPEED;
+        player.movementInput.moveForward *= restored;
+        player.movementInput.moveStrafe *= restored;
+        if (player.movementInput.moveForward >= SPRINT_INPUT && !player.isSneaking()
+                && player.getFoodStats().getFoodLevel() > SPRINT_FOOD
+                && (mc.gameSettings.keyBindSprint.isKeyDown() || ModuleManager.get(Sprint.class).enabled())) {
+            player.setSprinting(true);
+        }
     }
 
     public static void closeScreen() {

@@ -37,6 +37,7 @@ import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.mob.SlimeEntity;
@@ -164,6 +165,8 @@ final class GameAdapter implements Game {
         view.itemUseTicks = player.getItemUseTime();
         view.age = player.age;
         view.attackCharge = player.getAttackCooldownProgress(0.5f);
+        view.attackDamage = (float) player.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+        view.gliding = player.isGliding();
         state.ping = latency(player.getUuid());
     }
 
@@ -200,6 +203,7 @@ final class GameAdapter implements Game {
             view.maxHealth = living.getMaxHealth();
             view.absorption = living.getAbsorptionAmount();
             view.armor = living.getArmor();
+            view.armorToughness = (float) living.getAttributeValue(EntityAttributes.ARMOR_TOUGHNESS);
             view.hurtTime = living.hurtTime;
             view.blocking = living.isBlocking();
             view.distance = view.eyePos.sub(state.player.eyePos).length();
@@ -746,6 +750,18 @@ final class GameAdapter implements Game {
 
     private static String itemId(Item item) {
         return Registries.ITEM.getId(item).getPath();
+    }
+
+    @Override
+    public int enchantmentLevel(int slot, String enchantment) {
+        Identifier id = Identifier.ofVanilla(enchantment);
+        for (var entry : EnchantmentHelper.getEnchantments(player().getInventory().getStack(slot))
+                .getEnchantmentEntries()) {
+            if (entry.getKey().matchesId(id)) {
+                return entry.getIntValue();
+            }
+        }
+        return 0;
     }
 
     @Override

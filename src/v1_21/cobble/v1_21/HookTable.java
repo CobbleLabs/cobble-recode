@@ -36,8 +36,14 @@ final class HookTable {
             of(WINDOW, "method_15998", "(Lnet/minecraft/class_10219;)V", At.HEAD, "frame"),          // swapBuffers
             of(PLAYER, "method_3136", "()V", At.HEAD, "preMotion").withSelf(),                        // sendMovementPackets
             of(PLAYER, "method_3136", "()V", At.RETURN, "postMotion").withSelf(),
+            of(PLAYER, "method_67270", "(Lnet/minecraft/class_241;)Lnet/minecraft/class_241;",            // applyMovementSpeedFactors
+                    At.RETURN, "movementSpeed").withSelf().withResult(),
+            of(PLAYER, "method_75409", "()Z", At.RETURN, "sprintBlocked").withSelf().withResult(),      // isBlockedFromSprinting
             of(INTERACTION, "method_2918", "(Lnet/minecraft/class_1657;Lnet/minecraft/class_1297;)V",   // attackEntity
                     At.HEAD, "attackEntity").withArgs().cancelling(),
+            of(INTERACTION, "method_2919",                                                            // interactItem
+                    "(Lnet/minecraft/class_1657;Lnet/minecraft/class_1268;)Lnet/minecraft/class_1269;",
+                    At.HEAD, "useItem").withArgs(),
             of(ENTITY, "method_5871", "()F", At.RETURN, "targetingMargin").withSelf().withResult(),        // getTargetingMargin
             of(CAMERA, "method_19318", "(F)F", At.RETURN, "cameraClip").withArgs().withResult(),           // clipToSpace
             of(TICK_COUNTER, "method_60639", "(J)I",                                                    // beginRenderTick

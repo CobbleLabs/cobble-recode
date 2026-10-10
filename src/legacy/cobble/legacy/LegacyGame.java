@@ -41,6 +41,7 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.item.EntityEnderCrystal;
 import net.minecraft.entity.item.EntityEnderPearl;
 import net.minecraft.entity.monster.EntitySlime;
@@ -204,6 +205,7 @@ public abstract class LegacyGame implements Game {
         view.usingItem = player.isUsingItem();
         view.itemUseTicks = player.getItemInUseDuration();
         view.age = player.ticksExisted;
+        view.attackDamage = (float) player.getEntityAttribute(SharedMonsterAttributes.attackDamage).getAttributeValue();
         state.ping = latency(player.getUniqueID());
     }
 
@@ -779,6 +781,19 @@ public abstract class LegacyGame implements Game {
     protected static String itemId(Item item) {
         ResourceLocation name = Item.itemRegistry.getNameForObject(item);
         return name != null ? name.getResourcePath() : item.getUnlocalizedName();
+    }
+
+    @Override
+    public int enchantmentLevel(int slot, String enchantment) {
+        ItemStack stack = player().inventory.getStackInSlot(slot);
+        NBTTagList tags = stack != null ? stack.getEnchantmentTagList() : null;
+        for (int i = 0; tags != null && i < tags.tagCount(); ++i) {
+            NBTTagCompound tag = tags.getCompoundTagAt(i);
+            if (enchantment.equals(enchantmentName(tag.getShort("id")))) {
+                return tag.getShort("lvl");
+            }
+        }
+        return 0;
     }
 
 

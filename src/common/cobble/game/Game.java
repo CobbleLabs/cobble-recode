@@ -245,6 +245,9 @@ public interface Game {
      */
     StackView stack(int slot);
 
+    /** Level of an enchantment, by registry name such as "breach", on the stack in a slot; 0 without it. */
+    int enchantmentLevel(int slot, String enchantment);
+
     record EffectView(String id, int amplifier, int duration) {}
 
     List<EffectView> statusEffects(Object entity);

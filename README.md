@@ -96,7 +96,7 @@ side of the 1.9 combat update, and the client hides them where they do not:
 
 | Only on 1.21.11 | Only before the combat update |
 | :-- | :-- |
-| AutoAnchor, CrystalAura, AutoTotem, WindCharge: their items are not in 1.8.9 | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock), AutoBackstab (HCF is played on 1.8) |
+| AutoAnchor, CrystalAura, AutoTotem, WindCharge, AutoMace, PearlCatch: their items are not in 1.8.9 | AutoBlock and BlockHit (no sword blocking), Regen and PotionSaver (servers tick players on their own clock), AutoBackstab (HCF is played on 1.8) |
 
 BedPlates does not load on 1.21.11 yet.
 
@@ -162,7 +162,7 @@ next to a real 3D model of their skin that you can turn with the mouse.
 
 ## <img src="docs/assets/section-modules.svg" height="30" align="top" alt=""> Modules
 
-<img src="docs/assets/modules.svg" width="100%" alt="128 modules: Combat 28, Player 39, Movement 13, Visuals 23, HUD 5, Minigames 13, Other 5, Client 2">
+<img src="docs/assets/modules.svg" width="100%" alt="130 modules: Combat 29, Player 40, Movement 13, Visuals 23, HUD 5, Minigames 13, Other 5, Client 2">
 
 Every module is filed as
 <img src="docs/assets/tier-basic.svg" alt="Basic" align="absmiddle">
@@ -172,7 +172,7 @@ so a tab can show only what you are after. Modules tagged *1.21* or *1.8* are
 only shown on those versions; see [Versions](#versions).
 
 <details>
-<summary><b>Combat</b> · 28 modules</summary>
+<summary><b>Combat</b> · 29 modules</summary>
 <br>
 
 | Module | Tier | What it does |
@@ -185,6 +185,7 @@ only shown on those versions; see [Versions](#versions).
 | **AutoBlock** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks with the sword between hits, in custom, swap or predict timing · *1.8* |
 | **AutoClicker** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Clicks for you while you hold left, on a human timing model |
 | **AutoFeed** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Stops attacks that would finish an enemy |
+| **AutoMace** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Hits with a mace from the hotbar, and aims and smashes on the way down · *1.21* |
 | **Backtrack** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Delays incoming packets so you hit where targets were |
 | **BlockHit** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Blocks between hits on the beat of your clicks · *1.8* |
 | **Criticals** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Hops on the hit so the next swings crit |
@@ -209,7 +210,7 @@ only shown on those versions; see [Versions](#versions).
 </details>
 
 <details>
-<summary><b>Player</b> · 39 modules</summary>
+<summary><b>Player</b> · 40 modules</summary>
 <br>
 
 | Module | Tier | What it does |
@@ -246,6 +247,7 @@ only shown on those versions; see [Versions](#versions).
 | **MLG** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Places water under you to cancel fall damage |
 | **NoFall** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Prevents fall damage |
 | **NoItemRelease** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Keeps using the item after you let go |
+| **PearlCatch** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Catches your thrown pearls in the air with a wind charge · *1.21* |
 | **PotionSaver** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Saves your potion effects while standing still · *1.8* |
 | **Regen** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Regenerates health quicker · *1.8* |
 | **Scaffold** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Places blocks under you as you walk |
@@ -266,7 +268,7 @@ only shown on those versions; see [Versions](#versions).
 | **Fly** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Flies where the keys point, rising with jump and sinking with sneak |
 | **InvMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Walks while a screen is open, and turns with the arrow keys |
 | **LongJump** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Jumps much further than normal |
-| **NoSlow** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Walks at full speed while using items |
+| **NoSlowDown** | <img src="docs/assets/tier-medium.svg" alt="Medium"> | Walks and sprints while eating, blocking or drawing a bow |
 | **NullMove** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | The last key pressed wins when both directions are held |
 | **Parkour** | <img src="docs/assets/tier-basic.svg" alt="Basic"> | Jumps for you at the edge of blocks |
 | **SafeWalk** | <img src="docs/assets/tier-advanced.svg" alt="Advanced"> | Stops you from falling off edges |

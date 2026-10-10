@@ -3,11 +3,13 @@ package cobble.v1_21;
 import cobble.core.Vec3;
 import cobble.event.AttackEntityEvent;
 import cobble.event.EventBus;
+import cobble.event.UseSlotEvent;
 import cobble.game.FrameState;
 import cobble.game.Game;
 import cobble.game.RotationEngine;
 import cobble.module.ModuleManager;
 import cobble.module.combat.HitBoxes;
+import cobble.module.movement.NoSlowDown;
 import cobble.module.render.NoCameraClip;
 import cobble.ui.Client;
 import cobble.v1_21.compat.TimerShim;
@@ -17,9 +19,14 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.memory.ObjectAllocator;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.UseEffectsComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
@@ -53,6 +60,14 @@ public final class Hooks {
         return EventBus.post(new AttackEntityEvent(target, player, true)).cancelled();
     }
 
+    /* The use packet goes out whatever the cooldown; only a stack off it does anything. */
+    public static void useItem(PlayerEntity player, Hand hand) {
+        if (!player.getItemCooldownManager().isCoolingDown(player.getStackInHand(hand))) {
+            EventBus.post(new UseSlotEvent(hand == Hand.MAIN_HAND ? player.getInventory().getSelectedSlot()
+                    : PlayerInventory.OFF_HAND_SLOT));
+        }
+    }
+
     public static float targetingMargin(float margin, Entity entity) {
         return entity instanceof LivingEntity && entity != MinecraftClient.getInstance().player
                 ? margin + HitBoxes.expansion() : margin;
@@ -74,6 +89,39 @@ public final class Hooks {
             player.setYaw(silent[0]);
             player.setPitch(silent[1]);
         }
+    }
+
+    /*
+     * The input has been scaled by the item's use speed and then capped at a
+     * length of 1, so the use speed is swapped by rescaling the length.
+     */
+    public static Vec2f movementSpeed(Vec2f movement, ClientPlayerEntity player) {
+        NoSlowDown noSlow = ModuleManager.get(NoSlowDown.class);
+        NoSlowDown.Use use = use(player);
+        if (!player.isUsingItem() || player.hasVehicle() || !noSlow.covers(use) || movement.lengthSquared() == 0.0f) {
+            return movement;
+        }
+        float slowed = useEffects(player).speedMultiplier();
+        float length = movement.length();
+        float scaled = length * Math.max(slowed, noSlow.speed(use)) / slowed;
+        return movement.multiply(Math.min(scaled, 1.0f) / length);
+    }
+
+    public static boolean sprintBlocked(boolean blocked, ClientPlayerEntity player) {
+        return blocked && !ModuleManager.get(NoSlowDown.class).covers(use(player));
+    }
+
+    private static UseEffectsComponent useEffects(ClientPlayerEntity player) {
+        return player.getActiveItem().getOrDefault(DataComponentTypes.USE_EFFECTS, UseEffectsComponent.DEFAULT);
+    }
+
+    private static NoSlowDown.Use use(ClientPlayerEntity player) {
+        return switch (player.getActiveItem().getUseAction()) {
+            case EAT, DRINK -> NoSlowDown.Use.CONSUME;
+            case BLOCK -> NoSlowDown.Use.BLOCK;
+            case BOW, CROSSBOW, TRIDENT -> NoSlowDown.Use.BOW;
+            default -> NoSlowDown.Use.OTHER;
+        };
     }
 
     public static void postMotion(ClientPlayerEntity player) {
