@@ -36,10 +36,16 @@ bool g_initialized = false;
 bool g_shouldClose = false;
 float g_scale = 1.0f;
 
-View g_view = View::Picking;
+View g_view = View::Login;
 std::vector<Instance> g_instances;
 std::string g_error;
 DWORD g_pick = 0;
+
+char g_username[64] = {};
+char g_password[128] = {};
+std::string g_loginError;
+bool g_loginSubmitted = false;
+bool g_focusLogin = true;
 
 float g_time = 0.0f;
 float g_viewTime = 0.0f;
@@ -185,6 +191,73 @@ void drawSpinnerView(ImDrawList* draw, ImVec2 size, const char* caption, float o
                           opacity * in * 0.82f);
 }
 
+void drawHeader(ImDrawList* draw, float width, const char* hint, float opacity) {
+    const float margin = kMargin * g_scale;
+    ImGui::PushFont(g_fontStrong);
+    draw->AddText(ImVec2(margin, 34.0f * g_scale), alpha(kText, opacity), "Cobble");
+    ImGui::PopFont();
+    ImGui::PushFont(g_fontSmall);
+    draw->AddText(ImVec2(margin + width - ImGui::CalcTextSize(hint).x, 36.0f * g_scale),
+                  alpha(kTextFaint, opacity), hint);
+    ImGui::PopFont();
+}
+
+/* Underlines the last field the way list rows are underlined. */
+void drawFieldRule(ImDrawList* draw, float opacity) {
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    draw->AddLine(ImVec2(min.x, max.y), max,
+                  ImGui::IsItemActive() ? alpha(kText, 0.72f * opacity) : kRule, g_scale);
+}
+
+void drawLoginView(ImDrawList* draw, ImVec2 size, float opacity) {
+    const float in = ease(g_viewTime / 0.16f);
+    const float margin = kMargin * g_scale;
+    const float width = size.x - margin * 2.0f;
+    drawHeader(draw, width, "Sign in to v2", opacity * in);
+
+    ImGui::PushFont(g_fontBody);
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, opacity * in);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f * g_scale, 11.0f * g_scale));
+    ImGui::PushItemWidth(width);
+    const bool focusPassword = g_focusLogin && g_username[0] != '\0';
+
+    ImGui::SetCursorPos(ImVec2(margin, 80.0f * g_scale));
+    if (g_focusLogin && !focusPassword) {
+        ImGui::SetKeyboardFocusHere();
+    }
+    bool submit = ImGui::InputTextWithHint("##username", "Username", g_username,
+                                           sizeof(g_username),
+                                           ImGuiInputTextFlags_EnterReturnsTrue);
+    drawFieldRule(draw, opacity * in);
+
+    ImGui::SetCursorPos(ImVec2(margin, 126.0f * g_scale));
+    if (focusPassword) {
+        ImGui::SetKeyboardFocusHere();
+    }
+    submit |= ImGui::InputTextWithHint(
+        "##password", "Password", g_password, sizeof(g_password),
+        ImGuiInputTextFlags_Password | ImGuiInputTextFlags_EnterReturnsTrue);
+    drawFieldRule(draw, opacity * in);
+    g_focusLogin = false;
+
+    ImGui::PopItemWidth();
+    ImGui::PopStyleVar(2);
+    ImGui::PopFont();
+
+    const float buttonY = 184.0f * g_scale;
+    submit |= drawButton(draw, ImVec2(margin, buttonY),
+                         ImVec2(margin + width, buttonY + 36.0f * g_scale), "Sign in");
+    if (!g_loginError.empty()) {
+        draw->AddText(g_fontSmall, g_fontSmall->FontSize,
+                      ImVec2(margin, buttonY + 50.0f * g_scale), alpha(kTextSoft, opacity * in),
+                      g_loginError.c_str(), nullptr, width);
+    }
+    if (submit && g_username[0] != '\0' && g_password[0] != '\0') {
+        g_loginSubmitted = true;
+    }
+}
+
 void drawPickView(ImDrawList* draw, ImVec2 size, float opacity) {
     if (g_instances.empty()) {
         drawSpinnerView(draw, size, "Open Minecraft", opacity);
@@ -194,15 +267,7 @@ void drawPickView(ImDrawList* draw, ImVec2 size, float opacity) {
     const float in = ease(g_viewTime / 0.16f);
     const float margin = kMargin * g_scale;
     const float width = size.x - margin * 2.0f;
-
-    ImGui::PushFont(g_fontStrong);
-    draw->AddText(ImVec2(margin, 34.0f * g_scale), alpha(kText, opacity * in), "Cobble");
-    ImGui::PopFont();
-    ImGui::PushFont(g_fontSmall);
-    const char* hint = "Select Minecraft";
-    draw->AddText(ImVec2(margin + width - ImGui::CalcTextSize(hint).x, 36.0f * g_scale),
-                  alpha(kTextFaint, opacity * in), hint);
-    ImGui::PopFont();
+    drawHeader(draw, width, "Select Minecraft", opacity * in);
 
     const float rowHeight = 44.0f * g_scale;
     ImGui::SetCursorPos(ImVec2(margin, 72.0f * g_scale));
@@ -402,6 +467,13 @@ bool init() {
     style.Colors[ImGuiCol_ScrollbarGrab] = ImGui::ColorConvertU32ToFloat4(kRule);
     style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImGui::ColorConvertU32ToFloat4(kTextFaint);
     style.Colors[ImGuiCol_ScrollbarGrabActive] = ImGui::ColorConvertU32ToFloat4(kTextSoft);
+    style.Colors[ImGuiCol_FrameBg] = ImGui::ColorConvertU32ToFloat4(kField);
+    style.Colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(kFieldActive);
+    style.Colors[ImGuiCol_FrameBgActive] = ImGui::ColorConvertU32ToFloat4(kFieldActive);
+    style.Colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(kText);
+    style.Colors[ImGuiCol_TextDisabled] = ImGui::ColorConvertU32ToFloat4(kTextFaint);
+    style.Colors[ImGuiCol_TextSelectedBg] = ImGui::ColorConvertU32ToFloat4(kRule);
+    style.Colors[ImGuiCol_NavCursor] = ImVec4(0, 0, 0, 0);
 
     ImGui_ImplWin32_Init(g_window);
     ImGui_ImplDX11_Init(g_device, g_context);
@@ -462,6 +534,12 @@ bool render() {
 
     const float opacity = ease(g_viewTime / 0.12f);
     switch (g_view) {
+        case View::Login:
+            drawLoginView(draw, size, opacity);
+            break;
+        case View::SigningIn:
+            drawSpinnerView(draw, size, "Signing in", opacity);
+            break;
         case View::Picking:
             drawPickView(draw, size, opacity);
             break;
@@ -526,6 +604,23 @@ DWORD takePick() {
     const DWORD pick = g_pick;
     g_pick = 0;
     return pick;
+}
+
+bool takeLogin(std::string& username, std::string& password) {
+    if (!g_loginSubmitted) {
+        return false;
+    }
+    g_loginSubmitted = false;
+    username = g_username;
+    password = g_password;
+    SecureZeroMemory(g_password, sizeof(g_password));
+    return true;
+}
+
+void showLoginError(const std::wstring& message) {
+    g_loginError = utf8(message);
+    g_focusLogin = true;
+    setView(View::Login);
 }
 
 }  // namespace cold::injector::ui

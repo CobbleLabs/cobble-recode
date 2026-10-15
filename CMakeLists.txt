@@ -428,11 +428,12 @@ add_executable(cobble-injector WIN32
     loader/src/Inject.cpp
     loader/src/ProcessList.cpp
     loader/src/Embedded.cpp
+    loader/src/License.cpp
     "${COLD_LOADER_RC}"
 )
 target_include_directories(cobble-injector PRIVATE
     loader/src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(cobble-injector PRIVATE imgui user32 gdi32)
+target_link_libraries(cobble-injector PRIVATE imgui user32 gdi32 winhttp bcrypt crypt32 iphlpapi)
 target_compile_definitions(cobble-injector PRIVATE
     WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS UNICODE _UNICODE)
 if(MSVC)
