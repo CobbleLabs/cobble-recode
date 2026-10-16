@@ -1,5 +1,7 @@
 package cobble.boot;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
@@ -28,6 +30,25 @@ public record Hook(String owner, String method, String descriptor, At at, String
 
     public static Hook of(String owner, String method, String descriptor, At at, String handler) {
         return new Hook(owner, method, descriptor, at, handler, false, false, false, false);
+    }
+
+    /** A table tools/Remap.java wrote out for CheatBreaker, one hook per line; see there for the columns. */
+    public static List<Hook> parse(String table) {
+        List<Hook> hooks = new ArrayList<>();
+        for (String line : table.split("\n")) {
+            String[] column = line.split("\t");
+            At.Kind kind = At.Kind.valueOf(column[3]);
+            At at = switch (kind) {
+                case HEAD -> At.HEAD;
+                case RETURN -> At.RETURN;
+                default -> new At(kind, Integer.parseInt(column[4]), column[5], column[6], column[7],
+                        Integer.parseInt(column[8]));
+            };
+            String flags = column[10];
+            hooks.add(new Hook(column[0], column[1], column[2], at, column[9], flags.contains("s"),
+                    flags.contains("a"), flags.contains("c"), flags.contains("r")));
+        }
+        return hooks;
     }
 
     public Hook withSelf() {

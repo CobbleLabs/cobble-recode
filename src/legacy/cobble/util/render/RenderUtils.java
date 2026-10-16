@@ -21,6 +21,7 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
@@ -92,11 +93,12 @@ public class RenderUtils implements IMinecraft {
         if (var0 == null) {
             return false;
         } else {
-            Entity var1 = mc.getRenderViewEntity();
-            if (var1 == null) {
+            if (mc.getRenderViewEntity() == null) {
                 return true;
             } else {
-                frustum.setPosition(var1.posX, var1.posY, var1.posZ);
+                /* Where the view's frustum starts on every version: 1.7.10 keeps its own player's posY at the eyes. */
+                RenderManager view = mc.getRenderManager();
+                frustum.setPosition(view.viewerPosX, view.viewerPosY, view.viewerPosZ);
                 return frustum.isBoundingBoxInFrustum(var0);
             }
         }

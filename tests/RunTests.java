@@ -16,8 +16,9 @@ import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 
 /**
- * Compiles src/common with the tests in tests/unit and runs every static,
- * argument-less {@code test*} method of every {@code *Test} class. Needs only a
+ * Compiles src/common and the build tools it carries with the tests in
+ * tests/unit and runs every static, argument-less {@code test*} method of
+ * every {@code *Test} class. Needs only a
  * JDK 17 and the jars CMake's configure fetches into infra/lib, so it runs on
  * any machine, not just a Windows one with Lunar installed.
  *
@@ -50,6 +51,8 @@ public final class RunTests {
         deleteTree(out);
         Files.createDirectories(out);
         List<String> sources = javaFiles(root.resolve("src/common"));
+        sources.add(root.resolve("tools/CbMap.java").toString());
+        sources.add(root.resolve("tools/Remap.java").toString());
         List<String> tests = javaFiles(root.resolve("tests/unit"));
         sources.addAll(tests);
 

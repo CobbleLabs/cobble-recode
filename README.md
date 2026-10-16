@@ -27,8 +27,8 @@
 
 <br>
 
-Cobble Recode is a client for **Lunar Client on Minecraft 1.8.9 and 1.21.11**
-and for **CheatBreaker on 1.8.9**. It is not a mod and it is not a launcher. You start the game the way you always do,
+Cobble Recode is a client for **Lunar Client on Minecraft 1.7.10, 1.8.9 and 1.21.11**
+and for **CheatBreaker on 1.7.10 and 1.8.9**. It is not a mod and it is not a launcher. You start the game the way you always do,
 run one small executable, and the client loads straight into the running game:
 modules, menu, HUD and a Lua runtime, all from memory. The same build works on
 every one of them; it finds out which one it is in and loads the modules that work
@@ -50,8 +50,8 @@ again, with Minecraft still running.
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Getting started
 
 > [!NOTE]
-> You need Windows x64 and Lunar Client on **1.8.9 or 1.21.11**, or CheatBreaker
-> on **1.8.9**. That is all; the client brings everything else with it.
+> You need Windows x64 and Lunar Client on **1.7.10, 1.8.9 or 1.21.11**, or CheatBreaker
+> on **1.7.10 or 1.8.9**. That is all; the client brings everything else with it.
 
 1. Open the game on one of those and join a world or a server.
 2. Run **`cobble-injector.exe`** and pick the game window.
@@ -86,10 +86,18 @@ folders:
 
 ## <img src="docs/assets/section-start.svg" height="30" align="top" alt=""> Versions
 
-| | 1.8.9 | 1.21.11 | CheatBreaker 1.8.9 |
-| :-- | :-: | :-: | :-: |
-| **Modules** | 122 | 121 | as 1.8.9 |
-| **Game names** | MCP | Fabric intermediary, retargeted | CheatBreaker's own, recovered at build time |
+| | 1.7.10 | 1.8.9 | 1.21.11 | CheatBreaker 1.8.9 | CheatBreaker 1.7.10 |
+| :-- | :-: | :-: | :-: | :-: | :-: |
+| **Modules** | as 1.8.9 | 122 | 121 | as 1.8.9 | as 1.8.9 |
+| **Game names** | MCP, retargeted | MCP | Fabric intermediary, retargeted | CheatBreaker's own, recovered from its jar | the same, after the 1.8.9 code is retargeted to 1.7.10 |
+
+CheatBreaker gives every Minecraft class and member new names in each of its
+builds. When it updates, the client notices on injection, names the new build
+the way the build does (once, in a few seconds; the result is kept under
+`%APPDATA%\cobble\mappings`) and renames itself for it. It needs vanilla's
+client jar for that: the one in `.minecraft` when the launcher has it,
+otherwise Mojang's, downloaded once. A hook or module the new build no longer
+has a place for is left out, and the log says which.
 
 Most modules are written once and run on both. A few only make sense on one
 side of the 1.9 combat update, and the client hides them where they do not:
@@ -490,11 +498,11 @@ injected again right away.
 <tr>
 <td width="50%" valign="top">
 
-#### One build, two versions
+#### One build, every version
 
 The modules that need nothing version-specific are written once, against the
 client's own view of the game. The rest is 1.8.9 code, rewritten at build time
-for 1.21.11 from a table of renames and small shims. Each version's adapter supplies the hooks and the game view.
+for 1.7.10 and 1.21.11 from a table of renames and small shims. Each version's adapter supplies the hooks and the game view.
 
 </td>
 <td width="50%" valign="top">
@@ -537,14 +545,15 @@ snaps to that grid before anything reaches the player.
 ## <img src="docs/assets/section-building.svg" height="30" align="top" alt=""> Building
 
 You need Windows x64, the MSVC C++ toolchain, CMake 3.21 or newer, a JDK 17 or
-newer, and Lunar Client with 1.8.9 and 1.21.11 each launched once: the build
+newer, and Lunar Client with 1.7.10, 1.8.9 and 1.21.11 each launched once: the build
 compiles against the classes Lunar bakes for them. Configuring fetches the public
 jars into `infra/lib`.
 
-CheatBreaker support is optional. It is built when CheatBreaker 1.8.9 has been
-launched once on the machine, since its classes are named by matching its game
-jar against vanilla's; without it the client builds for Lunar alone. Force it
-either way with `-DCOLD_ENABLE_CB=ON|OFF`, or point at another install with
+CheatBreaker support is optional. Each of its versions is built when
+CheatBreaker has launched it once on the machine, since its classes are named by
+matching its game jar against vanilla's; without them the client builds for Lunar
+alone. Force either way with `-DCOLD_ENABLE_CB=ON|OFF` (1.8.9) and
+`-DCOLD_ENABLE_CB_1_7=ON|OFF` (1.7.10), or point at another install with
 `-DCOLD_CB_DIR=<downloads folder>`.
 
 ```powershell
@@ -579,9 +588,12 @@ src/common/        the client without Minecraft: boot, hooks, patcher, bridge,
                    events, the game view, menu, HUD, renderer, Lua, and the
                    modules written against the game view
 src/legacy/        the modules and utilities written against 1.8.9
+src/v1_7/          the 1.7.10 adapter, hooks, retarget rules and shims
 src/v1_21/         the 1.21.11 adapter, hooks, retarget rules and shims
 src/v1_21_legacy/  1.21.11 hooks for the legacy modules, and the legacy
                    classes rewritten by hand for it
+src/cb_1_8/        the CheatBreaker 1.8.9 adapter and its hooks
+src/cb_1_7/        the CheatBreaker 1.7.10 adapter and its hooks
 bootstrap/         cobble.dll: finds the JVM, loads the client, starts Boot
 loader/            cobble-injector.exe
 assets/            fonts, icons, shaders, capes, the Lua prelude
@@ -589,7 +601,7 @@ scripts/           example Lua scripts, embedded in the injector
 infra/             vendored C++ (Dear ImGui) and the jars the client compiles against
 tests/             java tests/RunTests.java; the tests themselves under unit/
 docs/              the README's artwork
-tools/             build helpers: the game jars, Retarget, Remap, Linkage
+tools/             build helpers: the game jars, CbMap, Retarget, Remap, Linkage
 ```
 
 </details>

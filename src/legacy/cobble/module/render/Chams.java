@@ -9,7 +9,7 @@ import cobble.module.Context;
 import cobble.module.LegacyModule;
 import cobble.module.Subcategory;
 import cobble.module.other.AntiBot;
-import cobble.render.GlCache;
+import cobble.platform.Platform;
 import cobble.util.render.FakePlayerRenderer;
 import net.minecraft.entity.player.EntityPlayer;
 import org.lwjgl.opengl.GL11;
@@ -87,7 +87,7 @@ public class Chams extends LegacyModule {
                     GL11.glDepthFunc(GL11.GL_GREATER);
                     GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
                     GL11.glPolygonOffset(-1.0F, -1.0F);
-                    GlCache.resync();
+                    Platform.get().resyncGlState();
                     FakePlayerRenderer.renderAgain(player, partialTicks);
                 }
             }

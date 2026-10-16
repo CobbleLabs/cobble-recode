@@ -19,7 +19,8 @@ public final class ReachRaytrace {
     private ReachRaytrace() {
     }
 
-    public static ReachRaytrace$2 YUam(Minecraft var0, float var1, int var2, boolean var3, boolean var4, boolean var5) {
+    public static ReachRaytrace$2 YUam(Minecraft var0, float var1, int var2, boolean var3, boolean var4, boolean var5,
+                                       boolean ignoreBlocks) {
         Entity var6 = var0.getRenderViewEntity();
         if (var6 != null && var0.theWorld != null) {
             boolean var7 = var0.playerController.extendedReach();
@@ -28,6 +29,7 @@ public final class ReachRaytrace {
             Vec3 var11 = var6.getLook(var1);
             Vec3 var12 = var10.addVector(var11.xCoord * var8, var11.yCoord * var8, var11.zCoord * var8);
             AxisAlignedBB var13 = var6.getEntityBoundingBox().addCoord(var11.xCoord * var8, var11.yCoord * var8, var11.zCoord * var8).expand(1.0, 1.0, 1.0);
+            double blockDistance = ignoreBlocks ? Double.MAX_VALUE : blockDistance(var6, var8, var1, var10);
             ReachRaytrace$2 var14 = null;
             PiercingCandidateFilter$0 var15 = null;
 
@@ -35,8 +37,7 @@ public final class ReachRaytrace {
                 if (!shouldSkipEntity(var17, var3, var4)) {
                     ReachRaytrace$1 var18 = computeEntityIntercept(var17, var6, var10, var12);
                     if (var18 != null) {
-                        double var19 = var14 == null ? Double.MAX_VALUE : var14.distance;
-                        if (PiercingCandidateFilter.isCandidateInRange(var18.QfA, var8, var7, var19, var5, var18.isRiddenEntity, var14 != null)) {
+                        if (PiercingCandidateFilter.isCandidateInRange(var18.QfA, var8, var7, blockDistance, var5, var18.isRiddenEntity, var14 != null)) {
                             PiercingCandidateFilter$0 var21 = createSortKey(var17, var18.QfA);
                             if (PiercingCandidateFilter.isBetterCandidate(var21, var15, var2)) {
                                 var14 = new ReachRaytrace$2(var17, var18.vec3, var18.QfA, var8, var7);
@@ -51,6 +52,16 @@ public final class ReachRaytrace {
         } else {
             return null;
         }
+    }
+
+    /*
+     * How far the ray gets before a block. Up to there every entity on it in
+     * reach is a candidate, not just the nearest, so the sort mode can pick
+     * one standing behind another.
+     */
+    private static double blockDistance(Entity viewer, double reach, float partialTicks, Vec3 eyes) {
+        MovingObjectPosition hit = viewer.rayTrace(reach, partialTicks);
+        return hit != null && hit.typeOfHit == MovingObjectType.BLOCK ? eyes.distanceTo(hit.hitVec) : Double.MAX_VALUE;
     }
 
     public static void applyRaytraceResult(Minecraft var0, ReachRaytrace$2 var1) {

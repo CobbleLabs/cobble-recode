@@ -1,18 +1,29 @@
 package cobble.boot;
 
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+
 /**
  * The Minecraft version the client was injected into, told apart by what the
  * game's loader holds rather than by the launcher's command line: Lunar runs
  * 1.7 and 1.8 under MCP names and the modern versions under Fabric's
  * intermediary ones, where the game reports its own version; CheatBreaker
- * keeps its own classes' names. A version's {@code id} also names its overlay
- * in the image and its module list.
+ * keeps its own classes' names, and runs each version from a jar named after
+ * it. A version's {@code id} also names its overlay in the image and its
+ * module list.
  */
 public enum GameVersion {
+    V1_7_10("1.7.10", "v1_7"),
+    /** CheatBreaker's 1.7.10, which renames every Minecraft class and member. */
+    CB_1_7_10("cb-1.7.10", "cb_1_7"),
     V1_8_9("1.8.9", "v1_8"),
-    /** CheatBreaker's 1.8.9, which renames every Minecraft class and member. */
+    /** CheatBreaker's 1.8.9, renamed the same way. */
     CB_1_8_9("cb-1.8.9", "cb"),
     V1_21_11("1.21.11", "v1_21.legacy");
+
+    private static final String CHEATBREAKER_CLASS = "com.cheatbreaker.client.network.messages.Message";
+    private static final String CHEATBREAKER_PREFIX = "cb-";
+    private static final String CHEATBREAKER_JAR = ".patch";
 
     private static GameVersion current;
 
@@ -39,6 +50,15 @@ public enum GameVersion {
         return atLeast(V1_21_11);
     }
 
+    boolean cheatBreaker() {
+        return id.startsWith(CHEATBREAKER_PREFIX);
+    }
+
+    /** Minecraft's version without the launcher: 1.8.9 for CheatBreaker's 1.8.9. */
+    String minecraft() {
+        return cheatBreaker() ? id.substring(CHEATBREAKER_PREFIX.length()) : id;
+    }
+
     public static GameVersion current() {
         return current;
     }
@@ -55,9 +75,10 @@ public enum GameVersion {
             }
             return present(game, "net.minecraft.util.BlockPos") ? "1.8.9" : "1.7.10";
         }
-        /* The bootstrap only finds CheatBreaker's game in the 1.8.9 build the client was mapped against. */
-        if (present(game, "com.cheatbreaker.client.network.messages.Message")) {
-            return CB_1_8_9.id;
+        if (present(game, CHEATBREAKER_CLASS)) {
+            String jar = cheatBreakerJar(game).getFileName().toString();
+            return CHEATBREAKER_PREFIX + (jar.endsWith(CHEATBREAKER_JAR)
+                    ? jar.substring(0, jar.length() - CHEATBREAKER_JAR.length()) : jar);
         }
         try {
             Class<?> constants = Class.forName("net.minecraft.class_155", true, game);
@@ -66,6 +87,16 @@ public enum GameVersion {
                     .invoke(version);
         } catch (ReflectiveOperationException | LinkageError e) {
             return "unknown";
+        }
+    }
+
+    /** The jar CheatBreaker runs the game from, versions/1.8.9/1.8.9.patch for its 1.8.9. */
+    static Path cheatBreakerJar(ClassLoader game) {
+        try {
+            return Path.of(Class.forName(CHEATBREAKER_CLASS, false, game).getProtectionDomain().getCodeSource()
+                    .getLocation().toURI());
+        } catch (ClassNotFoundException | URISyntaxException e) {
+            throw new IllegalStateException(e);
         }
     }
 

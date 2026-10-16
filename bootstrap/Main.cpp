@@ -14,9 +14,6 @@
 #include <jni.h>
 #include <jvmti.h>
 
-#if COLD_HAS_CB
-#include "CheatBreakerNames.h"
-#endif
 #include "StreamProof.hpp"
 
 #include <atomic>
@@ -281,16 +278,17 @@ bool acquireJvmti() {
     return true;
 }
 
-/* The game's main class under the names each version runs with: MCP on Lunar's
- * 1.7 and 1.8, Fabric intermediary (MinecraftClient) from 1.20 on, and
- * whatever the CheatBreaker 1.8.9 build the client was mapped against calls it. */
+/* The game's main class under the names Lunar runs it with: MCP on 1.7 and
+ * 1.8, Fabric intermediary (MinecraftClient) from 1.20 on. */
 constexpr const char* kMinecraftSignatures[] = {
     "Lnet/minecraft/client/Minecraft;",
     "Lnet/minecraft/class_310;",
-#if COLD_HAS_CB
-    COLD_CB_MINECRAFT,
-#endif
 };
+
+/* CheatBreaker renames the Minecraft class in every build but keeps vanilla's
+ * launch class, and runs the game from the plain class path, which Lunar never
+ * does. */
+constexpr const char kLaunchSignature[] = "Lnet/minecraft/client/main/Main;";
 
 bool isMinecraftClass(const char* signature) {
     for (const char* candidate : kMinecraftSignatures) {
@@ -302,10 +300,14 @@ bool isMinecraftClass(const char* signature) {
 }
 
 /* A worker thread with no Java frames resolves FindClass against the system
- * loader, which cannot see the game, so the Minecraft class is found by
+ * loader, which cannot see Lunar's game, so the game's loader is found by
  * signature among everything the VM has loaded. Polls, because the injector
  * may run while the launcher is still starting the game. */
 jobject findMinecraftLoader(JNIEnv* env) {
+    jclass loaderClass = env->FindClass("java/lang/ClassLoader");
+    jmethodID getSystem =
+        env->GetStaticMethodID(loaderClass, "getSystemClassLoader", "()Ljava/lang/ClassLoader;");
+    jobject system = env->CallStaticObjectMethod(loaderClass, getSystem);
     const ULONGLONG deadline = GetTickCount64() + kMinecraftTimeoutMillis;
     while (GetTickCount64() < deadline) {
         jint count = 0;
@@ -321,6 +323,14 @@ jobject findMinecraftLoader(JNIEnv* env) {
                     JVMTI_ERROR_NONE) {
                     if (isMinecraftClass(signature)) {
                         g_jvmti->GetClassLoader(classes[i], &loader);
+                    } else if (std::strcmp(signature, kLaunchSignature) == 0) {
+                        jobject launcher = nullptr;
+                        g_jvmti->GetClassLoader(classes[i], &launcher);
+                        if (env->IsSameObject(launcher, system)) {
+                            loader = launcher;
+                        } else {
+                            env->DeleteLocalRef(launcher);
+                        }
                     }
                     g_jvmti->Deallocate(reinterpret_cast<unsigned char*>(signature));
                 }

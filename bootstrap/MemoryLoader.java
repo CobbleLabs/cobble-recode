@@ -3,6 +3,7 @@ package cobble.boot;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -42,6 +43,22 @@ public final class MemoryLoader extends ClassLoader {
      */
     public void selectVersion(String id) {
         overlay = "versions/" + id + "/";
+    }
+
+    /** Every file of the image by its path, overlays included. */
+    public Map<String, byte[]> entries() {
+        return Collections.unmodifiableMap(entries);
+    }
+
+    /**
+     * Puts {@code files} in the place of versions/{@code id}/. Only before
+     * {@link #selectVersion}, whose volatile write publishes them to every
+     * thread that loads from the overlay afterwards.
+     */
+    public void replaceOverlay(String id, Map<String, byte[]> files) {
+        String prefix = "versions/" + id + "/";
+        entries.keySet().removeIf(path -> path.startsWith(prefix));
+        files.forEach((path, bytes) -> entries.put(prefix + path, bytes));
     }
 
     private byte[] entry(String path) {
