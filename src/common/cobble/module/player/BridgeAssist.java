@@ -6,6 +6,7 @@ import cobble.core.Vec3;
 import cobble.game.Face;
 import cobble.game.FrameState;
 import cobble.game.Game;
+import cobble.game.ItemKind;
 import cobble.game.Raycast;
 import cobble.game.RotationEngine;
 import cobble.game.RotationTarget;
@@ -36,6 +37,10 @@ import java.util.Locale;
  *
  * The delays exist because a sneak that snaps on and off on exact tick
  * boundaries is a square wave nobody's hand produces.
+ *
+ * <p>Refill is the exception to the above: when the stack in hand runs out it
+ * selects the next block stack in the hotbar, or swaps one in from the
+ * inventory with the click the inventory screen sends, so the bridge goes on.
  */
 public final class BridgeAssist extends Module {
     /* Player hitbox half width. Everything about an edge is measured from this. */
@@ -59,6 +64,8 @@ public final class BridgeAssist extends Module {
     private final Setting prePlace = addBoolean("Pre place", "Aim at the side face of the block under you", false);
     private final Setting prePlaceSpeed = addNumber("Pre place speed", "Degrees the aim may travel per tick", 40, 5,
             180, 0).visibleWhen(prePlace::bool);
+    private final Setting refill = addBoolean("Refill",
+            "Takes the next block stack when the one in hand runs out, from the inventory if the hotbar has none", true);
 
     private final Rng random = new Rng(0x2B7E1516);
     private boolean sneaking;
@@ -72,6 +79,8 @@ public final class BridgeAssist extends Module {
      * solid ground. Re-seeding it every tick that followed would hold the sneak
      * down forever. */
     private boolean overEdge;
+    /* The hotbar slot last seen holding building blocks: an empty hand there is a stack used up, not a choice. */
+    private int blockSlot = -1;
 
     public BridgeAssist() {
         super("BridgeAssist", "Sneaks at the edge and aims at the face you are bridging off", Category.PLAYER,
@@ -263,12 +272,38 @@ public final class BridgeAssist extends Module {
         RotationEngine.submit(target);
     }
 
+    private void refillBlocks() {
+        Game game = Game.get();
+        int selected = game.selectedSlot();
+        if (game.holdingItem(ItemKind.BUILDING_BLOCK)) {
+            blockSlot = selected;
+            return;
+        }
+        if (selected != blockSlot || !game.handEmpty()) {
+            return;
+        }
+        int hotbar = game.findSlot(ItemKind.BUILDING_BLOCK, 0, 8);
+        if (hotbar >= 0) {
+            game.setSelectedSlot(hotbar);
+            blockSlot = hotbar;
+            return;
+        }
+        int stored = game.findSlot(ItemKind.BUILDING_BLOCK, 9, 35);
+        if (stored >= 0) {
+            game.swapSlot(stored, selected);
+        }
+    }
+
     @Override
     public void onTick(Context context) {
         FrameState state = context.state;
         if (!state.inWorld || !state.player.valid || state.screenOpen) {
             onDisable(context);
             return;
+        }
+        /* Ahead of the conditions, which an empty hand fails under "Holding blocks". */
+        if (refill.bool()) {
+            refillBlocks();
         }
         if (!conditionsMet(state)) {
             releaseSneak(true);
