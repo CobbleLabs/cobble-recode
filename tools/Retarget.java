@@ -71,10 +71,13 @@ import org.objectweb.asm.tree.analysis.SourceValue;
  * target.
  *
  * Right-hand sides are written in the target version's names; class renames
- * are applied to everything else afterwards. Only classes that change are
- * written.
+ * are applied to everything else afterwards. Given MCP's tables for both
+ * versions, a reference no rule covers and the target lacks is renamed to
+ * whatever the target calls the same Searge member, which takes care of the
+ * plain renames between versions. Only classes that change are written.
  *
  * Usage: java -cp asm*.jar tools/Retarget.java <rules> <source jar>,... <target jar or dir>,... <classes> <out>
+ *            [<source mcp srg zip>,<source mcp stable zip> <target mcp srg zip>,<target mcp stable zip>]
  */
 public final class Retarget {
     private record Target(String kind, String owner, String name, String descriptor) {}
@@ -89,6 +92,10 @@ public final class Retarget {
     private final Map<String, ClassNode> target = new HashMap<>();
     private final List<String> errors = new ArrayList<>();
     private final SimpleRemapper renamer = new SimpleRemapper(classes);
+    /** Source version's "declaring class.name" (a method's with its descriptor) to its Searge name. */
+    private final Map<String, String> sourceSearge = new HashMap<>();
+    /** Target version's "declaring class.Searge name" (a method's with its descriptor) to its name there. */
+    private final Map<String, String> targetNames = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
         Retarget retarget = new Retarget();
@@ -102,6 +109,10 @@ public final class Retarget {
         retarget.renamedTargetsExist();
         Path input = Path.of(args[3]);
         Path output = Path.of(args[4]);
+        if (args.length > 6) {
+            readSearge(args[5], (searge, named) -> retarget.sourceSearge.put(named, searge));
+            readSearge(args[6], retarget.targetNames::put);
+        }
         Map<Path, byte[]> inputs = new HashMap<>();
         try (Stream<Path> walk = Files.walk(input)) {
             for (Path file : walk.filter(path -> path.toString().endsWith(".class")).collect(Collectors.toList())) {
@@ -166,6 +177,14 @@ public final class Retarget {
         boolean changed = false;
         for (MethodNode method : node.methods) {
             changed |= rewrite(node, method);
+            /* An override of a game method has to carry the name the target gives it, or it overrides nothing. */
+            if ((method.access & Opcodes.ACC_STATIC) == 0 && !method.name.startsWith("<") && node.superName != null) {
+                String renamed = renamedThroughSearge(node.superName, method.name, method.desc, true);
+                if (renamed != null) {
+                    method.name = renamed;
+                    changed = true;
+                }
+            }
         }
         boolean renames = mentionsRenamed(bytes);
         if (!changed && !renames) {
@@ -196,7 +215,13 @@ public final class Retarget {
                     replaceField(owner, method, field, replacement);
                     changed = true;
                 } else {
-                    changed |= shimField(method, field);
+                    String renamed = renamedThroughSearge(field.owner, field.name, field.desc, false);
+                    if (renamed != null) {
+                        field.name = renamed;
+                        changed = true;
+                    } else {
+                        changed |= shimField(method, field);
+                    }
                 }
             } else if (insn instanceof TypeInsnNode type && type.getOpcode() == Opcodes.INSTANCEOF
                     && instanceTests.containsKey(type.desc)) {
@@ -207,6 +232,12 @@ public final class Retarget {
             } else if (insn instanceof MethodInsnNode call) {
                 Target replacement = methods.get(declaring(call.owner, call.name + call.desc, true));
                 if (replacement == null) {
+                    String renamed = renamedThroughSearge(call.owner, call.name, call.desc, true);
+                    if (renamed != null) {
+                        call.name = renamed;
+                        changed = true;
+                        continue;
+                    }
                     replacement = shimFor(call);
                     if (replacement == null) {
                         changed |= followOwnerKind(call);
@@ -468,6 +499,81 @@ public final class Retarget {
             current = node.superName;
         }
         return null;
+    }
+
+    /**
+     * A member the target does not have under its source name, renamed through
+     * the Searge names MCP gives both versions: the same Searge name on the same
+     * class, with the same descriptor for a method, is the same member. Null
+     * when the reference already resolves, or when the tables have nothing that
+     * does.
+     */
+    private String renamedThroughSearge(String owner, String name, String descriptor, boolean isMethod) {
+        if (sourceSearge.isEmpty() || resolves(target, owner, name, descriptor, isMethod)) {
+            return null;
+        }
+        String declarer = declarer(source, owner, name, descriptor, isMethod);
+        if (declarer == null) {
+            return null;
+        }
+        String suffix = isMethod ? descriptor : "";
+        String searge = sourceSearge.get(declarer + "." + name + suffix);
+        if (searge == null) {
+            return null;
+        }
+        // A member the target's table leaves unnamed runs under its Searge name.
+        String targetKey = targetNames.getOrDefault(searge, searge);
+        String renamed = targetKey.substring(declarer.length() + 1, targetKey.length() - suffix.length());
+        return resolves(target, owner, renamed, descriptor, isMethod) ? renamed : null;
+    }
+
+    private static boolean resolves(Map<String, ClassNode> world, String owner, String name, String descriptor,
+                                    boolean isMethod) {
+        return declarer(world, owner, name, descriptor, isMethod) != null;
+    }
+
+    /**
+     * MCP's joined.srg and its stable fields.csv and methods.csv, as one call
+     * per member: "class.Searge name" and "class.MCP name", a method's both
+     * followed by its descriptor. The srg lines already spell their classes the
+     * MCP way; they give fields no descriptor, and a class has one field of a
+     * name.
+     */
+    private static void readSearge(String zips, java.util.function.BiConsumer<String, String> into)
+            throws IOException {
+        String[] parts = zips.split(",", 2);
+        Map<String, String> names = new HashMap<>();
+        for (String csv : List.of("fields.csv", "methods.csv")) {
+            for (String line : zipLines(parts[1], csv)) {
+                String[] columns = line.split(",", 3);
+                if (columns.length >= 2 && !columns[0].equals("searge")) {
+                    names.put(columns[0], columns[1]);
+                }
+            }
+        }
+        for (String line : zipLines(parts[0], "joined.srg")) {
+            String[] columns = line.split(" ");
+            boolean isMethod = columns[0].equals("MD:");
+            if (!isMethod && !columns[0].equals("FD:")) {
+                continue;
+            }
+            String member = columns[isMethod ? 3 : 2];
+            String owner = member.substring(0, member.lastIndexOf('/'));
+            String searge = member.substring(owner.length() + 1);
+            String descriptor = isMethod ? columns[4] : "";
+            into.accept(owner + "." + searge + descriptor, owner + "." + names.getOrDefault(searge, searge) + descriptor);
+        }
+    }
+
+    private static List<String> zipLines(String zip, String entry) throws IOException {
+        try (ZipFile file = new ZipFile(zip)) {
+            ZipEntry found = file.getEntry(entry);
+            if (found == null) {
+                throw new IOException(zip + " has no " + entry);
+            }
+            return new String(file.getInputStream(found).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                    .lines().collect(Collectors.toList());
+        }
     }
 
     /** The class in {@code owner}'s hierarchy that declares the member, or null. */

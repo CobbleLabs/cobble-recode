@@ -2,6 +2,7 @@ package cobble.module.combat;
 
 import cobble.component.combat.TargetComponent;
 import cobble.core.Color;
+import cobble.event.AttackEntityEvent;
 import cobble.event.DisconnectEvent;
 import cobble.event.LoadWorldEvent;
 import cobble.event.PacketReceiveEvent;
@@ -51,6 +52,8 @@ public class Backtrack extends LegacyModule {
 
     private final Setting maxPingSpoof = addNumber("Max Ping Spoof", "Maximum ping spoof hold duration in ms",
             1000, 50, 10000, 0);
+    private final Setting onlyHit = addBoolean("Only Hit",
+            "Lags from each hit on a target for Max Ping Spoof, so hits stack, then lets everything go", false);
     private final Setting renderRealLocation = addBoolean("Render Real Location", "Renders target's true server position", true);
     private final Setting colour = addColour("Color", "Box color; the faces are drawn at alpha 50",
             new Color(0.9f, 0.2f, 0.2f, 1.0f));
@@ -58,6 +61,8 @@ public class Backtrack extends LegacyModule {
 
     private double displayedReach;
     private long reachDisplayUntil;
+    private EntityLivingBase hitEntity;
+    private long hitTime;
 
     public Backtrack() {
         super("Backtrack", "Delays incoming packets so you hit where targets were", Category.COMBAT, Subcategory.ADVANCED);
@@ -93,6 +98,7 @@ public class Backtrack extends LegacyModule {
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
+        this.hitEntity = null;
         this.targetEntity = null;
         this.realTargetPosition = new Vec3(0.0, 0.0, 0.0);
         realTargetBoundingBox = null;
@@ -103,6 +109,7 @@ public class Backtrack extends LegacyModule {
 
     @Subscribe
     public void onLoadWorld(LoadWorldEvent event) {
+        this.hitEntity = null;
         this.targetEntity = null;
         this.realTargetPosition = new Vec3(0.0, 0.0, 0.0);
         realTargetBoundingBox = null;
@@ -132,7 +139,8 @@ public class Backtrack extends LegacyModule {
         }
 
         List<EntityLivingBase> list = TargetComponent.getTargets(9.0);
-        if (list.isEmpty()) {
+        EntityLivingBase entity = this.onlyHit.bool() ? recentlyHit(list) : list.isEmpty() ? null : list.get(0);
+        if (entity == null) {
             this.isActive = true;
             this.targetEntity = null;
             realTargetBoundingBox = null;
@@ -141,10 +149,16 @@ public class Backtrack extends LegacyModule {
             return;
         }
 
-        EntityLivingBase entity = list.get(0);
+        /* With nothing held the game has applied every position packet, so the
+         * server position is the one it last sent; posX trails it by the
+         * interpolation, and deltas added onto that would keep the error. */
+        boolean holding = BlinkComponent.getQueuedCount() > 0;
+        if (entity != this.targetEntity || !holding) {
+            this.realTargetPosition = new Vec3(entity.serverPosX / 32.0, entity.serverPosY / 32.0,
+                    entity.serverPosZ / 32.0);
+        }
         if (entity != this.targetEntity) {
             this.targetEntity = entity;
-            this.realTargetPosition = new Vec3(entity.posX, entity.posY, entity.posZ);
             this.xAnimation.setValue(entity.posX);
             this.xAnimation.setDestinationValue(entity.posX);
             this.yAnimation.setValue(entity.posY);
@@ -175,7 +189,7 @@ public class Backtrack extends LegacyModule {
 
             double d2 = distanceToPlayer(this.realTargetPosition);
             double d3 = this.targetEntity.getDistanceToEntity(mc.thePlayer);
-            boolean flag1 = d2 > d3 && d2 > 2.5 && d2 < 6.0;
+            boolean flag1 = this.onlyHit.bool() || d2 > d3 && d2 > 2.5 && d2 < 6.0;
 
             if (flag1) {
                 BlinkComponent.hold((int) this.maxPingSpoof.number(), true, true, false, true);
@@ -184,6 +198,20 @@ public class Backtrack extends LegacyModule {
                 BlinkComponent.dispatch();
             }
         }
+    }
+
+    @Subscribe
+    public void onAttackEntity(AttackEntityEvent event) {
+        if (event.entityPlayer == mc.thePlayer && event.entity instanceof EntityLivingBase living) {
+            this.hitEntity = living;
+            this.hitTime = System.currentTimeMillis();
+        }
+    }
+
+    /* The entity last hit, while still a target and within Max Ping Spoof of the hit. */
+    private EntityLivingBase recentlyHit(List<EntityLivingBase> targets) {
+        boolean recent = System.currentTimeMillis() - this.hitTime <= this.maxPingSpoof.number();
+        return recent && targets.contains(this.hitEntity) ? this.hitEntity : null;
     }
 
     @Subscribe(priority = Subscribe.Priority.HIGHEST)

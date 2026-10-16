@@ -39,7 +39,7 @@ public class Piercing extends LegacyModule implements PointedObjectOverrider {
     }
 
     private void performReachRaytrace(float var1) {
-        ReachRaytrace$2 var2 = ReachRaytrace.YUam(mc, var1, (int)this.piercingSettings.sortMode.choice(), this.piercingSettings.ignoreNonPlayers.bool(), this.piercingSettings.ignoreTeammates.bool(), this.piercingSettings.insideHitboxOnly.bool());
+        ReachRaytrace$2 var2 = ReachRaytrace.YUam(mc, var1, (int)this.piercingSettings.sortMode.choice(), this.piercingSettings.ignoreNonPlayers.bool(), this.piercingSettings.ignoreTeammates.bool(), this.piercingSettings.insideHitboxOnly.bool(), this.piercingSettings.ignoreBlocks.bool());
         ReachRaytrace.applyRaytraceResult(mc, var2);
     }
 

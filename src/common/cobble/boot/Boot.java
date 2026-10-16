@@ -55,6 +55,9 @@ public final class Boot {
             Log.info(SCOPE, "Minecraft %s", version.id);
             /* The loader is the bootstrap's MemoryLoader, which this code is not compiled against. */
             ClassLoader image = Boot.class.getClassLoader();
+            if (version.cheatBreaker()) {
+                CheatBreaker.adapt(version, GameVersion.cheatBreakerJar(gameLoader), home, image);
+            }
             image.getClass().getMethod("selectVersion", String.class).invoke(image, version.id);
             platform = (Platform) Class.forName("cobble." + version.adapterPackage + ".PlatformAdapter")
                     .getConstructor().newInstance();

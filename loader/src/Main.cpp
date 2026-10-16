@@ -5,6 +5,7 @@
 
 #include "Embedded.hpp"
 #include "Inject.hpp"
+#include "License.hpp"
 #include "LoaderUi.hpp"
 #include "ProcessList.hpp"
 
@@ -32,12 +33,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     }
     ui::show();
 
+    std::future<cold::injector::license::LoginResult> signingIn;
     std::future<cold::injector::InjectResult> pending;
     ULONGLONG nextRefresh = 0;
     /* A lone Minecraft is injected without asking. Once there has been a choice
      * to make, or a first attempt, the list is how the user picks. */
     bool autoPick = true;
     while (ui::render()) {
+        std::string username;
+        std::string password;
+        if (ui::takeLogin(username, password)) {
+            ui::setView(ui::View::SigningIn);
+            signingIn = std::async(std::launch::async, [username, password] {
+                return cold::injector::license::login(username, password);
+            });
+        }
+        if (signingIn.valid() &&
+            signingIn.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            const cold::injector::license::LoginResult result = signingIn.get();
+            if (result.ok) {
+                ui::setView(ui::View::Picking);
+            } else {
+                ui::showLoginError(result.message);
+            }
+        }
         if (ui::view() == ui::View::Picking) {
             DWORD pick = ui::takePick();
             const ULONGLONG now = GetTickCount64();

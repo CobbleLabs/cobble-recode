@@ -9,7 +9,7 @@
 
 namespace cold::injector::ui {
 
-enum class View { Picking, Injecting, Success, Error };
+enum class View { Login, SigningIn, Picking, Injecting, Success, Error };
 
 bool init();
 void show();
@@ -25,5 +25,11 @@ void showError(const std::wstring& message);
 
 /* Process the user clicked since the last call, or 0. */
 DWORD takePick();
+
+/* Credentials submitted since the last call; false when there are none. */
+bool takeLogin(std::string& username, std::string& password);
+
+/* Back to the sign-in form with the reason shown under it. */
+void showLoginError(const std::wstring& message);
 
 }  // namespace cold::injector::ui

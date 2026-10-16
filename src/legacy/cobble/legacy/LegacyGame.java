@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockContainer;
+import net.minecraft.block.BlockFalling;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -457,6 +459,8 @@ public abstract class LegacyGame implements Game {
             case MAGMA_CREAM -> item == Items.magma_cream;
             case SPIDER_EYE -> item == Items.spider_eye;
             case GOLDEN_SWORD -> item == Items.golden_sword;
+            case BUILDING_BLOCK -> item instanceof ItemBlock block && block.getBlock().isFullCube()
+                    && !(block.getBlock() instanceof BlockFalling) && !(block.getBlock() instanceof BlockContainer);
             case TOTEM, END_CRYSTAL, RESPAWN_ANCHOR, MACE, WIND_CHARGE -> false;
         };
     }

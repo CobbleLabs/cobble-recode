@@ -31,11 +31,16 @@ final class RemapTest {
     private static final String UNTOUCHED = "cobble/module/Plain";
 
     private static byte[] gameClass(String name, String superName, boolean declares) {
+        return gameClass(name, superName, declares ? "health" : null, "jump");
+    }
+
+    /** With a field {@code health} and a method {@code jump} under those names, unless {@code health} is null. */
+    private static byte[] gameClass(String name, String superName, String health, String jump) {
         ClassWriter w = new ClassWriter(0);
         w.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, name, null, superName, null);
-        if (declares) {
-            w.visitField(Opcodes.ACC_PUBLIC, "health", "F", null, null).visitEnd();
-            MethodVisitor m = w.visitMethod(Opcodes.ACC_PUBLIC, "jump", "()V", null, null);
+        if (health != null) {
+            w.visitField(Opcodes.ACC_PUBLIC, health, "F", null, null).visitEnd();
+            MethodVisitor m = w.visitMethod(Opcodes.ACC_PUBLIC, jump, "()V", null, null);
             m.visitCode();
             m.visitInsn(Opcodes.RETURN);
             m.visitMaxs(0, 1);
@@ -108,9 +113,9 @@ final class RemapTest {
 
     static void testCheatBreakerRenamesThroughTheHierarchy() throws Exception {
         Path dir = Files.createTempDirectory("cobble-remap-cb");
-        Path game = dir.resolve("mcp.jar");
-        jar(game, Map.of(BASE + ".class", gameClass(BASE, "java/lang/Object", true),
-                CHILD + ".class", gameClass(CHILD, BASE, false)));
+        Path game = dir.resolve("cheatbreaker.jar");
+        jar(game, Map.of("cb/a.class", gameClass("cb/a", "java/lang/Object", "q", "z"),
+                "cb/b.class", gameClass("cb/b", "cb/a", null, null)));
         Path names = dir.resolve("names.tsv");
         Files.writeString(names, String.join("\n",
                 "CL\t" + BASE + "\tcb/a",
@@ -132,6 +137,108 @@ final class RemapTest {
         FieldInsnNode field = (FieldInsnNode) find(method, FieldInsnNode.class);
         Check.equal("cb/b", field.owner, "field owner renamed");
         Check.equal("q", field.name, "inherited field resolved on Base and renamed");
+    }
+
+    static void testCheatBreakerWritesEveryRewrittenClass() throws Exception {
+        Path dir = Files.createTempDirectory("cobble-remap-cb-rewritten");
+        Path game = dir.resolve("cheatbreaker.jar");
+        jar(game, Map.of("cb/a.class", gameClass("cb/a", "java/lang/Object", "q", "z")));
+        Path names = dir.resolve("names.tsv");
+        Files.writeString(names, "CL\t" + BASE + "\tcb/a\n");
+        Path in = clientClasses(dir);
+        Path rewritten = dir.resolve("rewritten");
+        Files.createDirectories(rewritten.resolve("cobble/module"));
+        Files.write(rewritten.resolve(UNTOUCHED + ".class"), plainClass());
+        Path out = dir.resolve("overlay");
+
+        remap("cheatbreaker", names.toString(), game.toString(), in + "," + rewritten, out.toString());
+
+        Check.that(Files.exists(out.resolve(UNTOUCHED + ".class")),
+                "a rewritten class goes to the overlay with nothing to rename");
+    }
+
+    static void testHooksLeaveOutWhatTheBuildLacks() throws Exception {
+        Path dir = Files.createTempDirectory("cobble-remap-hooks");
+        Path game = dir.resolve("cheatbreaker.jar");
+        jar(game, Map.of("cb/a.class", gameClass("cb/a", "java/lang/Object", "q", "z")));
+        Remap remap = Remap.cheatBreaker(List.of("CL\t" + BASE + "\tcb/a", "MD\t" + BASE + "\tjump\t()V\tz"));
+        List<String> table = List.of(
+                String.join("\t", BASE, "jump", "()V", "HEAD", "-", "-", "-", "-", "-", "jumped", "s"),
+                String.join("\t", BASE, "fly", "()V", "HEAD", "-", "-", "-", "-", "-", "flew", "-"));
+        List<String> problems = new ArrayList<>();
+
+        List<String> hooks;
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(game.toFile())) {
+            hooks = remap.hooks(zip, table, problems);
+        }
+
+        Check.equal(List.of(String.join("\t", "cb/a", "z", "()V", "HEAD", "-", "-", "-", "-", "-", "jumped", "s")),
+                hooks, "the hook CheatBreaker has a name for, under that name");
+        Check.equal(1, problems.size(), "one hook left out");
+        Check.that(problems.get(0).startsWith("flew: "), "the problem names the hook: " + problems);
+    }
+
+    static void testStarHookPicksTheMethodVanillaHasNoNameFor() throws Exception {
+        Path dir = Files.createTempDirectory("cobble-remap-star");
+        Path game = dir.resolve("cheatbreaker.jar");
+        ClassWriter w = new ClassWriter(0);
+        w.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, "cb/a", null, "java/lang/Object", null);
+        for (String name : List.of("z", "y")) {
+            MethodVisitor m = w.visitMethod(Opcodes.ACC_PUBLIC, name, "()V", null, null);
+            m.visitCode();
+            m.visitInsn(Opcodes.RETURN);
+            m.visitMaxs(0, 1);
+            m.visitEnd();
+        }
+        w.visitEnd();
+        jar(game, Map.of("cb/a.class", w.toByteArray()));
+        Remap remap = Remap.cheatBreaker(List.of("CL\t" + BASE + "\tcb/a", "MD\t" + BASE + "\tjump\t()V\tz"));
+        List<String> problems = new ArrayList<>();
+
+        List<String> hooks;
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(game.toFile())) {
+            hooks = remap.hooks(zip, List.of(String.join("\t", BASE, "*", "()V", "HEAD", "-", "-", "-", "-", "-",
+                    "own", "-")), problems);
+        }
+
+        Check.equal(List.of(), problems, "no problems");
+        Check.equal(List.of(String.join("\t", "cb/a", "y", "()V", "HEAD", "-", "-", "-", "-", "-", "own", "-")),
+                hooks, "the method z, vanilla's jump, is not the one");
+    }
+
+    /** CheatBreaker's game back under MCP names: cb/a is Base, cb/c a class nested in it. */
+    static void testMcpRenamesBackAndNests() throws Exception {
+        Path dir = Files.createTempDirectory("cobble-remap-mcp");
+        String nested = BASE + "$Kind";
+        ClassWriter base = new ClassWriter(0);
+        base.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, "cb/a", null, "java/lang/Object", null);
+        base.visitField(Opcodes.ACC_PUBLIC, "q", "F", null, null).visitEnd();
+        base.visitField(Opcodes.ACC_PUBLIC, "k", "Lcb/c;", null, null).visitEnd();
+        base.visitEnd();
+        Path cb = dir.resolve("cheatbreaker.jar");
+        jar(cb, Map.of("cb/a.class", base.toByteArray(), "cb/c.class", gameClass("cb/c", "java/lang/Object", false)));
+        Path names = dir.resolve("names.tsv");
+        Files.writeString(names, String.join("\n",
+                "CL\t" + BASE + "\tcb/a",
+                "CL\t" + nested + "\tcb/c",
+                "FD\t" + BASE + "\thealth\tF\tq",
+                "FD\t" + BASE + "\tkind\tL" + nested + ";\tk") + "\n");
+        Path out = dir.resolve("mcp.jar");
+
+        remap("mcp", names.toString(), cb.toString(), out.toString());
+
+        ClassNode node = new ClassNode();
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(out.toFile())) {
+            new ClassReader(zip.getInputStream(zip.getEntry(BASE + ".class")).readAllBytes()).accept(node, 0);
+            Check.that(zip.getEntry(nested + ".class") != null, "the nested class keeps its MCP name");
+        }
+        Check.that(node.fields.stream().anyMatch(f -> f.name.equals("health") && f.desc.equals("F")),
+                "field named back by owner, name and descriptor");
+        Check.that(node.fields.stream().anyMatch(f -> f.name.equals("kind") && f.desc.equals("L" + nested + ";")),
+                "field descriptor named back");
+        Check.that(node.innerClasses.stream().anyMatch(c -> c.name.equals(nested) && c.outerName.equals(BASE)
+                        && c.innerName.equals("Kind")),
+                "the outer class lists its nested class, so javac finds it");
     }
 
     static void testIntermediaryUsesYarnTiny() throws Exception {

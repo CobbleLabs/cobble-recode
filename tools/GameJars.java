@@ -24,8 +24,8 @@ import java.util.zip.ZipOutputStream;
  * exactly what runs, member access included. Bakes name their entries by
  * binary name without an extension; the jars use ordinary class paths.
  *
- * Each version takes the newest bake that holds it. 1.8.9 runs under MCP
- * names and has BlockPos where 1.7.10 does not; a modern bake runs under
+ * Each version takes the newest bake that holds it. 1.7.10 and 1.8.9 run
+ * under MCP names and are told apart by BlockPos; a modern bake runs under
  * Fabric intermediary names and is 1.21.11 when its highest numbered class
  * is the highest one the 1.21.11 mappings name.
  *
@@ -55,7 +55,7 @@ public final class GameJars {
                 picked.putIfAbsent(version, bake);
             }
         }
-        for (String version : List.of("1.8.9", "1.21.11")) {
+        for (String version : List.of("1.7.10", "1.8.9", "1.21.11")) {
             Path bake = picked.get(version);
             if (bake == null) {
                 throw new IllegalStateException("no Lunar bake of Minecraft " + version + " under " + cache
@@ -80,7 +80,7 @@ public final class GameJars {
                 if (zip.getEntry("net.minecraft.util.math.BlockPos") != null) {
                     return null;
                 }
-                return zip.getEntry("net.minecraft.util.BlockPos") != null ? "1.8.9" : null;
+                return zip.getEntry("net.minecraft.util.BlockPos") != null ? "1.8.9" : "1.7.10";
             }
             if (zip.getEntry("net.minecraft.class_310") == null) {
                 return null;

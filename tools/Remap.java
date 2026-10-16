@@ -1,3 +1,5 @@
+package cobble.tools;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,9 +11,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -33,31 +37,47 @@ import org.objectweb.asm.tree.MethodNode;
 /**
  * Moves classes between the names the client is written in and the names a
  * game runs with: Yarn and Fabric's intermediary for the modern versions,
- * MCP and CheatBreaker's for CheatBreaker 1.8.9.
+ * MCP and CheatBreaker's for CheatBreaker.
  *
  * <pre>
  *   named        yarn.jar intermediary.jar named.jar
+ *   mcp          names.tsv cheatbreaker.jar mcp.jar
  *   intermediary yarn.jar named.jar classes-in classes-out
- *   cheatbreaker names.tsv mcp.jar classes-in classes-out
- *   hooks        names.tsv mcp.jar cheatbreaker.jar classpath table-class hooks.tsv
+ *   cheatbreaker names.tsv cheatbreaker.jar classes-in[,rewritten...] classes-out
+ *   hooks        names.tsv cheatbreaker.jar classpath table-class hooks.tsv mcp-hooks.tsv
  * </pre>
  *
- * The first writes the game jar the 1.21 sources compile against. Every
+ * The first two write game jars without code for the client to compile and
+ * be rewritten against: 1.21 under Yarn's names, and CheatBreaker's game back
+ * under MCP's, where its version has no Lunar build to stand in for it. Every
  * intermediary member name is unique across the whole game, so that direction
- * needs no hierarchy. The second and third put compiled client classes under
+ * needs no hierarchy. The next two put compiled client classes under
  * the names the game runs with. Yarn and MCP names repeat, so a member
- * reference is resolved up the hierarchy of the named jar to the game class
- * that declares it, and only then renamed; references to anything else are
- * left alone. CheatBreaker's classes go to an overlay, so only the classes
- * that change are written. The last puts the hooks of {@code table-class}'s
- * {@code ALL} under CheatBreaker's names, one per line, for its adapter to
- * read; see tools/CbMap.java for names.tsv.
+ * reference is resolved up the game's hierarchy to the game class that
+ * declares it, and only then renamed; references to anything else are left
+ * alone. That hierarchy is the named jar's for intermediary, and CheatBreaker's
+ * own read back under MCP's names for CheatBreaker. CheatBreaker's classes go
+ * to an overlay, so only the classes that change are written: the renamed
+ * ones, and every class of the optional rewritten sets, which join the input
+ * and stand in for its own classes of the same name (see tools/Retarget.java).
+ * The last puts the hooks of {@code table-class}'s {@code ALL} under
+ * CheatBreaker's names, one per line, for its adapter to read, and writes the
+ * same lines under MCP's names; see tools/CbMap.java for names.tsv.
+ *
+ * The client runs the CheatBreaker steps itself, on its own image, when the
+ * game is a CheatBreaker build other than the one it was built against; see
+ * cobble.boot.CheatBreaker.
  *
  * Usage: java -cp asm.jar;asm-commons.jar;asm-tree.jar tools/Remap.java ...
  */
 public final class Remap {
     private final Map<String, String> classesToNamed = new HashMap<>();
     private final Map<String, String> classesToRuntime = new HashMap<>();
+    /**
+     * Runtime member to its named one: by name alone from intermediary, whose
+     * names are unique, by "owner.name descriptor" from CheatBreaker's, which
+     * repeat across classes and overload by descriptor.
+     */
     private final Map<String, String> membersToNamed = new HashMap<>();
     /** Named class, then named member name and descriptor, to the runtime name. */
     private final Map<String, Map<String, String>> membersToRuntime = new HashMap<>();
@@ -70,12 +90,40 @@ public final class Remap {
     public static void main(String[] args) throws IOException, ReflectiveOperationException {
         switch (args[0]) {
             case "named" -> tiny(Path.of(args[1])).toNamed(Path.of(args[2]), Path.of(args[3]));
-            case "intermediary" -> tiny(Path.of(args[1])).toRuntime(Path.of(args[2]), Path.of(args[3]),
-                    Path.of(args[4]), false);
-            case "cheatbreaker" -> cheatBreaker(Path.of(args[1])).toRuntime(Path.of(args[2]), Path.of(args[3]),
-                    Path.of(args[4]), true);
-            case "hooks" -> cheatBreaker(Path.of(args[1])).hooks(Path.of(args[2]), Path.of(args[3]), args[4],
-                    args[5], Path.of(args[6]));
+            case "mcp" -> cheatBreaker(Files.readAllLines(Path.of(args[1]))).toMcp(Path.of(args[2]),
+                    Path.of(args[3]));
+            case "intermediary" -> {
+                Remap remap = tiny(Path.of(args[1]));
+                remap.learnJar(Path.of(args[2]));
+                write(remap.rename(readClasses(Path.of(args[3])), Map.of(), false), Path.of(args[4]));
+            }
+            case "cheatbreaker" -> {
+                List<Path> inputs = Stream.of(args[3].split(",")).map(Path::of).toList();
+                Map<String, byte[]> rewritten = new HashMap<>();
+                for (Path set : inputs.subList(1, inputs.size())) {
+                    rewritten.putAll(readClasses(set));
+                }
+                Map<String, byte[]> overlay;
+                try (ZipFile game = new ZipFile(args[2])) {
+                    overlay = cheatBreaker(Files.readAllLines(Path.of(args[1])))
+                            .toCheatBreaker(game, readClasses(inputs.get(0)), rewritten);
+                }
+                write(overlay, Path.of(args[4]));
+            }
+            case "hooks" -> {
+                List<String> table = tableRows(args[3], args[4]);
+                List<String> problems = new ArrayList<>();
+                List<String> lines;
+                try (ZipFile game = new ZipFile(args[2])) {
+                    lines = cheatBreaker(Files.readAllLines(Path.of(args[1]))).hooks(game, table, problems);
+                }
+                problems.forEach(System.err::println);
+                if (!problems.isEmpty()) {
+                    System.exit(1);
+                }
+                writeLines(lines, Path.of(args[5]));
+                writeLines(table, Path.of(args[6]));
+            }
             default -> throw new IllegalArgumentException("unknown direction " + args[0]);
         }
     }
@@ -112,16 +160,24 @@ public final class Remap {
         return remap;
     }
 
-    private static Remap cheatBreaker(Path names) throws IOException {
+    /** From names.tsv's lines; see tools/CbMap.java. */
+    public static Remap cheatBreaker(List<String> names) {
         Remap remap = new Remap();
-        for (String line : Files.readAllLines(names)) {
+        List<String[]> members = new ArrayList<>();
+        for (String line : names) {
             String[] parts = line.split("\t");
             if (parts[0].equals("CL")) {
                 remap.classesToRuntime.put(parts[1], parts[2]);
+                remap.classesToNamed.put(parts[2], parts[1]);
             } else {
-                remap.membersToRuntime.computeIfAbsent(parts[1], key -> new HashMap<>())
-                        .put(parts[2] + parts[3], parts[4]);
+                members.add(parts);
             }
+        }
+        for (String[] member : members) {
+            remap.membersToRuntime.computeIfAbsent(member[1], key -> new HashMap<>())
+                    .put(member[2] + member[3], member[4]);
+            remap.membersToNamed.put(remap.classesToRuntime.getOrDefault(member[1], member[1]) + "." + member[4]
+                    + mapDescriptor(member[3], remap.classesToRuntime), member[2]);
         }
         return remap;
     }
@@ -141,8 +197,71 @@ public final class Remap {
         return out.toString();
     }
 
+    /** CheatBreaker's names to MCP's. */
+    private Remapper namedRemapper() {
+        return new Remapper() {
+            @Override
+            public String map(String internalName) {
+                return classesToNamed.getOrDefault(internalName, internalName);
+            }
+
+            @Override
+            public String mapMethodName(String owner, String name, String descriptor) {
+                return membersToNamed.getOrDefault(owner + "." + name + descriptor, name);
+            }
+
+            @Override
+            public String mapFieldName(String owner, String name, String descriptor) {
+                return membersToNamed.getOrDefault(owner + "." + name + descriptor, name);
+            }
+        };
+    }
+
+    private void toMcp(Path runtimeJar, Path mcpJar) throws IOException {
+        Remapper remapper = namedRemapper();
+        /*
+         * CheatBreaker's classes are all top level, and javac only finds a
+         * nested class through its outer class's InnerClasses entry, so the
+         * named member classes get their entries back, as static ones.
+         */
+        Map<String, Integer> nested = new HashMap<>();
+        try (ZipFile zip = new ZipFile(runtimeJar.toFile())) {
+            for (ZipEntry entry : zip.stream().filter(e -> e.getName().endsWith(".class")).collect(Collectors.toList())) {
+                try (InputStream in = zip.getInputStream(entry)) {
+                    ClassReader reader = new ClassReader(in.readAllBytes());
+                    String name = remapper.map(reader.getClassName());
+                    int dollar = name.lastIndexOf('$');
+                    if (dollar > 0 && !Character.isDigit(name.charAt(dollar + 1))) {
+                        nested.put(name, reader.getAccess() & ~Opcodes.ACC_SUPER | Opcodes.ACC_STATIC);
+                    }
+                }
+            }
+        }
+        writeSignatures(runtimeJar, mcpJar, remapper, next -> new ClassVisitor(Opcodes.ASM9, next) {
+            private String name;
+
+            @Override
+            public void visit(int version, int access, String name, String signature, String superName,
+                              String[] interfaces) {
+                this.name = name;
+                super.visit(version, access, name, signature, superName, interfaces);
+            }
+
+            @Override
+            public void visitEnd() {
+                nested.forEach((inner, access) -> {
+                    String outer = inner.substring(0, inner.lastIndexOf('$'));
+                    if (inner.equals(name) || outer.equals(name)) {
+                        super.visitInnerClass(inner, outer, inner.substring(outer.length() + 1), access);
+                    }
+                });
+                super.visitEnd();
+            }
+        });
+    }
+
     private void toNamed(Path intermediaryJar, Path namedJar) throws IOException {
-        Remapper remapper = new Remapper() {
+        writeSignatures(intermediaryJar, namedJar, new Remapper() {
             @Override
             public String map(String internalName) {
                 return classesToNamed.getOrDefault(internalName, internalName);
@@ -167,12 +286,20 @@ public final class Remap {
             public String mapInvokeDynamicMethodName(String name, String descriptor) {
                 return membersToNamed.getOrDefault(name, name);
             }
-        };
+        }, UnaryOperator.identity());
+    }
+
+    /** The jar's classes without code under the remapper's names, each through {@code named} before it is written. */
+    private static void writeSignatures(Path runtimeJar, Path namedJar, Remapper remapper,
+                                        UnaryOperator<ClassVisitor> named) throws IOException {
         Path partial = namedJar.resolveSibling(namedJar.getFileName() + ".part");
-        try (ZipFile zip = new ZipFile(intermediaryJar.toFile());
+        try (ZipFile zip = new ZipFile(runtimeJar.toFile());
              OutputStream os = Files.newOutputStream(partial);
              ZipOutputStream zout = new ZipOutputStream(os)) {
             for (ZipEntry entry : zip.stream().collect(Collectors.toList())) {
+                if (!entry.getName().endsWith(".class")) {
+                    continue;
+                }
                 byte[] bytes;
                 try (InputStream in = zip.getInputStream(entry)) {
                     bytes = in.readAllBytes();
@@ -187,7 +314,7 @@ public final class Remap {
                         super.visit(Math.min(version, Opcodes.V17), access, name, signature, superName, interfaces);
                     }
                 };
-                reader.accept(new ClassRemapper(release17, remapper), ClassReader.SKIP_CODE);
+                reader.accept(new ClassRemapper(named.apply(release17), remapper), ClassReader.SKIP_CODE);
                 String name = remapper.map(reader.getClassName());
                 zout.putNextEntry(new ZipEntry(name + ".class"));
                 zout.write(writer.toByteArray());
@@ -209,30 +336,74 @@ public final class Remap {
         }
     }
 
-    private void toRuntime(Path namedJar, Path input, Path output, boolean changedOnly) throws IOException {
-        learnJar(namedJar);
-        List<Path> files;
-        try (Stream<Path> walk = Files.walk(input)) {
-            files = walk.filter(path -> path.toString().endsWith(".class")).collect(Collectors.toList());
+    /** CheatBreaker's hierarchy, read back under MCP's names, which the client's references are resolved in. */
+    private void learnCheatBreaker(ZipFile game) throws IOException {
+        Remapper named = namedRemapper();
+        for (ZipEntry entry : Collections.list(game.entries())) {
+            if (entry.getName().endsWith(".class")) {
+                ClassWriter writer = new ClassWriter(0);
+                try (InputStream in = game.getInputStream(entry)) {
+                    new ClassReader(in.readAllBytes()).accept(new ClassRemapper(writer, named), ClassReader.SKIP_CODE);
+                }
+                learn(new ClassReader(writer.toByteArray()));
+            }
         }
-        Map<Path, ClassReader> readers = new HashMap<>();
-        for (Path file : files) {
-            ClassReader reader = new ClassReader(Files.readAllBytes(file));
-            learn(reader);
-            readers.put(file, reader);
-        }
+    }
+
+    /**
+     * The overlay for CheatBreaker's game, by class path: every class of
+     * {@code classes} that has anything renamed, and every class of
+     * {@code rewritten}, which stands in for the class of {@code classes} at
+     * the same path.
+     */
+    public Map<String, byte[]> toCheatBreaker(ZipFile game, Map<String, byte[]> classes,
+                                              Map<String, byte[]> rewritten) throws IOException {
+        learnCheatBreaker(game);
+        return rename(classes, rewritten, true);
+    }
+
+    private Map<String, byte[]> rename(Map<String, byte[]> classes, Map<String, byte[]> rewritten,
+                                       boolean changedOnly) {
+        Map<String, ClassReader> readers = new HashMap<>();
+        classes.forEach((path, bytes) -> readers.put(path, new ClassReader(bytes)));
+        rewritten.forEach((path, bytes) -> readers.put(path, new ClassReader(bytes)));
+        readers.values().forEach(this::learn);
         Remapper remapper = runtimeRemapper();
-        for (Map.Entry<Path, ClassReader> entry : readers.entrySet()) {
+        Map<String, byte[]> out = new HashMap<>();
+        for (Map.Entry<String, ClassReader> entry : readers.entrySet()) {
             ClassWriter writer = new ClassWriter(0);
             renamed = false;
             entry.getValue().accept(new ClassRemapper(Opcodes.ASM9, writer, remapper) {}, 0);
-            if (changedOnly && !renamed) {
-                continue;
+            if (!changedOnly || renamed || rewritten.containsKey(entry.getKey())) {
+                out.put(entry.getKey(), writer.toByteArray());
             }
-            Path target = output.resolve(input.relativize(entry.getKey()));
-            Files.createDirectories(target.getParent());
-            Files.write(target, writer.toByteArray());
         }
+        return out;
+    }
+
+    /** Every class under {@code root}, by its path relative to it. */
+    private static Map<String, byte[]> readClasses(Path root) throws IOException {
+        Map<String, byte[]> classes = new HashMap<>();
+        try (Stream<Path> walk = Files.walk(root)) {
+            for (Path file : walk.filter(path -> path.toString().endsWith(".class")).collect(Collectors.toList())) {
+                classes.put(root.relativize(file).toString().replace(File.separatorChar, '/'),
+                        Files.readAllBytes(file));
+            }
+        }
+        return classes;
+    }
+
+    private static void write(Map<String, byte[]> classes, Path output) throws IOException {
+        for (Map.Entry<String, byte[]> entry : classes.entrySet()) {
+            Path target = output.resolve(entry.getKey());
+            Files.createDirectories(target.getParent());
+            Files.write(target, entry.getValue());
+        }
+    }
+
+    private static void writeLines(List<String> lines, Path output) throws IOException {
+        Files.createDirectories(output.getParent());
+        Files.writeString(output, String.join("\n", lines) + "\n", StandardCharsets.UTF_8);
     }
 
     private Remapper runtimeRemapper() {
@@ -273,16 +444,13 @@ public final class Remap {
     }
 
     /**
-     * Writes each hook as owner, method, descriptor, then where it goes (kind,
-     * opcode, owner, name, descriptor, ordinal; a dash for HEAD and RETURN),
-     * the handler and its flags: s(elf), a(rgs), c(ancellable), r(esult).
-     * Fails when a hook names a game member CheatBreaker's names do not cover,
-     * or when its method or anchor is not in CheatBreaker's game, which would
-     * only be found in game otherwise.
+     * {@code tableClass}'s {@code ALL}, one hook per line: owner, method,
+     * descriptor, then where it goes (kind, opcode, owner, name, descriptor,
+     * ordinal; a dash for HEAD and RETURN), the handler and its flags: s(elf),
+     * a(rgs), c(ancellable), r(esult).
      */
-    private void hooks(Path namedJar, Path runtimeJar, String classpath, String tableClass, Path output)
+    private static List<String> tableRows(String classpath, String tableClass)
             throws IOException, ReflectiveOperationException {
-        learnJar(namedJar);
         List<URL> urls = new ArrayList<>();
         for (String entry : classpath.split(File.pathSeparator)) {
             urls.add(Path.of(entry).toUri().toURL());
@@ -291,73 +459,108 @@ public final class Remap {
         try (URLClassLoader loader = new URLClassLoader(urls.toArray(new URL[0]), Remap.class.getClassLoader())) {
             hooks = (List<?>) Class.forName(tableClass, true, loader).getField("ALL").get(null);
         }
-        Remapper remapper = runtimeRemapper();
-        List<String> lines = new ArrayList<>();
-        List<String> unmapped = new ArrayList<>();
+        List<String> rows = new ArrayList<>();
         for (Object hook : hooks) {
-            String owner = component(hook, "owner");
-            String method = component(hook, "method");
-            String descriptor = component(hook, "descriptor");
             Object at = component(hook, "at");
             String kind = component(at, "kind").toString();
-            String handler = component(hook, "handler");
-            requireClass(owner, unmapped);
-            List<String> line = new ArrayList<>(List.of(remapper.map(owner),
-                    mapped(remapper.mapMethodName(owner, method, descriptor), method, owner, unmapped),
-                    remapper.mapMethodDesc(descriptor), kind));
+            List<String> row = new ArrayList<>(List.of(component(hook, "owner"), component(hook, "method"),
+                    component(hook, "descriptor"), kind));
             if (kind.equals("HEAD") || kind.equals("RETURN")) {
-                line.addAll(List.of("-", "-", "-", "-", "-"));
+                row.addAll(List.of("-", "-", "-", "-", "-"));
             } else {
-                int opcode = component(at, "opcode");
-                String atOwner = component(at, "owner");
-                String atName = component(at, "name");
-                String atDescriptor = component(at, "descriptor");
-                requireClass(atOwner, unmapped);
-                boolean field = opcode >= Opcodes.GETSTATIC && opcode <= Opcodes.PUTFIELD;
-                String name = field ? remapper.mapFieldName(atOwner, atName, atDescriptor)
-                        : remapper.mapMethodName(atOwner, atName, atDescriptor);
-                line.addAll(List.of(String.valueOf(opcode), remapper.map(atOwner),
-                        mapped(name, atName, atOwner, unmapped),
-                        field ? remapper.mapDesc(atDescriptor) : remapper.mapMethodDesc(atDescriptor),
+                row.addAll(List.of(String.valueOf((int) component(at, "opcode")), component(at, "owner"),
+                        component(at, "name"), component(at, "descriptor"),
                         String.valueOf((int) component(at, "ordinal"))));
             }
             String flags = ((boolean) component(hook, "self") ? "s" : "") + ((boolean) component(hook, "args") ? "a" : "")
                     + ((boolean) component(hook, "cancellable") ? "c" : "") + ((boolean) component(hook, "result") ? "r" : "");
-            line.add(handler);
-            line.add(flags.isEmpty() ? "-" : flags);
-            lines.add(String.join("\t", line));
+            row.add(component(hook, "handler"));
+            row.add(flags.isEmpty() ? "-" : flags);
+            rows.add(String.join("\t", row));
         }
-        if (!unmapped.isEmpty()) {
-            unmapped.forEach(name -> System.err.println("no CheatBreaker name for " + name));
-            System.exit(1);
-        }
-        List<String> missing = new ArrayList<>();
-        try (ZipFile game = new ZipFile(runtimeJar.toFile())) {
-            for (String line : lines) {
-                String problem = missingAnchor(game, line.split("	"));
-                if (problem != null) {
-                    missing.add(problem);
-                }
+        return rows;
+    }
+
+    /**
+     * The hooks of {@code table}, written under MCP's names, under
+     * CheatBreaker's. A hook on method {@code *} goes in the one method of its
+     * class with that descriptor that no vanilla method matches: one
+     * CheatBreaker added, or reworked so far that vanilla's has no match. A
+     * hook that names a game member
+     * CheatBreaker's names do not cover, or whose method or anchor is not in
+     * CheatBreaker's game, is left out, and why goes to {@code problems}.
+     */
+    public List<String> hooks(ZipFile game, List<String> table, List<String> problems) throws IOException {
+        learnCheatBreaker(game);
+        Remapper remapper = runtimeRemapper();
+        List<String> lines = new ArrayList<>();
+        for (String row : table) {
+            String[] column = row.split("\t");
+            String hook = column[9] + ": ";
+            List<String> unmapped = new ArrayList<>();
+            String owner = column[0];
+            requireClass(owner, hook, unmapped);
+            String[] line = column.clone();
+            line[0] = remapper.map(owner);
+            line[2] = remapper.mapMethodDesc(column[2]);
+            line[1] = column[1].equals("*") ? onlyMethod(game, line[0], line[2], hook, unmapped)
+                    : mapped(remapper.mapMethodName(owner, column[1], column[2]), column[1], owner, hook, unmapped);
+            if (!column[4].equals("-")) {
+                int opcode = Integer.parseInt(column[4]);
+                String atOwner = column[5];
+                requireClass(atOwner, hook, unmapped);
+                boolean field = opcode >= Opcodes.GETSTATIC && opcode <= Opcodes.PUTFIELD;
+                String name = field ? remapper.mapFieldName(atOwner, column[6], column[7])
+                        : remapper.mapMethodName(atOwner, column[6], column[7]);
+                line[5] = remapper.map(atOwner);
+                line[6] = mapped(name, column[6], atOwner, hook, unmapped);
+                line[7] = field ? remapper.mapDesc(column[7]) : remapper.mapMethodDesc(column[7]);
+            }
+            String missing = unmapped.isEmpty() ? missingAnchor(game, line) : null;
+            if (!unmapped.isEmpty()) {
+                problems.addAll(unmapped);
+            } else if (missing != null) {
+                problems.add(missing);
+            } else {
+                lines.add(String.join("\t", line));
             }
         }
-        if (!missing.isEmpty()) {
-            missing.forEach(System.err::println);
-            System.exit(1);
+        return lines;
+    }
+
+    /** The name of {@code owner}'s one method of its own with that descriptor, or "*" with the problem noted. */
+    private String onlyMethod(ZipFile game, String owner, String descriptor, String hook, List<String> problems)
+            throws IOException {
+        ClassNode node = gameClass(game, owner);
+        List<String> names = node == null ? List.of() : node.methods.stream()
+                .filter(method -> method.desc.equals(descriptor)
+                        && !membersToNamed.containsKey(owner + "." + method.name + method.desc))
+                .map(method -> method.name).toList();
+        if (names.size() != 1) {
+            problems.add(hook + names.size() + " methods " + descriptor + " in " + owner + ", where * needs one");
+            return "*";
         }
-        Files.createDirectories(output.getParent());
-        Files.writeString(output, String.join("\n", lines) + "\n", StandardCharsets.UTF_8);
+        return names.get(0);
+    }
+
+    private static ClassNode gameClass(ZipFile game, String name) throws IOException {
+        ZipEntry entry = game.getEntry(name + ".class");
+        if (entry == null) {
+            return null;
+        }
+        ClassNode node = new ClassNode();
+        try (InputStream in = game.getInputStream(entry)) {
+            new ClassReader(in.readAllBytes()).accept(node, 0);
+        }
+        return node;
     }
 
     /** Why the hook in {@code column} would be skipped in game, or null when it applies. */
     private static String missingAnchor(ZipFile game, String[] column) throws IOException {
         String hook = column[9] + ": ";
-        ZipEntry entry = game.getEntry(column[0] + ".class");
-        if (entry == null) {
+        ClassNode node = gameClass(game, column[0]);
+        if (node == null) {
             return hook + "no class " + column[0];
-        }
-        ClassNode node = new ClassNode();
-        try (InputStream in = game.getInputStream(entry)) {
-            new ClassReader(in.readAllBytes()).accept(node, 0);
         }
         MethodNode method = node.methods.stream()
                 .filter(candidate -> candidate.name.equals(column[1]) && candidate.desc.equals(column[2]))
@@ -384,16 +587,16 @@ public final class Remap {
                 : hook + seen + " of " + column[5] + "." + column[6] + column[7] + " in " + column[1] + ", needs #" + ordinal;
     }
 
-    private void requireClass(String owner, List<String> unmapped) {
+    private void requireClass(String owner, String hook, List<String> unmapped) {
         if (owner.startsWith("net/minecraft/") && !classesToRuntime.containsKey(owner)) {
-            unmapped.add(owner);
+            unmapped.add(hook + "no CheatBreaker name for " + owner);
         }
     }
 
     /** A member of a game class that kept its MCP name has no CheatBreaker counterpart. */
-    private String mapped(String runtime, String named, String owner, List<String> unmapped) {
+    private String mapped(String runtime, String named, String owner, String hook, List<String> unmapped) {
         if (runtime.equals(named) && classesToRuntime.containsKey(owner) && !named.startsWith("<")) {
-            unmapped.add(owner + "." + named);
+            unmapped.add(hook + "no CheatBreaker name for " + owner + "." + named);
         }
         return runtime;
     }

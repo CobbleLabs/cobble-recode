@@ -16,7 +16,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.FallingBlock;
 import net.minecraft.block.RespawnAnchorBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
@@ -66,6 +68,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.EmptyBlockView;
 import org.lwjgl.glfw.GLFW;
 
 /** The game as Lunar's 1.21.11 runs it, under Yarn names here and Fabric's intermediary ones at runtime. */
@@ -421,6 +424,9 @@ final class GameAdapter implements Game {
             case MAGMA_CREAM -> stack.isOf(Items.MAGMA_CREAM);
             case SPIDER_EYE -> stack.isOf(Items.SPIDER_EYE);
             case GOLDEN_SWORD -> stack.isOf(Items.GOLDEN_SWORD);
+            case BUILDING_BLOCK -> stack.getItem() instanceof BlockItem item
+                    && item.getBlock().getDefaultState().isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)
+                    && !(item.getBlock() instanceof FallingBlock) && !(item.getBlock() instanceof BlockWithEntity);
         };
     }
 
